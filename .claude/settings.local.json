@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(rsync -av --exclude=.git --exclude=node_modules --exclude=dist --exclude=storage --exclude=storage_tmp --exclude=out.pdf --exclude=__pycache__ '--exclude=*.pyc' --exclude=.venv --exclude=venv /Users/ilyapopov/Documents/SlideCraft-AI/.claude/worktrees/mystifying-visvesvaraya/ /Users/ilyapopov/Documents/lovable-export/Slide_Craft_AI-main/)"
+    ]
+  }
+}
