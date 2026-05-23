@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 # ── Canvas dimensions ─────────────────────────────────────────────────────────
 W, H = 1280, 720
 
+# ── Accent color variants per theme (worker picks one per slide for visual variety) ──
+THEME_ACCENT_VARIANTS: dict[str, list[str]] = {
+    "dark_tech_pitch":    ["#22C55E", "#3B82F6", "#A855F7", "#F59E0B"],
+    "clean_editorial":    ["#334155", "#7C3AED", "#0369A1", "#B45309"],
+    "infographic_bright": ["#0EA5E9", "#10B981", "#F59E0B", "#8B5CF6"],
+}
+
 # ── Theme palette ─────────────────────────────────────────────────────────────
 THEME_VARS: dict[str, dict[str, str]] = {
     "dark_tech_pitch": {
@@ -476,36 +483,65 @@ def _make_standalone_slide_html(slide: SlideSpec, theme: dict, title: str = "") 
     )
 
 
+def _slide_neighbor_summary(slide: SlideSpec | None) -> dict | None:
+    """Compact slide summary for worker context (prev/next awareness)."""
+    if slide is None:
+        return None
+    return {
+        "title": slide.title,
+        "layout_type": slide.layout_type,
+        "type": slide.type,
+    }
+
+
 def _build_slides_with_worker(spec: PresentationSpec) -> list[str]:
     """Generate per-slide HTML using Worker LLM (parallel, with deterministic fallback).
+
+    Each slide payload includes:
+    - Neighbor context (prev/next slide summaries) for visual continuity
+    - slide_index + total_slides for narrative positioning
+    - accent_variants so the worker can vary colors across slides
 
     Returns a list of standalone HTML strings in slide order.
     """
     from app.services.worker_llm_service import WorkerLLMService
 
     worker = WorkerLLMService()
+    theme_key = spec.theme_variant or "clean_editorial"
     theme = _resolve_theme(spec)
+    accent_variants = THEME_ACCENT_VARIANTS.get(theme_key, [theme["accent"]])
+    total = len(spec.slides)
 
     def render_one(idx: int, slide: SlideSpec) -> tuple[int, str]:
         layout_name = _resolve_layout(slide)
+        prev_slide = spec.slides[idx - 1] if idx > 0 else None
+        next_slide = spec.slides[idx + 1] if idx < total - 1 else None
+
         payload = {
             "canvas_w": W,
             "canvas_h": H,
             "theme": theme,
+            "accent_variants": accent_variants,
+            "suggested_accent": accent_variants[idx % len(accent_variants)],
             "layout_type": layout_name,
             "layout_blocks": LAYOUTS.get(layout_name, LAYOUTS["content_two_column"]),
             "slide": slide.model_dump(),
+            "slide_index": idx,
+            "total_slides": total,
+            "position": "first" if idx == 0 else ("last" if idx == total - 1 else "middle"),
+            "prev_slide": _slide_neighbor_summary(prev_slide),
+            "next_slide": _slide_neighbor_summary(next_slide),
             "presentation_title": spec.title,
         }
         try:
             html = worker.render_slide_html(payload=payload)
-            logger.debug("worker.ok slide_id=%s", slide.id)
+            logger.debug("worker.ok slide_id=%s idx=%s", slide.id, idx)
             return idx, html
         except Exception as exc:
-            logger.warning("worker.fallback slide_id=%s err=%s", slide.id, exc)
+            logger.warning("worker.fallback slide_id=%s idx=%s err=%s", slide.id, idx, exc)
             return idx, _make_standalone_slide_html(slide, theme, spec.title or "")
 
-    results: list[str] = [""] * len(spec.slides)
+    results: list[str] = [""] * total
     with ThreadPoolExecutor(max_workers=3) as pool:
         futures = {pool.submit(render_one, i, slide): i for i, slide in enumerate(spec.slides)}
         for fut in as_completed(futures):

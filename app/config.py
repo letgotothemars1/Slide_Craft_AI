@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Set WORKER_LLM_ENABLED=true to activate; uses OPENAI_WORKER_MODEL if set, else OPENAI_MODEL.
     WORKER_LLM_ENABLED: bool = False
     OPENAI_WORKER_MODEL: str | None = None
+    # Critic LLM: quality-review agent that fixes spec before rendering.
+    # Set CRITIC_LLM_ENABLED=true to activate; uses OPENAI_CRITIC_MODEL if set, else OPENAI_MODEL.
+    CRITIC_LLM_ENABLED: bool = False
+    OPENAI_CRITIC_MODEL: str | None = None
     # OpenAI image generation configuration (optional; reserved for future use).
     OPENAI_IMAGE_MODEL: str | None = None
     OPENAI_IMAGE_SIZE: str | None = None

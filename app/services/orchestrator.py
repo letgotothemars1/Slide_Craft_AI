@@ -201,6 +201,17 @@ def _select_image_candidates(spec: PresentationSpec) -> list[tuple[int, int, str
     return ranked[:MAX_IMAGES_PER_PRESENTATION]
 
 
+def _run_critic(spec_json: dict) -> dict:
+    """Run Critic LLM quality review. Always returns a spec — original on failure."""
+    try:
+        from app.services.critic_llm_service import CriticLLMService
+        critic = CriticLLMService()
+        return critic.review_and_fix(spec_json)
+    except Exception:
+        logger.exception("orchestrator.critic.error — keeping original spec")
+        return spec_json
+
+
 def generate_assets(job_id: str, spec_json: dict, temp_dir: Path) -> tuple[dict, list[UploadedArtifact]]:
     """
     Optional image generation step.
@@ -405,6 +416,11 @@ def run_generation_pipeline(job_id: str) -> None:
                     job_id,
                 )
                 spec_json = None
+
+        if spec_json is not None and settings.CRITIC_LLM_ENABLED:
+            _set_running_state(job_id, 35, "Reviewing presentation quality...")
+            current_step = "spec.critic"
+            spec_json = _run_critic(spec_json)
 
         image_artifacts: list[UploadedArtifact] = []
         if spec_json is not None:
