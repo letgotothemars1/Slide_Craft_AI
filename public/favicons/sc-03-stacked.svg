@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#2563EB"/>
+  <text x="11" y="15.5"
+        font-family="'Inter', -apple-system, sans-serif"
+        font-size="13" font-weight="800"
+        fill="#FFFFFF">S</text>
+  <text x="14.5" y="26"
+        font-family="'Inter', -apple-system, sans-serif"
+        font-size="13" font-weight="800"
+        fill="#FFFFFF" opacity="0.6">C</text>
+</svg>

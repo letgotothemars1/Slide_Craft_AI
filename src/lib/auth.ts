@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL as string;
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "";
 
 export interface AuthUser {
   id: string;

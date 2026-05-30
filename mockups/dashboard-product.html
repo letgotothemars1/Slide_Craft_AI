@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>SlideCraft AI — Product Dashboard (mockup v3)</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563EB;
+      --accent: #7C3AED;
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --muted: #64748B;
+      --success: #16A34A;
+      --error: #DC2626;
+      --warning: #F59E0B;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .header .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .header .controls { display: flex; gap: 12px; align-items: center; }
+    .period {
+      display: flex;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px;
+    }
+    .period button {
+      padding: 6px 12px;
+      border: 0;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 6px;
+      font-family: inherit;
+    }
+    .period button.active { background: var(--text); color: white; }
+    .refresh {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      color: var(--text);
+    }
+    .refresh-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 6px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .pulse {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      position: relative;
+    }
+    .pulse::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.7; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+
+    /* KPI row */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      position: relative;
+    }
+    .kpi .label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .kpi .value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 8px;
+      letter-spacing: -0.02em;
+    }
+    .kpi .delta { font-size: 12px; margin-top: 6px; color: var(--success); font-weight: 500; }
+    .kpi .delta.neg { color: var(--error); }
+    .kpi .sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .kpi-help {
+      position: absolute; top: 14px; right: 14px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #F1F5F9;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 16px;
+      cursor: help;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 4px;
+      letter-spacing: -0.01em;
+    }
+    .card .hint { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+
+    .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+
+    /* Funnel */
+    .funnel { display: flex; flex-direction: column; gap: 12px; }
+    .funnel-row { display: grid; grid-template-columns: 150px 1fr 70px; align-items: center; gap: 12px; }
+    .funnel-label { font-size: 13px; font-weight: 500; color: var(--text); }
+    .funnel-bar { position: relative; height: 32px; background: #F1F5F9; border-radius: 6px; overflow: hidden; }
+    .funnel-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+      display: flex; align-items: center; padding-left: 12px;
+      color: white; font-size: 13px; font-weight: 600; min-width: 40px;
+    }
+    .funnel-conv { font-size: 13px; color: var(--success); font-weight: 600; text-align: right; }
+    .funnel-conv.first { color: var(--muted); font-weight: 400; }
+    .funnel-summary {
+      margin-top: 18px; padding-top: 16px;
+      border-top: 1px dashed var(--border);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .funnel-summary .ks { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .funnel-summary .vs { font-size: 20px; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
+    .funnel-summary .ds { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* SVG-based donuts */
+    .donut-svg-wrap { display: flex; flex-direction: column; align-items: center; }
+    .donut-svg { width: 140px; height: 140px; }
+    .donut-center {
+      font-size: 20px; font-weight: 700;
+      fill: var(--text);
+    }
+    .donut-center-sub {
+      font-size: 10px; fill: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .donut-legend {
+      margin-top: 14px;
+      display: flex; flex-direction: column; gap: 6px;
+      width: 100%;
+      font-size: 12px;
+    }
+    .legend-item {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+    }
+    .legend-left { display: flex; align-items: center; gap: 8px; }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .legend-name { color: var(--text); }
+    .legend-value { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    /* SVG line chart */
+    .line-svg { width: 100%; height: 280px; display: block; }
+
+    /* Errors table */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    th { font-weight: 500; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    td.count { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 500;
+      background: #FEE2E2; color: var(--error); margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <div>
+      <h1>SlideCraft AI Product Dashboard</h1>
+      <div class="subtitle">Воронка, конверсии и распределения по презентациям</div>
+    </div>
+    <div class="controls">
+      <div class="refresh-status">
+        <span class="pulse"></span>
+        <span>Auto-refresh каждые 30 сек · обновлено <b>7 сек назад</b></span>
+      </div>
+      <div class="period">
+        <button>7 дней</button>
+        <button class="active">30 дней</button>
+        <button>90 дней</button>
+      </div>
+      <button class="refresh">↻ Сейчас</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-help" title="За последние 30 дней. Сравнение со скользящим окном — предыдущие 30 дней (с -60 по -31 день).">?</div>
+      <div class="label">Всего презентаций</div>
+      <div class="value">1 234</div>
+      <div class="sub">+187 за 7 дней · +642 за 30 дней</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-help" title="Скользящее окно: текущие 30 дней vs предыдущие 30 дней">?</div>
+      <div class="label">Success rate</div>
+      <div class="value">87%</div>
+      <div class="delta">▲ 2.3% к -60..-31 дню</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-help" title="Скользящее окно: текущие 30 дней vs предыдущие 30 дней">?</div>
+      <div class="label">Error rate</div>
+      <div class="value">8%</div>
+      <div class="delta neg">▲ 1.1% к -60..-31 дню</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Среднее слайдов</div>
+      <div class="value">11.4</div>
+      <div class="sub">медиана 10</div>
+    </div>
+    <div class="kpi">
+      <div class="label">RAG режим</div>
+      <div class="value">23%</div>
+      <div class="sub">с прикреплённым PDF</div>
+    </div>
+  </div>
+
+  <!-- TREND + FUNNEL -->
+  <div class="grid-2">
+    <div class="card">
+      <h2>Презентации по дням</h2>
+      <div class="hint">Скользящее окно · последние 30 дней · создано джобов в сутки</div>
+      <svg id="trend-svg" class="line-svg" viewBox="0 0 600 280" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="card">
+      <h2>Воронка</h2>
+      <div class="hint">Уникальных сессий за 30 дней · процент = конверсия с прошлого шага</div>
+      <div class="funnel">
+        <div class="funnel-row">
+          <div class="funnel-label">Зашли на сайт</div>
+          <div class="funnel-bar"><div class="funnel-fill" style="width:100%">2 400</div></div>
+          <div class="funnel-conv first">—</div>
+        </div>
+        <div class="funnel-row">
+          <div class="funnel-label">Нажали «Попробовать»</div>
+          <div class="funnel-bar"><div class="funnel-fill" style="width:30%">720</div></div>
+          <div class="funnel-conv">30%</div>
+        </div>
+        <div class="funnel-row">
+          <div class="funnel-label">Нажали «Сгенерировать»</div>
+          <div class="funnel-bar"><div class="funnel-fill" style="width:15.8%">380</div></div>
+          <div class="funnel-conv">53%</div>
+        </div>
+        <div class="funnel-row">
+          <div class="funnel-label">Презентация готова</div>
+          <div class="funnel-bar"><div class="funnel-fill" style="width:13.3%">320</div></div>
+          <div class="funnel-conv">84%</div>
+        </div>
+      </div>
+      <div class="funnel-summary">
+        <div>
+          <div class="ks">Общая конверсия (от посетителей)</div>
+          <div class="vs">13.3%</div>
+          <div class="ds">2 400 посетителей → 320 готовых презентаций</div>
+        </div>
+        <div>
+          <div class="ks">Дроп между шагами</div>
+          <div class="vs">−70% / −47% / −16%</div>
+          <div class="ds">самая большая потеря — на старте (главная → CTA)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BREAKDOWNS -->
+  <div class="grid-4" id="breakdowns"></div>
+
+  <!-- TOP ERRORS -->
+  <div class="card">
+    <h2>Топ ошибок</h2>
+    <div class="hint">Самые частые причины падения за 30 дней</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60px">#</th>
+          <th>Сообщение</th>
+          <th style="width: 100px; text-align:right">Кол-во</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td><span class="badge">LLM</span>Generation failed at spec.generate: Rate limit exceeded</td><td class="count">12</td></tr>
+        <tr><td>2</td><td><span class="badge">RAG</span>Document indexing failed: PDF parser timeout</td><td class="count">8</td></tr>
+        <tr><td>3</td><td><span class="badge">RENDER</span>Generation failed at pdf.render: Playwright timeout</td><td class="count">5</td></tr>
+        <tr><td>4</td><td><span class="badge">STORAGE</span>Storage upload failed: Supabase 503</td><td class="count">3</td></tr>
+        <tr><td>5</td><td><span class="badge">LLM</span>Generation failed at spec.generate: ValidationError on style</td><td class="count">2</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  const palette = ['#2563EB', '#7C3AED', '#0EA5E9', '#F59E0B', '#16A34A'];
+
+  // -------- SVG line chart (trend) --------
+  (function renderTrend() {
+    const data = [12, 18, 14, 22, 19, 25, 28, 24, 30, 27, 33, 31, 29, 35, 38,
+                  34, 41, 39, 36, 44, 42, 48, 45, 50, 47, 52, 49, 55, 53, 58];
+    const w = 600, h = 280;
+    const padL = 36, padR = 12, padT = 18, padB = 26;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const maxV = Math.max(...data) * 1.15;
+    const xFor = (i) => padL + (i / (data.length - 1)) * innerW;
+    const yFor = (v) => padT + innerH - (v / maxV) * innerH;
+
+    const linePath = data.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i).toFixed(1)} ${yFor(v).toFixed(1)}`).join(' ');
+    const areaPath = `${linePath} L ${xFor(data.length - 1).toFixed(1)} ${padT + innerH} L ${padL} ${padT + innerH} Z`;
+
+    // 4 horizontal gridlines + Y labels
+    const yTicks = [];
+    for (let i = 0; i <= 4; i++) {
+      const value = (maxV * i / 4);
+      const y = padT + innerH - (value / maxV) * innerH;
+      yTicks.push(`
+        <line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#F1F5F9" stroke-width="1"/>
+        <text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#94A3B8">${Math.round(value)}</text>
+      `);
+    }
+    // X ticks every ~5 days
+    const xTicks = [];
+    for (let i = 0; i < data.length; i += 5) {
+      xTicks.push(`<text x="${xFor(i)}" y="${h - 8}" text-anchor="middle" font-size="10" fill="#94A3B8">${i + 1}</text>`);
+    }
+
+    document.getElementById('trend-svg').innerHTML = `
+      <defs>
+        <linearGradient id="trendArea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2563EB" stop-opacity="0.25"/>
+          <stop offset="1" stop-color="#2563EB" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${yTicks.join('')}
+      <path d="${areaPath}" fill="url(#trendArea)"/>
+      <path d="${linePath}" fill="none" stroke="#2563EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${xTicks.join('')}
+    `;
+  })();
+
+  // -------- SVG donut --------
+  function renderDonut(title, hint, labels, values) {
+    const total = values.reduce((a, b) => a + b, 0);
+    const cx = 70, cy = 70, r = 55, thickness = 20;
+
+    let startAngle = -Math.PI / 2; // start from top
+    const segments = values.map((v, i) => {
+      const angle = (v / total) * Math.PI * 2;
+      const endAngle = startAngle + angle;
+      const largeArc = angle > Math.PI ? 1 : 0;
+      const x1 = cx + r * Math.cos(startAngle);
+      const y1 = cy + r * Math.sin(startAngle);
+      const x2 = cx + r * Math.cos(endAngle);
+      const y2 = cy + r * Math.sin(endAngle);
+      const path = `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+      startAngle = endAngle;
+      return `<path d="${path}" stroke="${palette[i % palette.length]}" stroke-width="${thickness}" fill="none" stroke-linecap="butt"/>`;
+    }).join('');
+
+    const legend = labels.map((label, i) => {
+      const pct = Math.round((values[i] / total) * 100);
+      return `
+        <div class="legend-item">
+          <div class="legend-left">
+            <div class="legend-swatch" style="background:${palette[i % palette.length]}"></div>
+            <span class="legend-name">${label}</span>
+          </div>
+          <span class="legend-value">${pct}%</span>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="card">
+        <h2>${title}</h2>
+        <div class="hint">${hint}</div>
+        <div class="donut-svg-wrap">
+          <svg class="donut-svg" viewBox="0 0 140 140">
+            ${segments}
+            <text x="70" y="68" text-anchor="middle" class="donut-center">${total}</text>
+            <text x="70" y="84" text-anchor="middle" class="donut-center-sub">всего</text>
+          </svg>
+          <div class="donut-legend">${legend}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById('breakdowns').innerHTML = [
+    renderDonut('Формат', 'PDF / PPTX / Both', ['PDF', 'PPTX', 'Both'], [45, 30, 25]),
+    renderDonut('Язык', 'ru / en', ['ru', 'en'], [65, 35]),
+    renderDonut('Стиль', 'business / minimal / creative / dark', ['business', 'minimal', 'creative', 'dark'], [40, 25, 20, 15]),
+    renderDonut('Аудитория', 'executives / students / sales / investors / custom', ['executives', 'students', 'sales', 'investors', 'custom'], [35, 25, 20, 15, 5]),
+  ].join('');
+</script>
+
+</body>
+</html>
