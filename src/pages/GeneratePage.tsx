@@ -6,6 +6,7 @@ import PromptForm from "@/components/PromptForm";
 import DocumentUploadCard from "@/components/DocumentUploadCard";
 import { type GenerateRequest, generatePresentation, uploadDocument } from "@/lib/api";
 import { addToHistory } from "@/lib/history";
+import { track } from "@/lib/analytics";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -45,6 +46,15 @@ export default function GeneratePage() {
 
   const handleSubmit = useCallback(async (data: GenerateRequest) => {
     setLoading(true);
+    // Funnel step: user actually pressed "Generate". Capture key form choices.
+    track("generate_click", {
+      audience: data.audience,
+      style: data.style,
+      language: data.language,
+      format: data.format,
+      slides: data.slides,
+      with_document: Boolean(attachedDocumentId),
+    });
     try {
       const payload: GenerateRequest = {
         ...data,

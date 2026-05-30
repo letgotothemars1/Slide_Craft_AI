@@ -82,3 +82,60 @@ class JobStatusResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     ok: bool
+
+
+# --- Analytics ---
+
+class TrackEventRequest(BaseModel):
+    """Payload from frontend tracker. Kept open-ended for future events."""
+
+    session_id: str = Field(min_length=8, max_length=64)
+    event_type: str = Field(min_length=1, max_length=64)
+    metadata: dict | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class TrackEventResponse(BaseModel):
+    ok: bool
+
+
+class FunnelStep(BaseModel):
+    step: str
+    sessions: int
+    conversion_from_previous: float | None  # null for the first step
+
+
+class TrendPoint(BaseModel):
+    date: str  # ISO date "YYYY-MM-DD"
+    count: int
+
+
+class BreakdownItem(BaseModel):
+    value: str
+    count: int
+
+
+class ErrorRow(BaseModel):
+    message: str
+    count: int
+
+
+class ProductMetricsKpi(BaseModel):
+    total_jobs: int
+    jobs_7d: int
+    jobs_30d: int
+    success_rate: float
+    error_rate: float
+    avg_slides: float
+    rag_usage_ratio: float
+
+
+class ProductMetricsResponse(BaseModel):
+    period_days: int
+    generated_at: str
+    kpi: ProductMetricsKpi
+    funnel: list[FunnelStep]
+    trend: list[TrendPoint]
+    breakdowns: dict[str, list[BreakdownItem]]
+    top_errors: list[ErrorRow]

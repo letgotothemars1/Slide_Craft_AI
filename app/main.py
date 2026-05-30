@@ -22,6 +22,7 @@ from app.schemas import (
     HealthResponse,
     JobStatusResponse,
 )
+from app.routers import analytics as analytics_router
 from app.services.document_service import index_document
 from app.services.auth_service import hash_password, verify_password
 from app.services.generator import start_generation_job
@@ -39,6 +40,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(analytics_router.router)
 
 # Local storage mode serves files from /files/...
 app.mount("/files", StaticFiles(directory=str(settings.STORAGE_PATH)), name="files")

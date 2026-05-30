@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     # Telegram bot
     TELEGRAM_BOT_TOKEN: str | None = None
 
+    # Salt for hashing client IPs in analytics_events (we never store raw IPs).
+    # Set to a random string in production via env. If empty, a process-local fallback is used.
+    ANALYTICS_IP_SALT: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

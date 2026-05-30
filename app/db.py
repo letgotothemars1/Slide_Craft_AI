@@ -161,6 +161,29 @@ class JobArtifact(Base):
     job: Mapped[Job] = relationship(back_populates="artifacts")
 
 
+class AnalyticsEvent(Base):
+    """
+    Lightweight analytics event log.
+    One row per tracked frontend event (page_view, cta_click, generate_click, ...).
+    """
+
+    __tablename__ = "analytics_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    referrer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    event_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+
 class JobSpec(Base):
     """Stores generation spec payload per job for reproducibility."""
 

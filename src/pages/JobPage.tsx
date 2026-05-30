@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { type JobStatus, getJobStatus } from "@/lib/api";
 import { updateHistoryStatus } from "@/lib/history";
+import { track } from "@/lib/analytics";
 import JobStatusCard from "@/components/JobStatusCard";
 import PreviewGallery from "@/components/PreviewGallery";
 import DownloadButtons from "@/components/DownloadButtons";
@@ -15,9 +16,12 @@ export default function JobPage() {
   const [job, setJob] = useState<JobStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Ensures we fire `job_done` exactly once per page visit, even if polling races.
+  const reportedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!jobId) return;
+    reportedRef.current = false;
 
     const fetchStatus = async () => {
       try {
@@ -27,6 +31,11 @@ export default function JobPage() {
 
         if (status.status === "done" || status.status === "error") {
           if (intervalRef.current) clearInterval(intervalRef.current);
+          if (!reportedRef.current) {
+            reportedRef.current = true;
+            // Final funnel step — used to compute end-to-end conversion in the dashboard.
+            track("job_done", { job_id: jobId, status: status.status });
+          }
         }
       } catch (err: any) {
         setError(err.message || "Не удалось получить статус задачи");

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { track } from "@/lib/analytics";
 import {
   Sparkles, Layers, Clock, Zap, Globe, Palette, FileText,
   MessageSquare, ArrowRight, Briefcase, GraduationCap, BarChart3,
@@ -127,6 +128,16 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const ctaLink = user ? "/generate" : "/auth";
 
+  useEffect(() => {
+    track("page_view", { page: "landing", authed: Boolean(user) });
+    // We intentionally fire page_view once per mount, not on auth changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleCtaClick = (source: string) => {
+    track("cta_click", { source, authed: Boolean(user) });
+  };
+
   const handleLogout = async () => {
     await logout();
     navigate("/", { replace: true });
@@ -145,7 +156,7 @@ export default function LandingPage() {
             {user ? (
               <>
                 <Button size="sm" asChild>
-                  <Link to="/generate">Создать презентацию</Link>
+                  <Link to="/generate" onClick={() => handleCtaClick("header")}>Создать презентацию</Link>
                 </Button>
                 <Button size="sm" variant="outline" onClick={handleLogout}>
                   Выйти
@@ -201,7 +212,7 @@ export default function LandingPage() {
               {/* CTA */}
               <div className="flex flex-wrap items-center gap-3 justify-center lg:justify-start pt-1">
                 <Button size="lg" asChild className="shadow-elevated text-sm px-7 h-11">
-                  <Link to={ctaLink}>
+                  <Link to={ctaLink} onClick={() => handleCtaClick("hero")}>
                     <Sparkles className="mr-2 h-4 w-4" />
                     Сгенерировать презентацию
                   </Link>
@@ -313,7 +324,7 @@ export default function LandingPage() {
             </p>
             <div className="pt-1">
               <Button size="lg" asChild className="shadow-elevated text-sm px-7 h-11">
-                <Link to={ctaLink}>
+                <Link to={ctaLink} onClick={() => handleCtaClick("footer")}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   Начать бесплатно
                 </Link>
