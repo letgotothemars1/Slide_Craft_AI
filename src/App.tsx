@@ -12,6 +12,7 @@ import JobPage from "./pages/JobPage";
 import HistoryPage from "./pages/HistoryPage";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
+import DashboardPage from "./pages/DashboardPage";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
               }
             />
             <Route path="/jobs/:jobId" element={<JobPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route
               path="/history"
               element={
