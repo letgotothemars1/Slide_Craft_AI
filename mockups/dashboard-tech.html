@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>SlideCraft AI — Technical Dashboard (mockup)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563EB;
+      --accent: #7C3AED;
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --muted: #64748B;
+      --success: #16A34A;
+      --error: #DC2626;
+      --warning: #D97706;
+      --success-bg: #F0FDF4;
+      --error-bg: #FEF2F2;
+      --warning-bg: #FFFBEB;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+
+    /* ── Layout ── */
+    .header {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(255,255,255,0.85); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-logo { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; text-decoration: none; color: var(--text); }
+    .header-nav { display: flex; align-items: center; gap: 20px; }
+    .header-nav a { font-size: 13px; color: var(--muted); text-decoration: none; }
+    .header-nav a:hover { color: var(--text); }
+    .header-nav a.active { color: var(--text); font-weight: 600; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .refresh-badge {
+      display: flex; align-items: center; gap: 6px;
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 5px 12px; font-size: 12px; color: var(--muted); background: var(--card);
+    }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; flex-shrink: 0; }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+    .btn { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+    .btn:hover { background: #F1F5F9; }
+
+    .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ── Page title ── */
+    .page-title { margin-bottom: 28px; }
+    .page-title h1 { font-size: 22px; font-weight: 700; }
+    .page-title p { margin-top: 4px; font-size: 13px; color: var(--muted); }
+
+    /* ── Cards ── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+    .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 600; }
+    .section-sub { font-size: 12px; color: var(--muted); margin-top: 3px; margin-bottom: 16px; }
+
+    /* ── Grid helpers ── */
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .grid-status { display: grid; grid-template-columns: 200px 1fr; gap: 16px; margin-bottom: 20px; }
+
+    /* ── KPI tile ── */
+    .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .kpi-value { font-size: 32px; font-weight: 700; line-height: 1; margin-top: 8px; }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .kpi-warn .kpi-value { color: var(--warning); }
+
+    /* ── Gauge bar ── */
+    .gauge-row { margin-bottom: 16px; }
+    .gauge-row:last-child { margin-bottom: 0; }
+    .gauge-header { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; }
+    .gauge-header span:first-child { color: var(--muted); }
+    .gauge-header span:last-child { font-family: monospace; font-weight: 600; }
+    .gauge-track { height: 8px; background: #F1F5F9; border-radius: 99px; overflow: hidden; }
+    .gauge-fill { height: 100%; border-radius: 99px; transition: width .6s; }
+    .gauge-ok { background: #22c55e; }
+    .gauge-warn { background: var(--warning); }
+    .gauge-crit { background: var(--error); }
+    .gauge-sub { font-size: 10px; color: var(--muted); text-align: right; margin-top: 3px; }
+
+    /* ── Service status ── */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 99px; padding: 3px 12px; font-size: 12px; font-weight: 600;
+      border: 1px solid;
+    }
+    .badge-active { background: var(--success-bg); color: var(--success); border-color: #86efac; }
+    .badge-dot-active { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #F1F5F9; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row span:first-child { color: var(--muted); }
+    .stat-row span:last-child { font-family: monospace; font-weight: 500; }
+
+    /* ── Bar chart (hourly) ── */
+    .chart-wrap { overflow: hidden; border-radius: 4px; }
+
+    /* ── Latency table ── */
+    .lat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .lat-row:last-child { margin-bottom: 0; }
+    .lat-ep { width: 160px; flex-shrink: 0; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lat-bar-wrap { flex: 1; height: 22px; background: #F1F5F9; border-radius: 6px; overflow: hidden; position: relative; }
+    .lat-bar-fill { height: 100%; border-radius: 6px; }
+    .lat-bar-ok   { background: rgba(34,197,94,.4); }
+    .lat-bar-warn { background: rgba(234,179,8,.45); }
+    .lat-bar-crit { background: rgba(239,68,68,.4); }
+    .lat-bar-label { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 8px; font-size: 10px; font-family: monospace; font-weight: 700; }
+    .lat-meta { width: 130px; flex-shrink: 0; text-align: right; font-size: 10px; color: var(--muted); font-family: monospace; }
+
+    /* ── Generation perf ── */
+    .gen-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 16px; }
+    .gen-stat .gen-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .gen-stat .gen-value { font-size: 26px; font-weight: 700; font-family: monospace; line-height: 1; margin-top: 4px; }
+
+    /* ── Status codes ── */
+    .sc-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; border-bottom: 1px solid #F1F5F9; }
+    .sc-row:last-child { border-bottom: none; }
+    .sc-2xx { color: var(--success); font-weight: 700; font-family: monospace; }
+    .sc-3xx { color: var(--primary); font-weight: 700; font-family: monospace; }
+    .sc-4xx { color: var(--warning); font-weight: 700; font-family: monospace; }
+    .sc-5xx { color: var(--error); font-weight: 700; font-family: monospace; }
+
+    /* ── Errors table ── */
+    .err-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .err-table th { text-align: left; padding: 0 12px 8px 0; font-size: 11px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .err-table td { padding: 7px 12px 7px 0; border-bottom: 1px solid #F8FAFC; font-family: monospace; }
+    .err-table tr:last-child td { border-bottom: none; }
+    .err-table tr:hover td { background: #F8FAFC; }
+    .td-ts { color: var(--muted); }
+    .td-method { color: var(--muted); font-size: 11px; }
+    .td-ep { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+    .td-404 { color: var(--warning); font-weight: 700; }
+    .td-500 { color: var(--error); font-weight: 700; }
+    .td-422 { color: var(--warning); font-weight: 700; }
+
+    /* ── Separator ── */
+    .mb20 { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <a class="header-logo" href="#">
+    <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="7" fill="#1E293B"/>
+      <path d="M22 10.5C22 9 20.7 8 18.8 8H14C11.8 8 10 9.8 10 12C10 14.2 11.8 16 14 16H18C20.2 16 22 17.8 22 20C22 22.2 20.2 24 18 24H13.2C11.3 24 10 23 10 21.5"
+        stroke="url(#sg)" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <defs><linearGradient id="sg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#60A5FA"/><stop offset="1" stop-color="#C084FC"/>
+      </linearGradient></defs>
+    </svg>
+    SlideCraft AI
+  </a>
+  <nav class="header-nav">
+    <a href="#">Product</a>
+    <a href="#" class="active">Technical</a>
+    <a href="#">На главную</a>
+  </nav>
+  <div class="header-right">
+    <div class="refresh-badge">
+      <div class="pulse-dot"></div>
+      Auto-refresh 30 сек · <b style="color:#0F172A;margin-left:4px">обновлено 12 сек назад</b>
+    </div>
+    <button class="btn">↻ Сейчас</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Page title -->
+  <div class="page-title">
+    <h1>SlideCraft AI — Technical Dashboard</h1>
+    <p>Системные ресурсы, API производительность, статус сервиса · последние 24 часа</p>
+  </div>
+
+  <!-- ── Row 1: System + Service + API KPIs ── -->
+  <div class="grid-4">
+
+    <!-- System Health -->
+    <div class="card">
+      <div class="card-title">Системные ресурсы</div>
+
+      <div class="gauge-row">
+        <div class="gauge-header">
+          <span>CPU</span><span>34.2%</span>
+        </div>
+        <div class="gauge-track"><div class="gauge-fill gauge-ok" style="width:34.2%"></div></div>
+      </div>
+
+      <div class="gauge-row">
+        <div class="gauge-header">
+          <span>RAM</span><span>61.8%</span>
+        </div>
+        <div class="gauge-track"><div class="gauge-fill gauge-warn" style="width:61.8%"></div></div>
+        <div class="gauge-sub">1.2 / 2.0 ГБ</div>
+      </div>
+
+      <div class="gauge-row">
+        <div class="gauge-header">
+          <span>Диск</span><span>23.1%</span>
+        </div>
+        <div class="gauge-track"><div class="gauge-fill gauge-ok" style="width:23.1%"></div></div>
+        <div class="gauge-sub">11.6 / 50.0 ГБ</div>
+      </div>
+
+      <div style="border-top:1px solid #F1F5F9;margin-top:14px;padding-top:12px;display:flex;justify-content:space-between;font-size:12px;">
+        <span style="color:var(--muted)">Uptime сервера</span>
+        <span style="font-family:monospace;font-weight:500">12д 7ч 43м</span>
+      </div>
+    </div>
+
+    <!-- Service Status -->
+    <div class="card">
+      <div class="card-title">Сервис</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <span class="status-badge badge-active">
+          <span class="badge-dot-active"></span>active
+        </span>
+        <span style="font-size:12px;color:var(--muted)">running</span>
+      </div>
+      <div class="stat-row">
+        <span>Uptime сервиса</span><span>3д 14ч 22м</span>
+      </div>
+      <div class="stat-row">
+        <span>Рестарты</span>
+        <span style="color:var(--warning)">2</span>
+      </div>
+      <div class="stat-row">
+        <span>Nginx подключений</span><span>7</span>
+      </div>
+    </div>
+
+    <!-- Requests KPI -->
+    <div class="card">
+      <div class="kpi-label">Запросов за 24ч</div>
+      <div class="kpi-value">3 847</div>
+      <div class="kpi-sub">RPS 1ч: 0.038 req/s · 24ч: 0.045 req/s</div>
+    </div>
+
+    <!-- Error rate -->
+    <div class="card">
+      <div class="kpi-label">Error rate 5xx</div>
+      <div class="kpi-value" style="color:#0F172A">0.8%</div>
+      <div class="kpi-sub">4xx: 2.1%</div>
+    </div>
+
+  </div>
+
+  <!-- ── Row 2: Latency KPIs ── -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="kpi-label">Latency p50</div>
+      <div class="kpi-value">48<span style="font-size:18px;font-weight:500;color:var(--muted)">ms</span></div>
+      <div class="kpi-sub">медиана API ответов</div>
+    </div>
+    <div class="card">
+      <div class="kpi-label">Latency p95</div>
+      <div class="kpi-value">312<span style="font-size:18px;font-weight:500;color:var(--muted)">ms</span></div>
+      <div class="kpi-sub">95-й перцентиль</div>
+    </div>
+    <div class="card">
+      <div class="kpi-label">Latency p99</div>
+      <div class="kpi-value">1 840<span style="font-size:18px;font-weight:500;color:var(--muted)">ms</span></div>
+      <div class="kpi-sub">99-й перцентиль</div>
+    </div>
+  </div>
+
+  <!-- ── Row 3: Hourly chart + Slowest endpoints ── -->
+  <div class="grid-2">
+
+    <!-- Hourly requests chart -->
+    <div class="card">
+      <div class="section-title">Запросы по часам</div>
+      <div class="section-sub">Последние 24 часа · все API эндпоинты</div>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 560 180" style="width:100%;height:180px;" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#2563EB" stop-opacity=".8"/>
+              <stop offset="1" stop-color="#2563EB" stop-opacity=".3"/>
+            </linearGradient>
+          </defs>
+          <!-- Grid lines -->
+          <line x1="32" y1="20" x2="555" y2="20" stroke="#E2E8F0" stroke-width="1"/>
+          <line x1="32" y1="60" x2="555" y2="60" stroke="#E2E8F0" stroke-width="1"/>
+          <line x1="32" y1="100" x2="555" y2="100" stroke="#E2E8F0" stroke-width="1"/>
+          <line x1="32" y1="140" x2="555" y2="140" stroke="#E2E8F0" stroke-width="1"/>
+          <text x="28" y="23" text-anchor="end" font-size="9" fill="#94A3B8">240</text>
+          <text x="28" y="63" text-anchor="end" font-size="9" fill="#94A3B8">180</text>
+          <text x="28" y="103" text-anchor="end" font-size="9" fill="#94A3B8">120</text>
+          <text x="28" y="143" text-anchor="end" font-size="9" fill="#94A3B8">60</text>
+          <!-- Bars: 24 hours of data (fake) -->
+          <script type="text/javascript">
+          </script>
+          <!-- Hours 0-23, data roughly: night low, morning spike, lunch spike, evening -->
+          <!-- We'll hard-code the 24 bars -->
+          <!-- barW=18, gap=22, startX=35 -->
+          <!-- counts (max ~220) mapped to height 120 (140px space) -->
+          <!-- h = count/240*120 -->
+          <!-- y = 140 - h -->
+          <rect x="35"  y="128" width="14" height="12"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 0h:24 -->
+          <rect x="57"  y="131" width="14" height="9"   rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 1h:18 -->
+          <rect x="79"  y="133" width="14" height="7"   rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 2h:14 -->
+          <rect x="101" y="134" width="14" height="6"   rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 3h:12 -->
+          <rect x="123" y="135" width="14" height="5"   rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 4h:10 -->
+          <rect x="145" y="133" width="14" height="7"   rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 5h:14 -->
+          <rect x="167" y="125" width="14" height="15"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 6h:30 -->
+          <rect x="189" y="110" width="14" height="30"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 7h:60 -->
+          <rect x="211" y="93"  width="14" height="47"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 8h:95 -->
+          <rect x="233" y="75"  width="14" height="65"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 9h:130 -->
+          <rect x="255" y="61"  width="14" height="79"  rx="2" fill="url(#barGrad)" opacity=".8"/><!-- 10h:158 -->
+          <rect x="277" y="54"  width="14" height="86"  rx="2" fill="url(#barGrad)" opacity=".8"/><!-- 11h:172 -->
+          <rect x="299" y="49"  width="14" height="91"  rx="2" fill="url(#barGrad)"/>            <!-- 12h:182 -->
+          <rect x="321" y="58"  width="14" height="82"  rx="2" fill="url(#barGrad)" opacity=".8"/><!-- 13h:165 -->
+          <rect x="343" y="66"  width="14" height="74"  rx="2" fill="url(#barGrad)" opacity=".8"/><!-- 14h:148 -->
+          <rect x="365" y="60"  width="14" height="80"  rx="2" fill="url(#barGrad)" opacity=".8"/><!-- 15h:160 -->
+          <rect x="387" y="52"  width="14" height="88"  rx="2" fill="url(#barGrad)"/>            <!-- 16h:176 -->
+          <rect x="409" y="20"  width="14" height="120" rx="2" fill="url(#barGrad)"/>            <!-- 17h:240 peak -->
+          <rect x="431" y="35"  width="14" height="105" rx="2" fill="url(#barGrad)"/>            <!-- 18h:210 -->
+          <rect x="453" y="55"  width="14" height="85"  rx="2" fill="url(#barGrad)" opacity=".8"/><!-- 19h:170 -->
+          <rect x="475" y="82"  width="14" height="58"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 20h:116 -->
+          <rect x="497" y="104" width="14" height="36"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 21h:72 -->
+          <rect x="519" y="118" width="14" height="22"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 22h:44 -->
+          <rect x="541" y="124" width="14" height="16"  rx="2" fill="url(#barGrad)" opacity=".7"/><!-- 23h:32 -->
+          <!-- X labels every 4h -->
+          <text x="42"  y="160" text-anchor="middle" font-size="9" fill="#94A3B8">00:00</text>
+          <text x="130" y="160" text-anchor="middle" font-size="9" fill="#94A3B8">04:00</text>
+          <text x="218" y="160" text-anchor="middle" font-size="9" fill="#94A3B8">08:00</text>
+          <text x="306" y="160" text-anchor="middle" font-size="9" fill="#94A3B8">12:00</text>
+          <text x="394" y="160" text-anchor="middle" font-size="9" fill="#94A3B8">16:00</text>
+          <text x="482" y="160" text-anchor="middle" font-size="9" fill="#94A3B8">20:00</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Slowest endpoints -->
+    <div class="card">
+      <div class="section-title">Самые медленные эндпоинты</div>
+      <div class="section-sub">По p95 latency за 24 часа</div>
+
+      <div class="lat-row">
+        <span class="lat-ep">/generate</span>
+        <div class="lat-bar-wrap">
+          <div class="lat-bar-fill lat-bar-crit" style="width:100%"></div>
+          <span class="lat-bar-label">p95 18 400ms</span>
+        </div>
+        <span class="lat-meta">847 req · p50 14 200ms</span>
+      </div>
+
+      <div class="lat-row">
+        <span class="lat-ep">/documents/upload</span>
+        <div class="lat-bar-wrap">
+          <div class="lat-bar-fill lat-bar-warn" style="width:24%"></div>
+          <span class="lat-bar-label">p95 4 380ms</span>
+        </div>
+        <span class="lat-meta">312 req · p50 2 100ms</span>
+      </div>
+
+      <div class="lat-row">
+        <span class="lat-ep">/status/{job_id}</span>
+        <div class="lat-bar-wrap">
+          <div class="lat-bar-fill lat-bar-ok" style="width:3%"></div>
+          <span class="lat-bar-label">p95 580ms</span>
+        </div>
+        <span class="lat-meta">1 842 req · p50 42ms</span>
+      </div>
+
+      <div class="lat-row">
+        <span class="lat-ep">/auth/login</span>
+        <div class="lat-bar-wrap">
+          <div class="lat-bar-fill lat-bar-ok" style="width:2%"></div>
+          <span class="lat-bar-label">p95 310ms</span>
+        </div>
+        <span class="lat-meta">234 req · p50 88ms</span>
+      </div>
+
+      <div class="lat-row">
+        <span class="lat-ep">/auth/signup</span>
+        <div class="lat-bar-wrap">
+          <div class="lat-bar-fill lat-bar-ok" style="width:1.5%"></div>
+          <span class="lat-bar-label">p95 290ms</span>
+        </div>
+        <span class="lat-meta">58 req · p50 74ms</span>
+      </div>
+
+      <div class="lat-row">
+        <span class="lat-ep">/events/track</span>
+        <div class="lat-bar-wrap">
+          <div class="lat-bar-fill lat-bar-ok" style="width:0.5%"></div>
+          <span class="lat-bar-label">p95 48ms</span>
+        </div>
+        <span class="lat-meta">554 req · p50 12ms</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Row 4: Generation perf ── -->
+  <div class="card mb20">
+    <div class="card-title">Генерация — производительность</div>
+    <p style="font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:4px">Время с момента создания джоба до завершения · 847 завершённых джобов</p>
+    <div class="gen-grid">
+      <div class="gen-stat">
+        <div class="gen-label">Среднее</div>
+        <div class="gen-value">47.3<span style="font-size:14px;color:var(--muted)">с</span></div>
+      </div>
+      <div class="gen-stat">
+        <div class="gen-label">p95</div>
+        <div class="gen-value">1м 38<span style="font-size:14px;color:var(--muted)">с</span></div>
+      </div>
+      <div class="gen-stat">
+        <div class="gen-label">p99</div>
+        <div class="gen-value">3м 12<span style="font-size:14px;color:var(--muted)">с</span></div>
+      </div>
+      <div class="gen-stat">
+        <div class="gen-label">Очередь</div>
+        <div class="gen-value" style="color:#0F172A">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Row 5: Status codes + Recent errors ── -->
+  <div class="grid-status">
+
+    <!-- Status codes -->
+    <div class="card">
+      <div class="card-title">HTTP статусы</div>
+      <div class="sc-row"><span class="sc-2xx">200</span><span>3 614</span></div>
+      <div class="sc-row"><span class="sc-2xx">201</span><span>147</span></div>
+      <div class="sc-row"><span class="sc-3xx">304</span><span>24</span></div>
+      <div class="sc-row"><span class="sc-4xx">401</span><span>38</span></div>
+      <div class="sc-row"><span class="sc-4xx">404</span><span>29</span></div>
+      <div class="sc-row"><span class="sc-4xx">422</span><span>14</span></div>
+      <div class="sc-row"><span class="sc-5xx">500</span><span style="color:var(--error)">31</span></div>
+    </div>
+
+    <!-- Recent errors -->
+    <div class="card">
+      <div class="section-title">Последние ошибки</div>
+      <div class="section-sub">HTTP 4xx / 5xx за 24 часа · последние 20</div>
+      <table class="err-table">
+        <thead>
+          <tr>
+            <th>Время</th>
+            <th>Метод</th>
+            <th>Эндпоинт</th>
+            <th>Код</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="td-ts">31.05 18:47:03</td><td class="td-method">POST</td><td class="td-ep">/generate</td><td class="td-500">500</td></tr>
+          <tr><td class="td-ts">31.05 18:31:22</td><td class="td-method">GET</td><td class="td-ep">/status/unknown-job-id</td><td class="td-404">404</td></tr>
+          <tr><td class="td-ts">31.05 17:55:11</td><td class="td-method">POST</td><td class="td-ep">/auth/login</td><td class="td-422">401</td></tr>
+          <tr><td class="td-ts">31.05 17:43:08</td><td class="td-method">POST</td><td class="td-ep">/generate</td><td class="td-500">500</td></tr>
+          <tr><td class="td-ts">31.05 16:20:55</td><td class="td-method">POST</td><td class="td-ep">/documents/upload</td><td class="td-422">422</td></tr>
+          <tr><td class="td-ts">31.05 15:38:47</td><td class="td-method">POST</td><td class="td-ep">/generate</td><td class="td-500">500</td></tr>
+          <tr><td class="td-ts">31.05 14:12:33</td><td class="td-method">GET</td><td class="td-ep">/status/bad-format</td><td class="td-404">404</td></tr>
+          <tr><td class="td-ts">31.05 13:05:19</td><td class="td-method">POST</td><td class="td-ep">/auth/login</td><td class="td-422">401</td></tr>
+          <tr><td class="td-ts">31.05 11:49:02</td><td class="td-method">POST</td><td class="td-ep">/generate</td><td class="td-500">500</td></tr>
+          <tr><td class="td-ts">31.05 10:22:44</td><td class="td-method">GET</td><td class="td-ep">/status/old-expired-id</td><td class="td-404">404</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>
