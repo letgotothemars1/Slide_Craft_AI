@@ -139,3 +139,106 @@ class ProductMetricsResponse(BaseModel):
     trend: list[TrendPoint]
     breakdowns: dict[str, list[BreakdownItem]]
     top_errors: list[ErrorRow]
+
+
+# --- Infrastructure / Tech dashboard ---
+
+class SystemMetrics(BaseModel):
+    cpu_pct: float | None = None
+    ram_used_pct: float | None = None
+    ram_used_mb: int | None = None
+    ram_total_mb: int | None = None
+    disk_used_pct: float | None = None
+    disk_used_gb: float | None = None
+    disk_total_gb: float | None = None
+    server_uptime_seconds: int | None = None
+    error: str | None = None
+
+
+class ServiceInfo(BaseModel):
+    status: str  # "active" | "failed" | "unknown"
+    sub_state: str
+    restarts_total: int
+    service_uptime_seconds: int | None = None
+
+
+class NginxInfo(BaseModel):
+    active_connections: int
+
+
+class LatencyPercentiles(BaseModel):
+    p50: float | None
+    p95: float | None
+    p99: float | None
+
+
+class EndpointStat(BaseModel):
+    endpoint: str
+    count: int
+    p50_ms: float | None
+    p95_ms: float | None
+    p99_ms: float | None
+
+
+class HourlyPoint(BaseModel):
+    hour: str   # "2025-05-31T14:00"
+    count: int
+
+
+class StatusCodeCount(BaseModel):
+    status_code: int
+    count: int
+
+
+class RecentErrorEntry(BaseModel):
+    endpoint: str
+    method: str
+    status_code: int
+    ts: str
+
+
+class ApiMetrics(BaseModel):
+    window_hours: int
+    total_requests: int
+    rps_1h: float | None
+    rps_24h: float | None
+    error_rate_4xx: float
+    error_rate_5xx: float
+    latency: LatencyPercentiles
+    slowest_endpoints: list[EndpointStat]
+    hourly_trend: list[HourlyPoint]
+    status_breakdown: list[StatusCodeCount]
+    recent_errors: list[RecentErrorEntry]
+
+
+class GenerationPerf(BaseModel):
+    avg_duration_s: float | None
+    p95_duration_s: float | None
+    p99_duration_s: float | None
+    sample_count: int
+    queue_depth: int
+
+
+class SparklinePoint(BaseModel):
+    label: str   # "-0м", "-1м", ... "-14м"
+    count: int
+
+
+class LiveMetricsResponse(BaseModel):
+    ts: str
+    generate_last_1m: int
+    generate_last_5m: int
+    generate_last_15m: int
+    generate_last_60m: int
+    running_jobs: int
+    queued_jobs: int
+    sparkline_15m: list[SparklinePoint]
+
+
+class InfraMetricsResponse(BaseModel):
+    generated_at: str
+    system: SystemMetrics
+    service: ServiceInfo
+    nginx: NginxInfo | None = None
+    api: ApiMetrics
+    generation: GenerationPerf

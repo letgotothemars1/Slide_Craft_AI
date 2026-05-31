@@ -2,17 +2,23 @@ from __future__ import annotations
 
 import logging
 import shutil
+import threading
+import time
 from datetime import timezone
+from typing import Any
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 from sqlalchemy.orm import Session
 
 from app import repository
 from app.config import settings
-from app.db import get_session, init_db
+from app.db import RequestLog, SessionLocal, get_session, init_db
 from app.schemas import (
     AuthCredentialsRequest,
     AuthResponse,
@@ -23,6 +29,7 @@ from app.schemas import (
     JobStatusResponse,
 )
 from app.routers import analytics as analytics_router
+from app.routers import infra as infra_router
 from app.services.document_service import index_document
 from app.services.auth_service import hash_password, verify_password
 from app.services.generator import start_generation_job
@@ -30,7 +37,71 @@ from app.services.storage_service import get_storage_service
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="SlideCraft MVP Backend", version="0.2.0")
+# ─── request logging middleware ───────────────────────────────────────────────
+
+# Paths we do NOT want to log (high-frequency or recursive)
+_SKIP_LOG_PREFIXES = ("/files/", "/metrics/", "/events/")
+_SKIP_LOG_EXACT = frozenset({"/health"})
+
+
+def _should_log_path(path: str) -> bool:
+    if path in _SKIP_LOG_EXACT:
+        return False
+    for prefix in _SKIP_LOG_PREFIXES:
+        if path.startswith(prefix):
+            return False
+    return True
+
+
+def _write_request_log(path: str, method: str, status_code: int, duration_ms: float) -> None:
+    """Insert a RequestLog row. Runs in a daemon thread — never throws to caller."""
+    try:
+        db = SessionLocal()
+        try:
+            db.add(
+                RequestLog(
+                    endpoint=path[:256],
+                    method=method[:10],
+                    status_code=status_code,
+                    duration_ms=round(duration_ms, 2),
+                )
+            )
+            db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass  # analytics writes must never break request handling
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Captures wall-clock duration and HTTP status for every API request.
+    The DB write is dispatched to a daemon thread so it adds zero latency
+    to the response path.
+    """
+
+    async def dispatch(self, request: Request, call_next: Any) -> Response:
+        if not _should_log_path(request.url.path):
+            return await call_next(request)
+
+        start = time.monotonic()
+        status_code = 500
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        finally:
+            duration_ms = (time.monotonic() - start) * 1000
+            threading.Thread(
+                target=_write_request_log,
+                args=(request.url.path, request.method, status_code, duration_ms),
+                daemon=True,
+            ).start()
+
+
+# ─── app setup ────────────────────────────────────────────────────────────────
+
+app = FastAPI(title="SlideCraft MVP Backend", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,8 +111,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(analytics_router.router)
+app.include_router(infra_router.router)
 
 # Local storage mode serves files from /files/...
 app.mount("/files", StaticFiles(directory=str(settings.STORAGE_PATH)), name="files")

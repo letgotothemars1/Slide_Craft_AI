@@ -13,6 +13,7 @@ import HistoryPage from "./pages/HistoryPage";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
+import TechDashboardPage from "./pages/TechDashboardPage";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
             />
             <Route path="/jobs/:jobId" element={<JobPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/tech-dashboard" element={<TechDashboardPage />} />
             <Route
               path="/history"
               element={

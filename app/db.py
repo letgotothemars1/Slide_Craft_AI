@@ -4,7 +4,7 @@ from collections.abc import Generator
 from datetime import datetime, timezone
 import logging
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, create_engine, text
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 from app.config import settings
@@ -176,6 +176,29 @@ class AnalyticsEvent(Base):
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
     referrer: Mapped[str | None] = mapped_column(Text, nullable=True)
     event_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+
+class RequestLog(Base):
+    """
+    HTTP request log for API performance monitoring.
+
+    Written by RequestLoggingMiddleware on every non-health, non-metrics request.
+    Auto-pruned to 7 days by infra_service to keep the table small.
+    """
+
+    __tablename__ = "request_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    endpoint: Mapped[str] = mapped_column(String(256), index=True, nullable=False)
+    method: Mapped[str] = mapped_column(String(10), nullable=False)
+    status_code: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    duration_ms: Mapped[float] = mapped_column(Float, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
