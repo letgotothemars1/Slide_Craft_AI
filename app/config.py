@@ -70,6 +70,25 @@ class Settings(BaseSettings):
     # Set to a random string in production via env. If empty, a process-local fallback is used.
     ANALYTICS_IP_SALT: str = ""
 
+    # ── JWT authentication ───────────────────────────────────────────────
+    # Secret key used to sign access tokens. MUST be set in production via env
+    # to a long random string (64+ chars). If empty, a process-local random
+    # fallback is generated — tokens won't survive a server restart.
+    JWT_SECRET_KEY: str = ""
+    # Signing algorithm. HS256 = HMAC-SHA256, symmetric (same key signs & verifies).
+    # Correct choice when one service both issues and validates tokens.
+    JWT_ALGORITHM: str = "HS256"
+    # How long an issued access token remains valid. 30 days is a sensible
+    # default for a personal admin tool — long enough that we don't re-login
+    # constantly, short enough to limit damage if a token leaks.
+    JWT_EXPIRE_DAYS: int = 30
+
+    # Email of the account that should be auto-granted admin rights on login.
+    # When a user logs in with this email, the backend will flip their is_admin
+    # flag to TRUE in the database and embed is_admin=true into their JWT.
+    # Leave empty to disable auto-admin (admin flag must then be set manually).
+    ADMIN_EMAIL: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

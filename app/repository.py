@@ -57,6 +57,11 @@ def get_user_by_email(session: Session, email: str) -> User | None:
     return session.query(User).filter(User.email == email).one_or_none()
 
 
+def get_user_by_id(session: Session, user_id: str) -> User | None:
+    """Find user by primary key (used by JWT-authenticated endpoints)."""
+    return session.query(User).filter(User.id == user_id).one_or_none()
+
+
 def create_user(session: Session, *, email: str, password_hash: str) -> User:
     """Create user with pre-hashed password."""
     now = _utc_now()

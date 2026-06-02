@@ -2,9 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   type AuthSession,
   type AuthUser,
-  getStoredSession,
   login as loginWithPassword,
   logout as logoutFromStorage,
+  restoreSession,
   signup as signupWithPassword,
 } from "@/lib/auth";
 
@@ -12,6 +12,7 @@ interface AuthContextValue {
   session: AuthSession | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
@@ -24,10 +25,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // On mount: re-validate the token in localStorage by hitting /auth/me.
+  // This catches expired/revoked tokens at boot rather than letting the user
+  // hit a wall of 401s on protected pages.
   useEffect(() => {
-    const storedSession = getStoredSession();
-    setSession(storedSession);
-    setIsLoading(false);
+    let cancelled = false;
+    (async () => {
+      const refreshed = await restoreSession();
+      if (cancelled) return;
+      setSession(refreshed);
+      setIsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -50,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       user: session?.user ?? null,
       isAuthenticated: !!session,
+      isAdmin: !!session?.user?.isAdmin,
       isLoading,
       login,
       signup,

@@ -4,6 +4,8 @@
  * API performance metrics, and generation job stats.
  */
 
+import { authHeader, handleUnauthorized } from "@/lib/auth";
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "";
 
 // ── types (mirror app/schemas.py) ──────────────────────────────────────────
@@ -103,8 +105,12 @@ export async function fetchInfraMetrics(): Promise<InfraMetrics> {
   if (cache && now - cache.ts < CACHE_TTL_MS) return cache.data;
 
   const res = await fetch(`${API_BASE}/metrics/infra`, {
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", ...authHeader() },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error("Сессия истекла");
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Infra API ${res.status}: ${text || res.statusText}`);
