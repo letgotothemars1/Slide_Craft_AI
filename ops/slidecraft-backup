@@ -1,0 +1,14 @@
+#!/bin/bash
+set -eo pipefail
+
+# Ежедневный бэкап БД: pg_dump -> gzip, ротация старше 7 дней.
+# pipefail обязателен: иначе падение pg_dump маскируется успешным gzip,
+# и на диск пишется битый/пустой архив.
+# Деплой: /etc/cron.daily/slidecraft-backup  (без расширения! run-parts
+# игнорирует файлы с точкой в имени). Запускается системой в ~06:25.
+
+# Читаем DATABASE_URL из .env и убираем "+psycopg" (pg_dump его не понимает)
+DB_URL=$(grep '^DATABASE_URL=' /var/www/slidecraft/.env | cut -d= -f2- | sed 's|postgresql+psycopg://|postgresql://|')
+DATE=$(date +%Y%m%d)
+pg_dump "$DB_URL" | gzip > /var/backups/slidecraft/db-$DATE.sql.gz
+find /var/backups/slidecraft -name "db-*.sql.gz" -mtime +7 -delete
