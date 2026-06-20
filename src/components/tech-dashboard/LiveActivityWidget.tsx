@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { authHeader, handleUnauthorized } from "@/lib/auth";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "";
 const POLL_MS = 5_000;
@@ -57,8 +58,12 @@ export default function LiveActivityWidget() {
     const poll = async () => {
       try {
         const res = await fetch(`${API_BASE}/metrics/live`, {
-          headers: { Accept: "application/json" },
+          headers: { Accept: "application/json", ...authHeader() },
         });
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
         if (!res.ok) throw new Error(`${res.status}`);
         const json = (await res.json()) as LiveMetrics;
         if (!alive) return;

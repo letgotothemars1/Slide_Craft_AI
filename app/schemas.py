@@ -59,6 +59,10 @@ class AuthResponse(BaseModel):
     id: str
     email: str
     created_at: str
+    is_admin: bool = False
+    # JWT access token. Frontend stores it in localStorage and sends as
+    # `Authorization: Bearer <token>` on protected requests.
+    token: str
 
 
 class DocumentUploadResponse(BaseModel):

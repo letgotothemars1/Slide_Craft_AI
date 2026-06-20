@@ -7,6 +7,8 @@
  *   pre-RQ initial render path.
  */
 
+import { authHeader, handleUnauthorized } from "@/lib/auth";
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "";
 
 export interface FunnelStep {
@@ -66,7 +68,13 @@ export async function fetchProductMetrics(periodDays: number): Promise<ProductMe
   }
 
   const url = `${API_BASE}/metrics/product?period_days=${periodDays}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const res = await fetch(url, {
+    headers: { Accept: "application/json", ...authHeader() },
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error("Сессия истекла");
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Metrics API ${res.status}: ${text || res.statusText}`);

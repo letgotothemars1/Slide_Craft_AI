@@ -4,7 +4,7 @@ from collections.abc import Generator
 from datetime import datetime, timezone
 import logging
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, text
+from sqlalchemy import Boolean, JSON, DateTime, Float, ForeignKey, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 from app.config import settings
@@ -24,6 +24,10 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    # Admin flag — gates access to /metrics/* endpoints and dashboard routes.
+    # Flipped automatically on login when email matches settings.ADMIN_EMAIL,
+    # or can be set manually via SQL.
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -259,12 +263,20 @@ def _run_startup_migrations() -> None:
                 conn.execute(
                     text("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (email)")
                 )
+                # Admin flag for users — added in JWT-auth iteration.
+                conn.execute(
+                    text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE")
+                )
             elif dialect == "sqlite":
                 rows = conn.execute(text("PRAGMA table_info(jobs)")).fetchall()
                 existing_columns = {row[1] for row in rows}
                 if "document_id" not in existing_columns:
                     conn.execute(text("ALTER TABLE jobs ADD COLUMN document_id VARCHAR(64)"))
                 conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (email)"))
+                user_rows = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+                user_columns = {row[1] for row in user_rows}
+                if "is_admin" not in user_columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0"))
         except Exception:
             logger.exception("db.migration.failed migration=startup")
 

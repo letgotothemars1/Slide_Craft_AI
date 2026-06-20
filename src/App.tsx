@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import PublicOnlyRoute from "@/components/auth/PublicOnlyRoute";
+import AdminRoute from "@/components/auth/AdminRoute";
 import LandingPage from "./pages/LandingPage";
 import GeneratePage from "./pages/GeneratePage";
 import JobPage from "./pages/JobPage";
@@ -43,8 +44,22 @@ const App = () => (
               }
             />
             <Route path="/jobs/:jobId" element={<JobPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/tech-dashboard" element={<TechDashboardPage />} />
+            <Route
+              path="/dashboard"
+              element={
+                <AdminRoute>
+                  <DashboardPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/tech-dashboard"
+              element={
+                <AdminRoute>
+                  <TechDashboardPage />
+                </AdminRoute>
+              }
+            />
             <Route
               path="/history"
               element={

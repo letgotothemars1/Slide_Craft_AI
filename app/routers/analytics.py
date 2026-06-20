@@ -21,6 +21,7 @@ from app.schemas import (
     TrackEventResponse,
 )
 from app.services import analytics_service
+from app.services.auth_service import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ def track_event(
 def product_metrics(
     period_days: int = Query(default=30, ge=1, le=365),
     session: Session = Depends(get_session),
+    _admin = Depends(require_admin),
 ) -> ProductMetricsResponse:
     data = analytics_service.build_product_metrics(session, period_days=period_days)
     return ProductMetricsResponse(**data)

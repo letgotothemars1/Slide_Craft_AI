@@ -31,7 +31,13 @@ from app.schemas import (
 from app.routers import analytics as analytics_router
 from app.routers import infra as infra_router
 from app.services.document_service import index_document
-from app.services.auth_service import hash_password, verify_password
+from app.services.auth_service import (
+    CurrentUser,
+    create_access_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
 from app.services.generator import start_generation_job
 from app.services.storage_service import get_storage_service
 
@@ -127,6 +133,39 @@ def on_startup() -> None:
     init_db()
 
 
+def _ensure_admin_flag(session: Session, user) -> bool:
+    """
+    If ADMIN_EMAIL is configured and matches this user, flip is_admin=True
+    in the database (only if not already true). Returns the effective flag.
+
+    This is the auto-bootstrap mechanism — we don't need to manually run SQL
+    to mark the admin user: the first time they log in with the right email,
+    they're granted access.
+    """
+    admin_email = (settings.ADMIN_EMAIL or "").strip().lower()
+    if admin_email and user.email.lower() == admin_email and not user.is_admin:
+        user.is_admin = True
+        session.commit()
+        logger.info("auth.admin.granted email=%s", user.email)
+    return bool(user.is_admin)
+
+
+def _build_auth_response(user) -> AuthResponse:
+    """Common builder — creates the JWT and assembles the response payload."""
+    token = create_access_token(
+        user_id=user.id,
+        email=user.email,
+        is_admin=user.is_admin,
+    )
+    return AuthResponse(
+        id=user.id,
+        email=user.email,
+        created_at=user.created_at.astimezone(timezone.utc).isoformat(),
+        is_admin=user.is_admin,
+        token=token,
+    )
+
+
 @app.post("/auth/signup", response_model=AuthResponse, status_code=201)
 def signup(payload: AuthCredentialsRequest, session: Session = Depends(get_session)) -> AuthResponse:
     existing_user = repository.get_user_by_email(session, payload.email)
@@ -138,11 +177,10 @@ def signup(payload: AuthCredentialsRequest, session: Session = Depends(get_sessi
         email=payload.email,
         password_hash=hash_password(payload.password),
     )
-    return AuthResponse(
-        id=user.id,
-        email=user.email,
-        created_at=user.created_at.astimezone(timezone.utc).isoformat(),
-    )
+    # Even on signup we may want to auto-grant admin (covers the case where the
+    # admin signs up for the first time on a fresh deployment).
+    _ensure_admin_flag(session, user)
+    return _build_auth_response(user)
 
 
 @app.post("/auth/login", response_model=AuthResponse)
@@ -151,11 +189,29 @@ def login(payload: AuthCredentialsRequest, session: Session = Depends(get_sessio
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    return AuthResponse(
-        id=user.id,
-        email=user.email,
-        created_at=user.created_at.astimezone(timezone.utc).isoformat(),
-    )
+    _ensure_admin_flag(session, user)
+    return _build_auth_response(user)
+
+
+@app.get("/auth/me", response_model=AuthResponse)
+def me(
+    session: Session = Depends(get_session),
+    current: CurrentUser = Depends(get_current_user),
+) -> AuthResponse:
+    """
+    Return the current user based on the JWT in Authorization header.
+
+    Frontend calls this on app start to validate that the stored token is still
+    good — if /auth/me returns 401, the token is expired/invalid and the user
+    should be redirected to the login page.
+
+    We re-read from the DB (rather than just trusting the JWT) so a freshly
+    revoked admin flag takes effect immediately on the next page load.
+    """
+    user = repository.get_user_by_id(session, current.user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User no longer exists")
+    return _build_auth_response(user)
 
 
 @app.post("/generate", response_model=GenerateResponse)
@@ -231,6 +287,8 @@ def status(job_id: str, session: Session = Depends(get_session)) -> JobStatusRes
     return repository.to_status_response(session, job)
 
 
-@app.get("/health", response_model=HealthResponse)
+# Accepts both GET and HEAD — UptimeRobot's free plan uses HEAD requests
+# for HTTP monitoring, so this endpoint needs to handle both methods.
+@app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(ok=True)
