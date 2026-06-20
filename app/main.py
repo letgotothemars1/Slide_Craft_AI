@@ -287,6 +287,8 @@ def status(job_id: str, session: Session = Depends(get_session)) -> JobStatusRes
     return repository.to_status_response(session, job)
 
 
-@app.get("/health", response_model=HealthResponse)
+# Accepts both GET and HEAD — UptimeRobot's free plan uses HEAD requests
+# for HTTP monitoring, so this endpoint needs to handle both methods.
+@app.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(ok=True)
