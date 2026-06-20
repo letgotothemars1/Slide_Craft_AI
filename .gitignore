@@ -28,6 +28,11 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
+.env.*
+!.env.example
+
+# Accidental nested project copy
+Slide_Craft_AI-main/
 
 # Generated backend artifacts
 storage/*
