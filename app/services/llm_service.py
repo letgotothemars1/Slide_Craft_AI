@@ -103,7 +103,6 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                     "key_message": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                     "image_prompt": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                     "image_url": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-                    "chart_hint": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                     "chart": {
                         "anyOf": [
                             {
@@ -111,7 +110,7 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                                 "additionalProperties": False,
                                 "properties": {
                                     "chart_type": {"type": "string", "enum": ["bar", "line", "pie"]},
-                                    "unit": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                                    "unit": {"type": "string"},
                                     "points": {
                                         "type": "array",
                                         "items": {
@@ -124,8 +123,21 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                                             "required": ["label", "value"],
                                         },
                                     },
+                                    "categories": {"type": "array", "items": {"type": "string"}},
+                                    "series": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": False,
+                                            "properties": {
+                                                "name": {"type": "string"},
+                                                "values": {"type": "array", "items": {"type": "number"}},
+                                            },
+                                            "required": ["name", "values"],
+                                        },
+                                    },
                                 },
-                                "required": ["chart_type", "unit", "points"],
+                                "required": ["chart_type", "unit", "points", "categories", "series"],
                             },
                             {"type": "null"},
                         ]
@@ -159,6 +171,7 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                             "required": ["header", "items"],
                         },
                     },
+                    "source": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                     "speaker_notes": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                 },
                 "required": [
@@ -175,10 +188,10 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                     "key_message",
                     "image_prompt",
                     "image_url",
-                    "chart_hint",
                     "chart",
                     "table",
                     "columns",
+                    "source",
                     "speaker_notes",
                 ],
             },
@@ -197,12 +210,27 @@ class ChartPoint(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ChartSeries(BaseModel):
+    """One named series for a grouped chart; values align to ChartSpec.categories."""
+
+    name: str = Field(min_length=1, max_length=40)
+    values: list[float] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ChartSpec(BaseModel):
-    """Single-series chart data the renderer draws as SVG."""
+    """Chart data the renderer draws as SVG.
+
+    Single-series: use `points`. Grouped (2-3 series): use `categories` (shared
+    x labels) + `series`.
+    """
 
     chart_type: Literal["bar", "line", "pie"]
-    unit: str | None = Field(default=None, max_length=12)
+    unit: str = Field(default="", max_length=12)
     points: list[ChartPoint] = Field(default_factory=list)
+    categories: list[str] = Field(default_factory=list)
+    series: list[ChartSeries] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -245,6 +273,7 @@ class SlideSpec(BaseModel):
     chart: ChartSpec | None = None
     table: TableSpec | None = None
     columns: list[ColumnSpec] = Field(default_factory=list)
+    source: str | None = Field(default=None, max_length=200)
     speaker_notes: str | None = Field(default=None, max_length=4000)
 
     model_config = ConfigDict(extra="forbid")
