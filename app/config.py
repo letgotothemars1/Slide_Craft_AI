@@ -53,6 +53,15 @@ class Settings(BaseSettings):
     OPENAI_IMAGE_QUALITY: str | None = None
     OPENAI_IMAGE_BACKGROUND: str | None = None
 
+    # ── LLM provider for text generation (presentation spec / worker / critic) ──
+    # "anthropic" → Claude (ANTHROPIC_MODEL); "openai" → OPENAI_MODEL.
+    # NOTE: embeddings (RAG) and image generation have no Anthropic equivalent
+    # and always use OpenAI regardless of this setting — keep OPENAI_API_KEY set
+    # if you use document upload (RAG) or image generation.
+    LLM_PROVIDER: str = "anthropic"
+    ANTHROPIC_API_KEY: str | None = None
+    ANTHROPIC_MODEL: str = "claude-opus-4-8"
+
     CORS_ORIGINS: list[str] = DEFAULT_CORS_ORIGINS.copy()
     CORS_ORIGIN_REGEX: str = r"https://.*\.vercel\.app"
 
@@ -128,6 +137,10 @@ class Settings(BaseSettings):
     def openai_image_enabled(self) -> bool:
         """Image generation is enabled only when key + image model are provided."""
         return bool(self.OPENAI_API_KEY and self.OPENAI_IMAGE_MODEL)
+
+    @property
+    def anthropic_enabled(self) -> bool:
+        return bool(self.ANTHROPIC_API_KEY)
 
 
 settings = Settings()

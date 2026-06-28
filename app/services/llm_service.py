@@ -21,6 +21,10 @@ LayoutType = Literal[
     "infographic_visual",
     "quote_focus",
     "comparison_split",
+    "chart_focus",
+    "data_table",
+    "process_flow",
+    "multi_column",
 ]
 ThemeVariant = Literal["dark_tech_pitch", "clean_editorial", "infographic_bright"]
 VisualDensity = Literal["low", "medium", "high"]
@@ -72,6 +76,10 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                                     "infographic_visual",
                                     "quote_focus",
                                     "comparison_split",
+                                    "chart_focus",
+                                    "data_table",
+                                    "process_flow",
+                                    "multi_column",
                                 ],
                             },
                             {"type": "null"},
@@ -96,6 +104,61 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                     "image_prompt": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                     "image_url": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                     "chart_hint": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                    "chart": {
+                        "anyOf": [
+                            {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {
+                                    "chart_type": {"type": "string", "enum": ["bar", "line", "pie"]},
+                                    "unit": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+                                    "points": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": False,
+                                            "properties": {
+                                                "label": {"type": "string"},
+                                                "value": {"type": "number"},
+                                            },
+                                            "required": ["label", "value"],
+                                        },
+                                    },
+                                },
+                                "required": ["chart_type", "unit", "points"],
+                            },
+                            {"type": "null"},
+                        ]
+                    },
+                    "table": {
+                        "anyOf": [
+                            {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {
+                                    "headers": {"type": "array", "items": {"type": "string"}},
+                                    "rows": {
+                                        "type": "array",
+                                        "items": {"type": "array", "items": {"type": "string"}},
+                                    },
+                                },
+                                "required": ["headers", "rows"],
+                            },
+                            {"type": "null"},
+                        ]
+                    },
+                    "columns": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "header": {"type": "string"},
+                                "items": {"type": "array", "items": {"type": "string"}},
+                            },
+                            "required": ["header", "items"],
+                        },
+                    },
                     "speaker_notes": {"anyOf": [{"type": "string"}, {"type": "null"}]},
                 },
                 "required": [
@@ -113,6 +176,9 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                     "image_prompt",
                     "image_url",
                     "chart_hint",
+                    "chart",
+                    "table",
+                    "columns",
                     "speaker_notes",
                 ],
             },
@@ -120,6 +186,43 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
     },
     "required": ["title", "subtitle", "theme_variant", "audience", "language", "style", "slides"],
 }
+
+
+class ChartPoint(BaseModel):
+    """One data point: a category label and its numeric value."""
+
+    label: str = Field(min_length=1, max_length=40)
+    value: float
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ChartSpec(BaseModel):
+    """Single-series chart data the renderer draws as SVG."""
+
+    chart_type: Literal["bar", "line", "pie"]
+    unit: str | None = Field(default=None, max_length=12)
+    points: list[ChartPoint] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class TableSpec(BaseModel):
+    """Simple data table: header row + body rows of string cells."""
+
+    headers: list[str] = Field(default_factory=list)
+    rows: list[list[str]] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ColumnSpec(BaseModel):
+    """One labeled column for multi_column layout: header + list of items."""
+
+    header: str = Field(min_length=1, max_length=60)
+    items: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class SlideSpec(BaseModel):
@@ -139,6 +242,9 @@ class SlideSpec(BaseModel):
     image_prompt: str | None = Field(default=None, max_length=600)
     image_url: str | None = Field(default=None, max_length=2000)
     chart_hint: str | None = Field(default=None, max_length=300)
+    chart: ChartSpec | None = None
+    table: TableSpec | None = None
+    columns: list[ColumnSpec] = Field(default_factory=list)
     speaker_notes: str | None = Field(default=None, max_length=4000)
 
     model_config = ConfigDict(extra="forbid")
@@ -273,5 +379,105 @@ class OpenAILLMService:
             raise
 
 
-def get_llm_service() -> OpenAILLMService:
+class AnthropicLLMService:
+    """Claude Messages API wrapper for structured JSON spec generation.
+
+    Uses structured outputs (output_config.format) to constrain the response to
+    the same presentation-spec schema the OpenAI path uses.
+    """
+
+    def __init__(self) -> None:
+        if not settings.anthropic_enabled:
+            raise RuntimeError("ANTHROPIC_API_KEY is not configured")
+
+        # Lazy import keeps app startup lightweight and explicit on dependency failures.
+        import anthropic
+
+        self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        self.model = settings.ANTHROPIC_MODEL
+
+    def generate_presentation_spec(
+        self,
+        *,
+        prompt: str,
+        audience: str,
+        style: str,
+        language: str,
+        slides: int,
+        retrieved_chunks: list[str] | None = None,
+    ) -> dict:
+        """Calls Claude once and returns validated structured spec as dict."""
+        system_instruction, developer_instruction, user_input = build_presentation_prompt_parts(
+            prompt=prompt,
+            audience=audience,
+            style=style,
+            language=language,
+            slides=slides,
+            retrieved_chunks=retrieved_chunks,
+        )
+        # Claude has no separate "developer" role — fold it into the system prompt.
+        system_text = f"{system_instruction}\n\n{developer_instruction}"
+
+        try:
+            logger.debug("model.used model=%s", self.model)
+            logger.debug(
+                "llm.request.started model=%s slides=%s audience=%s style=%s language=%s",
+                self.model,
+                slides,
+                audience,
+                style,
+                language,
+            )
+
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=16000,
+                thinking={"type": "adaptive"},
+                system=system_text,
+                messages=[{"role": "user", "content": user_input}],
+                output_config={
+                    "format": {
+                        "type": "json_schema",
+                        "schema": PRESENTATION_SPEC_OPENAI_SCHEMA,
+                    }
+                },
+            )
+
+            logger.debug(
+                "llm.response.received model=%s response_id=%s stop_reason=%s",
+                self.model,
+                response.id,
+                response.stop_reason,
+            )
+
+            if response.stop_reason == "max_tokens":
+                raise RuntimeError("Claude response truncated (max_tokens) — raise max_tokens")
+            if response.stop_reason == "refusal":
+                raise RuntimeError("Claude refused the request")
+
+            raw_json = next(
+                (b.text for b in response.content if b.type == "text"), ""
+            ).strip()
+            if not raw_json:
+                raise RuntimeError("Messages API returned empty text output")
+
+            parsed_json = json.loads(raw_json)
+            spec = PresentationSpec.model_validate(parsed_json)
+
+            if len(spec.slides) != slides:
+                raise ValueError(
+                    f"Model returned {len(spec.slides)} slides, but {slides} requested"
+                )
+
+            logger.debug("llm.response.parsed slides=%s title=%s", len(spec.slides), spec.title)
+            return spec.model_dump()
+
+        except Exception:
+            logger.exception("llm.error model=%s", self.model)
+            raise
+
+
+def get_llm_service() -> OpenAILLMService | AnthropicLLMService:
+    if settings.LLM_PROVIDER == "anthropic":
+        return AnthropicLLMService()
     return OpenAILLMService()

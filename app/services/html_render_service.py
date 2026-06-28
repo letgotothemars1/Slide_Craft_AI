@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import math
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html import escape
@@ -83,7 +84,7 @@ LAYOUTS: dict[str, list[dict]] = {
     ],
     "content_two_column": [
         {"type": "tag",          "x": 64,  "y": 44,  "w": 260,  "h": 36},
-        {"type": "title",        "x": 64,  "y": 92,  "w": 740,  "h": 122, "fontSize": 52, "fontWeight": 800, "lineHeight": 1.06},
+        {"type": "title",        "x": 64,  "y": 88,  "w": 740,  "h": 130, "fontSize": 32, "fontWeight": 700, "lineHeight": 1.2, "action": True},
         {"type": "accent_sub",   "x": 64,  "y": 222, "w": 720,  "h": 46,  "fontSize": 22, "fontWeight": 700},
         {"type": "body",         "x": 64,  "y": 276, "w": 700,  "h": 76,  "fontSize": 18, "fontWeight": 400},
         {"type": "bullets",      "x": 64,  "y": 360, "w": 700,  "h": 298, "fontSize": 17, "fontWeight": 500},
@@ -91,12 +92,12 @@ LAYOUTS: dict[str, list[dict]] = {
         {"type": "image",        "x": 824, "y": 44,  "w": 400,  "h": 614, "radius": 22},
     ],
     "kpi_cards": [
-        {"type": "title",        "x": 64,  "y": 52,  "w": 1160, "h": 90,  "fontSize": 48, "fontWeight": 800, "lineHeight": 1.06},
+        {"type": "title",        "x": 64,  "y": 48,  "w": 1160, "h": 120, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
         {"type": "subtitle",     "x": 64,  "y": 150, "w": 900,  "h": 36,  "fontSize": 17, "fontWeight": 400},
         {"type": "kpi_grid",     "x": 64,  "y": 202, "w": 1152, "h": 474},
     ],
     "timeline_process": [
-        {"type": "title",           "x": 64,  "y": 52,  "w": 1160, "h": 80,  "fontSize": 48, "fontWeight": 800, "lineHeight": 1.06},
+        {"type": "title",           "x": 64,  "y": 48,  "w": 1160, "h": 120, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
         {"type": "subtitle",        "x": 64,  "y": 140, "w": 800,  "h": 36,  "fontSize": 17, "fontWeight": 400},
         {"type": "timeline_steps",  "x": 64,  "y": 190, "w": 1152, "h": 490},
     ],
@@ -104,17 +105,64 @@ LAYOUTS: dict[str, list[dict]] = {
         {"type": "quote_content",   "x": 0,   "y": 0,   "w": 1280, "h": 720},
     ],
     "comparison_split": [
-        {"type": "title",           "x": 64,  "y": 52,  "w": 1160, "h": 80,  "fontSize": 48, "fontWeight": 800, "lineHeight": 1.06},
-        {"type": "comparison_cols", "x": 64,  "y": 148, "w": 1152, "h": 532},
+        {"type": "title",           "x": 64,  "y": 48,  "w": 1160, "h": 120, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
+        {"type": "comparison_cols", "x": 64,  "y": 184, "w": 1152, "h": 496},
     ],
     "infographic_visual": [
-        {"type": "title",              "x": 64,  "y": 52,  "w": 1160, "h": 80,  "fontSize": 48, "fontWeight": 800, "lineHeight": 1.06},
+        {"type": "title",              "x": 64,  "y": 48,  "w": 1160, "h": 120, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
         {"type": "subtitle",           "x": 64,  "y": 140, "w": 800,  "h": 36,  "fontSize": 17, "fontWeight": 400},
         {"type": "infographic_nodes",  "x": 64,  "y": 190, "w": 1152, "h": 490},
+    ],
+    "chart_focus": [
+        {"type": "title",        "x": 64,  "y": 48,  "w": 1160, "h": 120, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
+        {"type": "chart",        "x": 64,  "y": 196, "w": 1152, "h": 448},
+        {"type": "key_message",  "x": 64,  "y": 668, "w": 1152, "h": 30,  "fontSize": 14},
+    ],
+    "data_table": [
+        {"type": "title",        "x": 64,  "y": 48,  "w": 1160, "h": 120, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
+        {"type": "table",        "x": 64,  "y": 196, "w": 1152, "h": 448},
+        {"type": "key_message",  "x": 64,  "y": 668, "w": 1152, "h": 30,  "fontSize": 14},
+    ],
+    "process_flow": [
+        {"type": "title",        "x": 64,  "y": 48,  "w": 1160, "h": 120, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
+        {"type": "flow_steps",   "x": 64,  "y": 244, "w": 1152, "h": 268},
+        {"type": "key_message",  "x": 64,  "y": 668, "w": 1152, "h": 30,  "fontSize": 14},
+    ],
+    "multi_column": [
+        {"type": "title",        "x": 64,  "y": 48,  "w": 1160, "h": 120, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
+        {"type": "columns",      "x": 64,  "y": 196, "w": 1152, "h": 452},
+        {"type": "key_message",  "x": 64,  "y": 668, "w": 1152, "h": 30,  "fontSize": 14},
+    ],
+}
+
+# ── No-image variants: when a slide has no image, reflow content to full width ──
+# instead of leaving an empty image panel / dead right column.
+LAYOUTS_NO_IMAGE: dict[str, list[dict]] = {
+    "hero_minimal": [
+        {"type": "accent_bar",   "x": 0,   "y": 0,   "w": 5,    "h": 720},
+        {"type": "tag",          "x": 72,  "y": 64,  "w": 400,  "h": 36},
+        {"type": "title",        "x": 72,  "y": 128, "w": 1080, "h": 250, "fontSize": 76, "fontWeight": 800, "lineHeight": 1.05},
+        {"type": "subtitle",     "x": 72,  "y": 392, "w": 940,  "h": 64,  "fontSize": 24, "fontWeight": 400},
+        {"type": "bullets",      "x": 72,  "y": 476, "w": 1136, "h": 184, "fontSize": 18, "fontWeight": 500, "cols": 2},
+        {"type": "key_message",  "x": 72,  "y": 672, "w": 1000, "h": 28,  "fontSize": 14},
+    ],
+    "content_two_column": [
+        {"type": "tag",          "x": 64,  "y": 44,  "w": 400,  "h": 36},
+        {"type": "title",        "x": 64,  "y": 88,  "w": 1152, "h": 130, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
+        {"type": "accent_sub",   "x": 64,  "y": 224, "w": 1100, "h": 46,  "fontSize": 22, "fontWeight": 700},
+        {"type": "body",         "x": 64,  "y": 300, "w": 1080, "h": 200, "fontSize": 18, "fontWeight": 400},
+        {"type": "bullets",      "x": 64,  "y": 300, "w": 1152, "h": 358, "fontSize": 18, "fontWeight": 500, "cols": 2},
+        {"type": "key_message",  "x": 64,  "y": 676, "w": 1152, "h": 26,  "fontSize": 14},
     ],
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _layout_blocks(slide: SlideSpec, layout_name: str) -> list[dict]:
+    """Pick the full-width variant when a slide has no image, else the default."""
+    if not slide.image_url and layout_name in LAYOUTS_NO_IMAGE:
+        return LAYOUTS_NO_IMAGE[layout_name]
+    return LAYOUTS.get(layout_name, LAYOUTS["content_two_column"])
 
 def _resolve_layout(slide: SlideSpec) -> str:
     if slide.layout_type and slide.layout_type in LAYOUTS:
@@ -131,6 +179,42 @@ def _resolve_layout(slide: SlideSpec) -> str:
 def _resolve_theme(spec: PresentationSpec) -> dict[str, str]:
     key: ThemeVariant = spec.theme_variant or "clean_editorial"
     return THEME_VARS.get(key, THEME_VARS["clean_editorial"])
+
+
+def _hex_to_rgba(hex_color: str, alpha: float) -> str:
+    h = hex_color.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha})"
+
+
+def _theme_with_accent(base: dict, accent: str) -> dict:
+    """Per-slide copy of the theme with the accent (and its soft tint) swapped."""
+    t = dict(base)
+    t["accent"] = accent
+    t["accent_soft"] = _hex_to_rgba(accent, 0.12)
+    return t
+
+
+def _assign_slide_accents(spec: PresentationSpec, theme_key: str) -> list[str]:
+    """One accent per slide, cycling the theme palette. Slides sharing a section
+    keep the same color; sectionless slides each advance the cycle — so neighbors
+    differ, but everything stays within the theme palette."""
+    variants = THEME_ACCENT_VARIANTS.get(theme_key)
+    base = THEME_VARS.get(theme_key, THEME_VARS["clean_editorial"])["accent"]
+    if not variants:
+        return [base] * len(spec.slides)
+    accents: list[str] = []
+    section_color: dict[str, str] = {}
+    nxt = 0
+    for i, s in enumerate(spec.slides):
+        key = s.section or f"__idx_{i}"
+        if key not in section_color:
+            section_color[key] = variants[nxt % len(variants)]
+            nxt += 1
+        accents.append(section_color[key])
+    return accents
 
 
 def _extract_quote(slide: SlideSpec) -> str:
@@ -171,6 +255,100 @@ def _extract_comparison(slide: SlideSpec) -> tuple[str, list[str], str, list[str
     return left_title, left_items[:5], right_title, right_items[:5]
 
 
+# ── Chart + table renderers ───────────────────────────────────────────────────
+
+def _fmt_num(v: float) -> str:
+    return str(int(v)) if float(v).is_integer() else f"{v:.1f}"
+
+
+def _render_chart_svg(chart, t: dict, w: int, h: int) -> str:
+    """Render a single-series chart (bar / line / pie) as inline SVG."""
+    pts = chart.points[:8]
+    if not pts:
+        return ""
+    unit = chart.unit or ""
+    accent, grid, txt, sub = t["accent"], t["border"], t["text_primary"], t["text_secondary"]
+
+    if chart.chart_type == "pie":
+        total = sum(p.value for p in pts) or 1
+        cx, cy = w * 0.30, h * 0.52
+        r = min(w * 0.26, h * 0.40)
+        opac = [1.0, 0.74, 0.54, 0.40, 0.30, 0.22, 0.16, 0.12]
+        body, ang = [], -90.0
+        for i, pp in enumerate(pts):
+            frac = pp.value / total
+            a2 = ang + frac * 360
+            x1, y1 = cx + r * math.cos(math.radians(ang)), cy + r * math.sin(math.radians(ang))
+            x2, y2 = cx + r * math.cos(math.radians(a2)), cy + r * math.sin(math.radians(a2))
+            large = 1 if frac > 0.5 else 0
+            o = opac[i % len(opac)]
+            body.append(f'<path d="M{cx:.1f},{cy:.1f} L{x1:.1f},{y1:.1f} A{r:.1f},{r:.1f} 0 {large},1 {x2:.1f},{y2:.1f} Z" fill="{accent}" fill-opacity="{o:.2f}"/>')
+            ly = cy - r + i * 42
+            body.append(f'<rect x="{w*0.60:.1f}" y="{ly:.1f}" width="22" height="22" rx="5" fill="{accent}" fill-opacity="{o:.2f}"/>')
+            body.append(f'<text x="{w*0.60+32:.1f}" y="{ly+17:.1f}" font-size="19" fill="{txt}">{escape(pp.label)} — {_fmt_num(pp.value)}{unit}</text>')
+            ang = a2
+        body.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r*0.56:.1f}" fill="{t["page_bg"]}"/>')
+        inner = "".join(body)
+        return f'<svg viewBox="0 0 {w} {h}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><g font-family="Inter, sans-serif">{inner}</g></svg>'
+
+    PL, PR, PT, PB = 28, 28, 44, 54
+    plot_w, plot_h = w - PL - PR, h - PT - PB
+    base_y = PT + plot_h
+    vmax = max((p.value for p in pts), default=0) or 1
+    slot = plot_w / len(pts)
+
+    def cx_(i: int) -> float:
+        return PL + slot * (i + 0.5)
+
+    def cy_(v: float) -> float:
+        return base_y - (v / vmax) * plot_h
+
+    body = [f'<line x1="{PL}" y1="{base_y:.1f}" x2="{w-PR}" y2="{base_y:.1f}" stroke="{grid}" stroke-width="2"/>']
+    if chart.chart_type == "line":
+        poly = " ".join(f"{cx_(i):.1f},{cy_(p.value):.1f}" for i, p in enumerate(pts))
+        body.append(f'<polyline points="{poly}" fill="none" stroke="{accent}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>')
+        for i, p in enumerate(pts):
+            x, y = cx_(i), cy_(p.value)
+            body.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{accent}"/>')
+            body.append(f'<text x="{x:.1f}" y="{y-14:.1f}" text-anchor="middle" font-size="18" font-weight="700" fill="{txt}">{_fmt_num(p.value)}{unit}</text>')
+            body.append(f'<text x="{x:.1f}" y="{base_y+28:.1f}" text-anchor="middle" font-size="16" fill="{sub}">{escape(p.label)}</text>')
+    else:  # bar
+        bw = min(slot * 0.52, 130)
+        for i, p in enumerate(pts):
+            bh = (p.value / vmax) * plot_h
+            x, y = cx_(i) - bw / 2, base_y - bh
+            body.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{bw:.1f}" height="{bh:.1f}" rx="6" fill="{accent}"/>')
+            body.append(f'<text x="{cx_(i):.1f}" y="{y-10:.1f}" text-anchor="middle" font-size="20" font-weight="700" fill="{txt}">{_fmt_num(p.value)}{unit}</text>')
+            body.append(f'<text x="{cx_(i):.1f}" y="{base_y+28:.1f}" text-anchor="middle" font-size="16" fill="{sub}">{escape(p.label)}</text>')
+    inner = "".join(body)
+    return f'<svg viewBox="0 0 {w} {h}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><g font-family="Inter, sans-serif">{inner}</g></svg>'
+
+
+def _render_table_html(table, t: dict) -> str:
+    headers, rows = table.headers, table.rows[:9]
+    thead = ""
+    if headers:
+        ths = "".join(
+            f'<th style="text-align:{"left" if i == 0 else "right"};padding:15px 20px;font-size:16px;'
+            f'font-weight:700;color:{t["text_primary"]};border-bottom:2px solid {t["accent"]};">{escape(h)}</th>'
+            for i, h in enumerate(headers)
+        )
+        thead = f"<thead><tr>{ths}</tr></thead>"
+    trs = ""
+    for r in rows:
+        tds = "".join(
+            f'<td style="text-align:{"left" if i == 0 else "right"};padding:13px 20px;font-size:16px;'
+            f'color:{t["text_primary"] if i == 0 else t["text_secondary"]};border-bottom:1px solid {t["border"]};'
+            f'{"font-weight:600;" if i == 0 else ""}">{escape(c)}</td>'
+            for i, c in enumerate(r)
+        )
+        trs += f"<tr>{tds}</tr>"
+    return (
+        f'<div style="width:100%;border:1px solid {t["border"]};border-radius:16px;overflow:hidden;background:{t["panel_bg"]};">'
+        f'<table style="width:100%;border-collapse:collapse;">{thead}<tbody>{trs}</tbody></table></div>'
+    )
+
+
 # ── Block renderer ────────────────────────────────────────────────────────────
 
 def _pos(b: dict) -> str:
@@ -199,6 +377,15 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
         fs = b.get("fontSize", 48)
         fw = b.get("fontWeight", 800)
         lh = b.get("lineHeight", 1.08)
+        if b.get("action"):
+            # Consulting "action title": takeaway sentence + thin accent rule beneath.
+            return (
+                f'<div style="{p}display:flex;flex-direction:column;justify-content:flex-start;">'
+                f'<div style="font-size:{fs}px;font-weight:{fw};line-height:{lh};letter-spacing:-.015em;'
+                f'color:{t["text_primary"]};">{escape(slide.title or "")}</div>'
+                f'<div style="margin-top:14px;width:60px;height:3px;background:{t["accent"]};border-radius:2px;flex-shrink:0;"></div>'
+                f'</div>'
+            )
         return (
             f'<div style="{p}font-size:{fs}px;font-weight:{fw};line-height:{lh};'
             f'letter-spacing:-.025em;color:{t["text_primary"]};">'
@@ -242,6 +429,19 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
             return ""
         fs = b.get("fontSize", 17)
         fw = b.get("fontWeight", 500)
+        if b.get("cols") == 2:
+            items = "".join(
+                f'<div style="display:flex;align-items:flex-start;gap:12px;padding:9px 0;">'
+                f'<span style="color:{t["accent"]};font-weight:700;font-size:{fs+1}px;flex-shrink:0;line-height:1.5;">—</span>'
+                f'<span style="font-size:{fs}px;font-weight:{fw};line-height:1.5;color:{t["text_primary"]};">{escape(item)}</span>'
+                f'</div>'
+                for item in bullets
+            )
+            return (
+                f'<div style="{p}background:{t["panel_bg"]};border:1px solid {t["border"]};'
+                f'border-radius:20px;padding:24px 36px;display:grid;grid-template-columns:1fr 1fr;'
+                f'gap:4px 48px;align-content:center;">' + items + "</div>"
+            )
         rows = []
         for i, item in enumerate(bullets):
             border = f"border-bottom:1px solid {t['border']};" if i < len(bullets) - 1 else ""
@@ -310,30 +510,37 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
         cols = min(len(cards), 4)
         cards_html = "".join(
             f'<div style="background:{t["panel_bg"]};border:1px solid {t["border"]};border-radius:16px;'
-            f'padding:28px 24px;display:flex;flex-direction:column;justify-content:center;'
-            f'position:relative;overflow:hidden;">'
+            f'padding:32px 28px;display:flex;flex-direction:column;justify-content:center;'
+            f'height:300px;position:relative;overflow:hidden;">'
             f'<div style="position:absolute;top:0;left:0;right:0;height:5px;background:{t["accent"]};'
             f'border-radius:16px 16px 0 0;{"opacity:.5;" if idx % 2 == 1 else ""}"></div>'
-            f'<div style="font-size:52px;font-weight:800;color:{t["accent"]};letter-spacing:-.03em;line-height:1;margin-bottom:10px;">{escape(metric)}</div>'
-            f'<div style="font-size:15px;color:{t["text_secondary"]};font-weight:500;line-height:1.5;">{escape(label)}</div>'
+            f'<div style="font-size:54px;font-weight:800;color:{t["accent"]};letter-spacing:-.03em;line-height:1;margin-bottom:12px;">{escape(metric)}</div>'
+            f'<div style="font-size:16px;color:{t["text_secondary"]};font-weight:500;line-height:1.5;">{escape(label)}</div>'
             f'</div>'
             for idx, (metric, label) in enumerate(cards[:4])
         )
-        return f'<div style="{p}display:grid;grid-template-columns:repeat({cols},1fr);gap:20px;">{cards_html}</div>'
+        return f'<div style="{p}display:grid;grid-template-columns:repeat({cols},1fr);gap:20px;align-items:center;">{cards_html}</div>'
 
     if btype == "timeline_steps":
         steps = slide.bullets[:6] or (slide.body.split("\n") if slide.body else [])
         steps_html = "".join(
-            f'<div style="display:flex;align-items:center;gap:20px;">'
-            f'<div style="width:44px;height:44px;border-radius:12px;background:{t["accent_soft"]};'
+            f'<div style="display:flex;align-items:flex-start;gap:22px;">'
+            f'<div style="width:44px;height:44px;border-radius:12px;background:{t["page_bg"]};'
             f'border:2px solid {t["accent"]};display:flex;align-items:center;justify-content:center;'
-            f'font-size:15px;font-weight:700;color:{t["accent"]};flex-shrink:0;">{i + 1}</div>'
+            f'font-size:16px;font-weight:700;color:{t["accent"]};flex-shrink:0;position:relative;z-index:1;">{i + 1}</div>'
             f'<div style="background:{t["panel_bg"]};border:1px solid {t["border"]};border-radius:12px;'
-            f'padding:16px 22px;flex:1;font-size:17px;font-weight:500;line-height:1.5;color:{t["text_primary"]};">{escape(step)}</div>'
+            f'padding:0 22px;flex:1;min-height:44px;display:flex;align-items:center;'
+            f'font-size:17px;font-weight:500;line-height:1.45;color:{t["text_primary"]};">{escape(step)}</div>'
             f'</div>'
             for i, step in enumerate(steps)
         )
-        return f'<div style="{p}display:flex;flex-direction:column;justify-content:space-evenly;">{steps_html}</div>'
+        return (
+            f'<div style="{p}display:flex;flex-direction:column;justify-content:center;">'
+            f'<div style="position:relative;display:flex;flex-direction:column;gap:18px;">'
+            f'<div style="position:absolute;left:21px;top:22px;bottom:22px;width:2px;background:{t["border"]};"></div>'
+            + steps_html
+            + "</div></div>"
+        )
 
     if btype == "comparison_cols":
         left_title, left_items, right_title, right_items = _extract_comparison(slide)
@@ -355,12 +562,12 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
                 f'display:flex;flex-direction:column;">'
                 f'<div style="font-size:18px;font-weight:700;color:{tc};margin-bottom:14px;'
                 f'padding-bottom:12px;border-bottom:2px solid {bc};">{escape(title)}</div>'
-                f'<div style="display:flex;flex-direction:column;justify-content:space-evenly;flex:1;">{rows}</div>'
+                f'<div style="display:flex;flex-direction:column;justify-content:flex-start;gap:6px;">{rows}</div>'
                 f'</div>'
             )
 
         return (
-            f'<div style="{p}display:grid;grid-template-columns:1fr 1fr;gap:20px;">'
+            f'<div style="{p}display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center;">'
             + _col(left_title, left_items, False)
             + _col(right_title, right_items, True)
             + "</div>"
@@ -371,15 +578,16 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
         cols = 3 if len(nodes) > 3 else max(len(nodes), 1)
         nodes_html = "".join(
             f'<div style="background:{t["panel_bg"]};border:1px solid {t["border"]};border-radius:16px;'
-            f'padding:22px 18px;display:flex;flex-direction:column;position:relative;overflow:hidden;">'
+            f'padding:28px 24px;display:flex;flex-direction:column;justify-content:center;'
+            f'height:300px;position:relative;overflow:hidden;">'
             f'<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:{t["accent"]};opacity:.4;"></div>'
-            f'<div style="width:30px;height:30px;border-radius:8px;background:{t["accent_soft"]};'
-            f'color:{t["accent"]};font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:12px;">{i + 1}</div>'
-            f'<div style="font-size:15px;line-height:1.55;color:{t["text_primary"]};">{escape(node)}</div>'
+            f'<div style="width:40px;height:40px;border-radius:10px;background:{t["accent_soft"]};border:1.5px solid {t["accent"]};'
+            f'color:{t["accent"]};font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:18px;">{i + 1}</div>'
+            f'<div style="font-size:18px;line-height:1.5;color:{t["text_primary"]};font-weight:500;">{escape(node)}</div>'
             f'</div>'
             for i, node in enumerate(nodes)
         )
-        return f'<div style="{p}display:grid;grid-template-columns:repeat({cols},1fr);grid-auto-rows:1fr;gap:16px;">{nodes_html}</div>'
+        return f'<div style="{p}display:grid;grid-template-columns:repeat({cols},1fr);gap:16px;align-items:center;">{nodes_html}</div>'
 
     if btype == "quote_content":
         quote = _extract_quote(slide)
@@ -395,6 +603,68 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
             + "</div>"
         )
 
+    if btype == "flow_steps":
+        steps = slide.bullets[:6] or [c.header for c in slide.columns[:6]]
+        if not steps:
+            return ""
+        n = len(steps)
+        parts = []
+        for i, step in enumerate(steps):
+            title, desc = step, ""
+            for sep in (" — ", " – ", ": "):
+                if sep in step:
+                    title, desc = step.split(sep, 1)
+                    break
+            parts.append(
+                f'<div style="flex:1;background:{t["panel_bg"]};border:1px solid {t["border"]};border-radius:16px;'
+                f'padding:24px 20px;display:flex;flex-direction:column;justify-content:center;min-width:0;">'
+                f'<div style="width:36px;height:36px;border-radius:10px;background:{t["accent_soft"]};border:1.5px solid {t["accent"]};'
+                f'color:{t["accent"]};font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">{i + 1}</div>'
+                f'<div style="font-size:17px;font-weight:700;line-height:1.3;color:{t["text_primary"]};">{escape(title)}</div>'
+                + (f'<div style="font-size:14px;line-height:1.45;color:{t["text_secondary"]};margin-top:8px;">{escape(desc)}</div>' if desc else "")
+                + "</div>"
+            )
+            if i < n - 1:
+                parts.append(
+                    f'<div style="flex-shrink:0;display:flex;align-items:center;padding:0 8px;'
+                    f'color:{t["accent"]};font-size:30px;font-weight:700;">&#8594;</div>'
+                )
+        return f'<div style="{p}display:flex;align-items:stretch;">{"".join(parts)}</div>'
+
+    if btype == "columns":
+        cols = slide.columns[:5]
+        if not cols:
+            return ""
+        col_html = "".join(
+            f'<div style="background:{t["panel_bg"]};border:1px solid {t["border"]};border-radius:16px;'
+            f'padding:24px 22px;display:flex;flex-direction:column;min-width:0;">'
+            f'<div style="font-size:17px;font-weight:700;color:{t["accent"]};margin-bottom:14px;padding-bottom:12px;'
+            f'border-bottom:2px solid {t["accent"]};">{escape(c.header)}</div>'
+            + "".join(
+                f'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;font-size:15px;'
+                f'line-height:1.45;color:{t["text_primary"]};">'
+                f'<span style="color:{t["accent"]};font-weight:700;flex-shrink:0;">—</span>'
+                f'<span>{escape(it)}</span></div>'
+                for it in c.items[:6]
+            )
+            + "</div>"
+            for c in cols
+        )
+        return (
+            f'<div style="{p}display:grid;grid-template-columns:repeat({len(cols)},1fr);gap:18px;">'
+            f'{col_html}</div>'
+        )
+
+    if btype == "chart":
+        if not slide.chart or not slide.chart.points:
+            return ""
+        return f'<div style="{p}">{_render_chart_svg(slide.chart, t, b["w"], b["h"])}</div>'
+
+    if btype == "table":
+        if not slide.table or not slide.table.rows:
+            return ""
+        return f'<div style="{p}display:flex;align-items:center;">{_render_table_html(slide.table, t)}</div>'
+
     return ""
 
 
@@ -402,7 +672,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
 
 def _render_slide(slide: SlideSpec, theme: dict) -> str:
     layout_name = _resolve_layout(slide)
-    blocks = LAYOUTS.get(layout_name, LAYOUTS["content_two_column"])
+    blocks = _layout_blocks(slide, layout_name)
     blocks_html = "".join(_render_block(b, slide, theme) for b in blocks)
     font = "Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
     return (
@@ -415,7 +685,12 @@ def _render_slide(slide: SlideSpec, theme: dict) -> str:
 
 def build_full_html(spec: PresentationSpec) -> str:
     theme = _resolve_theme(spec)
-    slides_html = "\n".join(_render_slide(s, theme) for s in spec.slides)
+    theme_key = spec.theme_variant or "clean_editorial"
+    accents = _assign_slide_accents(spec, theme_key)
+    slides_html = "\n".join(
+        _render_slide(s, _theme_with_accent(theme, a))
+        for s, a in zip(spec.slides, accents)
+    )
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
