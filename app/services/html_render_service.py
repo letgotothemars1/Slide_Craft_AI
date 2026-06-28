@@ -224,6 +224,7 @@ def _extract_quote(slide: SlideSpec) -> str:
 def _extract_kpi_cards(slide: SlideSpec) -> list[tuple[str, str]]:
     cards = []
     for idx, item in enumerate(slide.bullets[:4], 1):
+        item = item.replace("**", "")
         has_number = bool(re.search(r"\d", item))
         if has_number:
             m = re.match(r"^(.{1,30}?)\s*[:—–]\s*(.+)$", item)
@@ -261,8 +262,55 @@ def _fmt_num(v: float) -> str:
     return str(int(v)) if float(v).is_integer() else f"{v:.1f}"
 
 
+def _grouped_chart_svg(chart, t: dict, w: int, h: int) -> str:
+    """Render a grouped (multi-series) bar or line chart as inline SVG."""
+    accent, grid, txt, sub = t["accent"], t["border"], t["text_primary"], t["text_secondary"]
+    cats = chart.categories[:6]
+    series = chart.series[:3]
+    if not cats or not series:
+        return ""
+    opac = [1.0, 0.6, 0.38]
+    vmax = max((v for s in series for v in (s.values or [])), default=0) or 1
+    PL, PR, PT, PB = 28, 28, 64, 54
+    plot_w, plot_h = w - PL - PR, h - PT - PB
+    base_y = PT + plot_h
+    n = len(cats)
+    slot = plot_w / n
+    body = [f'<line x1="{PL}" y1="{base_y:.1f}" x2="{w-PR}" y2="{base_y:.1f}" stroke="{grid}" stroke-width="2"/>']
+    lx = PL
+    for si, s in enumerate(series):
+        o = opac[si % 3]
+        body.append(f'<rect x="{lx:.1f}" y="14" width="20" height="20" rx="4" fill="{accent}" fill-opacity="{o:.2f}"/>')
+        body.append(f'<text x="{lx+28:.1f}" y="31" font-size="16" fill="{txt}">{escape(s.name)}</text>')
+        lx += 48 + len(s.name) * 10
+    if chart.chart_type == "line":
+        for si, s in enumerate(series):
+            vals = s.values
+            o = max(opac[si % 3], 0.5)
+            poly = " ".join(f"{PL+slot*(ci+0.5):.1f},{base_y-(vals[ci]/vmax)*plot_h:.1f}" for ci in range(min(n, len(vals))))
+            body.append(f'<polyline points="{poly}" fill="none" stroke="{accent}" stroke-opacity="{o:.2f}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>')
+            for ci in range(min(n, len(vals))):
+                body.append(f'<circle cx="{PL+slot*(ci+0.5):.1f}" cy="{base_y-(vals[ci]/vmax)*plot_h:.1f}" r="5" fill="{accent}" fill-opacity="{o:.2f}"/>')
+    else:
+        m = len(series)
+        group_w = slot * 0.66
+        bw = group_w / m
+        for ci in range(n):
+            gx = PL + slot * ci + (slot - group_w) / 2
+            for si, s in enumerate(series):
+                v = s.values[ci] if ci < len(s.values) else 0
+                bh = (v / vmax) * plot_h
+                body.append(f'<rect x="{gx + bw*si:.1f}" y="{base_y-bh:.1f}" width="{bw*0.86:.1f}" height="{bh:.1f}" rx="4" fill="{accent}" fill-opacity="{opac[si % 3]:.2f}"/>')
+    for ci, cat in enumerate(cats):
+        body.append(f'<text x="{PL+slot*(ci+0.5):.1f}" y="{base_y+28:.1f}" text-anchor="middle" font-size="16" fill="{sub}">{escape(cat)}</text>')
+    inner = "".join(body)
+    return f'<svg viewBox="0 0 {w} {h}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><g font-family="Inter, sans-serif">{inner}</g></svg>'
+
+
 def _render_chart_svg(chart, t: dict, w: int, h: int) -> str:
-    """Render a single-series chart (bar / line / pie) as inline SVG."""
+    """Render a chart as inline SVG (single-series points, or grouped series)."""
+    if chart.series and chart.categories and chart.chart_type in ("bar", "line"):
+        return _grouped_chart_svg(chart, t, w, h)
     pts = chart.points[:8]
     if not pts:
         return ""
@@ -355,6 +403,16 @@ def _pos(b: dict) -> str:
     return f"position:absolute;left:{b['x']}px;top:{b['y']}px;width:{b['w']}px;height:{b['h']}px;overflow:hidden;"
 
 
+def _rich(text: str, t: dict) -> str:
+    """Escape text, then turn **key phrase** markers into accent-colored spans."""
+    out = escape(text)
+    return re.sub(
+        r"\*\*(.+?)\*\*",
+        lambda m: f'<span style="color:{t["accent"]};font-weight:700;">{m.group(1)}</span>',
+        out,
+    )
+
+
 def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
     btype = b["type"]
     p = _pos(b)
@@ -420,7 +478,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
         fs = b.get("fontSize", 18)
         return (
             f'<div style="{p}font-size:{fs}px;color:{t["text_secondary"]};line-height:1.6;">'
-            f'{escape(slide.body)}</div>'
+            f'{_rich(slide.body, t)}</div>'
         )
 
     if btype == "bullets":
@@ -433,7 +491,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
             items = "".join(
                 f'<div style="display:flex;align-items:flex-start;gap:12px;padding:9px 0;">'
                 f'<span style="color:{t["accent"]};font-weight:700;font-size:{fs+1}px;flex-shrink:0;line-height:1.5;">—</span>'
-                f'<span style="font-size:{fs}px;font-weight:{fw};line-height:1.5;color:{t["text_primary"]};">{escape(item)}</span>'
+                f'<span style="font-size:{fs}px;font-weight:{fw};line-height:1.5;color:{t["text_primary"]};">{_rich(item, t)}</span>'
                 f'</div>'
                 for item in bullets
             )
@@ -448,7 +506,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
             rows.append(
                 f'<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;{border}">'
                 f'<span style="color:{t["accent"]};font-weight:700;font-size:{fs+1}px;flex-shrink:0;line-height:1.5;">—</span>'
-                f'<span style="font-size:{fs}px;font-weight:{fw};line-height:1.5;color:{t["text_primary"]};">{escape(item)}</span>'
+                f'<span style="font-size:{fs}px;font-weight:{fw};line-height:1.5;color:{t["text_primary"]};">{_rich(item, t)}</span>'
                 f'</div>'
             )
         return (
@@ -499,7 +557,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
             f'<div style="width:34px;height:34px;border-radius:9px;background:{t["accent_soft"]};'
             f'border:1.5px solid {t["accent"]};display:flex;align-items:center;justify-content:center;'
             f'font-size:14px;font-weight:700;color:{t["accent"]};flex-shrink:0;">{i + 1}</div>'
-            f'<div style="font-size:18px;font-weight:500;color:{t["text_primary"]};">{escape(item)}</div>'
+            f'<div style="font-size:18px;font-weight:500;color:{t["text_primary"]};">{_rich(item, t)}</div>'
             f'</div>'
             for i, item in enumerate(bullets)
         )
@@ -530,7 +588,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
             f'font-size:16px;font-weight:700;color:{t["accent"]};flex-shrink:0;position:relative;z-index:1;">{i + 1}</div>'
             f'<div style="background:{t["panel_bg"]};border:1px solid {t["border"]};border-radius:12px;'
             f'padding:0 22px;flex:1;min-height:44px;display:flex;align-items:center;'
-            f'font-size:17px;font-weight:500;line-height:1.45;color:{t["text_primary"]};">{escape(step)}</div>'
+            f'font-size:17px;font-weight:500;line-height:1.45;color:{t["text_primary"]};"><span>{_rich(step, t)}</span></div>'
             f'</div>'
             for i, step in enumerate(steps)
         )
@@ -554,7 +612,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
                 f'<div style="display:flex;align-items:flex-start;gap:10px;font-size:16px;line-height:1.5;'
                 f'padding:9px 0;{"border-bottom:1px solid " + t["border"] + ";" if i < len(items)-1 else ""}">'
                 f'<span style="width:7px;height:7px;border-radius:50%;background:{t["accent"]};margin-top:8px;flex-shrink:0;"></span>'
-                f'<span style="color:{t["text_primary"]};">{escape(item)}</span></div>'
+                f'<span style="color:{t["text_primary"]};">{_rich(item, t)}</span></div>'
                 for i, item in enumerate(items)
             )
             return (
@@ -583,7 +641,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
             f'<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:{t["accent"]};opacity:.4;"></div>'
             f'<div style="width:40px;height:40px;border-radius:10px;background:{t["accent_soft"]};border:1.5px solid {t["accent"]};'
             f'color:{t["accent"]};font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:18px;">{i + 1}</div>'
-            f'<div style="font-size:18px;line-height:1.5;color:{t["text_primary"]};font-weight:500;">{escape(node)}</div>'
+            f'<div style="font-size:18px;line-height:1.5;color:{t["text_primary"]};font-weight:500;">{_rich(node, t)}</div>'
             f'</div>'
             for i, node in enumerate(nodes)
         )
@@ -620,8 +678,8 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
                 f'padding:24px 20px;display:flex;flex-direction:column;justify-content:center;min-width:0;">'
                 f'<div style="width:36px;height:36px;border-radius:10px;background:{t["accent_soft"]};border:1.5px solid {t["accent"]};'
                 f'color:{t["accent"]};font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:14px;">{i + 1}</div>'
-                f'<div style="font-size:17px;font-weight:700;line-height:1.3;color:{t["text_primary"]};">{escape(title)}</div>'
-                + (f'<div style="font-size:14px;line-height:1.45;color:{t["text_secondary"]};margin-top:8px;">{escape(desc)}</div>' if desc else "")
+                f'<div style="font-size:17px;font-weight:700;line-height:1.3;color:{t["text_primary"]};">{_rich(title, t)}</div>'
+                + (f'<div style="font-size:14px;line-height:1.45;color:{t["text_secondary"]};margin-top:8px;">{_rich(desc, t)}</div>' if desc else "")
                 + "</div>"
             )
             if i < n - 1:
@@ -644,7 +702,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
                 f'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;font-size:15px;'
                 f'line-height:1.45;color:{t["text_primary"]};">'
                 f'<span style="color:{t["accent"]};font-weight:700;flex-shrink:0;">—</span>'
-                f'<span>{escape(it)}</span></div>'
+                f'<span>{_rich(it, t)}</span></div>'
                 for it in c.items[:6]
             )
             + "</div>"
@@ -656,7 +714,7 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
         )
 
     if btype == "chart":
-        if not slide.chart or not slide.chart.points:
+        if not slide.chart or not (slide.chart.points or slide.chart.series):
             return ""
         return f'<div style="{p}">{_render_chart_svg(slide.chart, t, b["w"], b["h"])}</div>'
 
@@ -674,11 +732,17 @@ def _render_slide(slide: SlideSpec, theme: dict) -> str:
     layout_name = _resolve_layout(slide)
     blocks = _layout_blocks(slide, layout_name)
     blocks_html = "".join(_render_block(b, slide, theme) for b in blocks)
+    source_html = (
+        f'<div style="position:absolute;right:56px;bottom:22px;max-width:55%;text-align:right;'
+        f'font-size:13px;color:{theme["text_secondary"]};opacity:.6;">{escape(slide.source)}</div>'
+        if getattr(slide, "source", None) else ""
+    )
     font = "Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
     return (
         f'<div class="slide" style="position:relative;width:{W}px;height:{H}px;overflow:hidden;'
         f'background:{theme["page_bg"]};color:{theme["text_primary"]};font-family:{font};">'
         + blocks_html
+        + source_html
         + "</div>"
     )
 
