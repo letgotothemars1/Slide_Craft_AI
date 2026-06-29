@@ -21,7 +21,7 @@ def build_presentation_prompt_parts(
     developer_instruction = (
         "Generate a presentation specification with concise slide-friendly content. "
         "Output must be a single JSON object with fields: "
-        "title, subtitle, theme_variant, audience, language, style, slides. "
+        "title, subtitle, theme_variant, image_density, audience, language, style, slides. "
         "Each slide must include: id, type, layout_type, title, subtitle, visual_density, bullets, body, visual_hint, "
         "section, key_message, image_prompt, image_url, chart_hint, speaker_notes. "
         "GUIDING PRINCIPLES (apply to every slide — distilled from Duarte, Reynolds, Kawasaki, Knaflic): "
@@ -120,7 +120,15 @@ def build_presentation_prompt_parts(
         "bullet line; never wrap a whole sentence. "
         "26) Set a short 'source' citation (e.g. 'Источник: данные компании', 'Source: отраслевой отчёт 2025') on slides "
         "with figures or factual claims (chart_focus, data_table, kpi_cards, and any slide citing numbers); under ~12 words. "
-        "Keep 'source' null on purely conceptual/quote/agenda slides."
+        "Keep 'source' null on purely conceptual/quote/agenda slides. "
+        "27) Set presentation-level 'image_density': 'rich' for visual/narrative topics (travel, lifestyle, food, nature, "
+        "culture, personal, story-driven education) where photos carry the deck; 'minimal' for data/business/analytical "
+        "topics (reports, strategy, finance, market analysis) where charts and tables matter more than photos; 'moderate' "
+        "otherwise. "
+        "28) Set 'image_prompt' (a vivid English visual description) on content slides where an image genuinely strengthens "
+        "them. For image_density='rich', put an image_prompt on MOST section/item slides and use content_two_column for "
+        "those items — a consistent image+text layout per item beats layout variety here. For 'minimal', set image_prompt "
+        "only on the hero/title and at most one other slide; keep it null elsewhere."
     )
 
     user_input = (
