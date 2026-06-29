@@ -28,6 +28,8 @@ LayoutType = Literal[
 ]
 ThemeVariant = Literal["dark_tech_pitch", "clean_editorial", "infographic_bright"]
 VisualDensity = Literal["low", "medium", "high"]
+# Deck-level image budget signal: how image-driven the topic is.
+ImageDensity = Literal["rich", "moderate", "minimal"]
 
 
 # OpenAI strict structured outputs requires:
@@ -49,6 +51,7 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
                 {"type": "null"},
             ]
         },
+        "image_density": {"type": "string", "enum": ["rich", "moderate", "minimal"]},
         "audience": {"type": "string"},
         "language": {"type": "string"},
         "style": {"type": "string"},
@@ -197,7 +200,7 @@ PRESENTATION_SPEC_OPENAI_SCHEMA: dict = {
             },
         },
     },
-    "required": ["title", "subtitle", "theme_variant", "audience", "language", "style", "slides"],
+    "required": ["title", "subtitle", "theme_variant", "image_density", "audience", "language", "style", "slides"],
 }
 
 
@@ -285,6 +288,7 @@ class PresentationSpec(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     subtitle: str | None = Field(default=None, max_length=300)
     theme_variant: ThemeVariant | None = None
+    image_density: ImageDensity = Field(default="moderate")
     audience: str = Field(min_length=1, max_length=200)
     language: str = Field(min_length=1, max_length=16)
     style: str = Field(min_length=1, max_length=500)

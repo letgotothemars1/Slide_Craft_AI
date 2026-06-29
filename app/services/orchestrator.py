@@ -32,7 +32,10 @@ IMAGE_ELIGIBLE_LAYOUTS = {
     "comparison_split",
     "infographic_visual",
 }
-MAX_IMAGES_PER_PRESENTATION = 2
+# Per-deck image budget driven by spec.image_density (topic-aware regulation):
+# visual/narrative topics (travel, lifestyle) get many images; data/business few.
+IMAGE_BUDGET = {"rich": 6, "moderate": 3, "minimal": 2}
+DEFAULT_IMAGE_BUDGET = 2
 
 
 @dataclass
@@ -173,7 +176,7 @@ def save_spec(job_id: str, spec: dict) -> None:
 
 def _select_image_candidates(spec: PresentationSpec) -> list[tuple[int, int, str]]:
     """
-    Select up to 1-2 slides for image generation with explicit priority:
+    Select slides for image generation (budget from spec.image_density) with priority:
     1) hero/title, 2) key content, 3) comparison/infographic.
     """
     ranked: list[tuple[int, int, str]] = []
@@ -198,7 +201,8 @@ def _select_image_candidates(spec: PresentationSpec) -> list[tuple[int, int, str
         ranked.append((priority, idx, slide.id))
 
     ranked.sort(key=lambda item: (item[0], item[1]))
-    return ranked[:MAX_IMAGES_PER_PRESENTATION]
+    cap = IMAGE_BUDGET.get(spec.image_density, DEFAULT_IMAGE_BUDGET)
+    return ranked[:cap]
 
 
 def _run_critic(spec_json: dict) -> dict:
