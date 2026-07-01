@@ -86,8 +86,8 @@ LAYOUTS: dict[str, list[dict]] = {
         {"type": "tag",          "x": 64,  "y": 44,  "w": 260,  "h": 36},
         {"type": "title",        "x": 64,  "y": 88,  "w": 740,  "h": 130, "fontSize": 32, "fontWeight": 700, "lineHeight": 1.2, "action": True},
         {"type": "accent_sub",   "x": 64,  "y": 222, "w": 720,  "h": 46,  "fontSize": 22, "fontWeight": 700},
-        {"type": "body",         "x": 64,  "y": 276, "w": 700,  "h": 76,  "fontSize": 18, "fontWeight": 400},
-        {"type": "bullets",      "x": 64,  "y": 360, "w": 700,  "h": 298, "fontSize": 17, "fontWeight": 500},
+        {"type": "body",         "x": 64,  "y": 276, "w": 700,  "h": 76,  "fontSize": 18, "fontWeight": 400, "always": True},
+        {"type": "bullets",      "x": 64,  "y": 360, "w": 700,  "h": 298, "fontSize": 17, "fontWeight": 500, "plain": True},
         {"type": "key_message",  "x": 64,  "y": 676, "w": 700,  "h": 26,  "fontSize": 14},
         {"type": "image",        "x": 824, "y": 44,  "w": 400,  "h": 614, "radius": 22},
     ],
@@ -198,23 +198,10 @@ def _theme_with_accent(base: dict, accent: str) -> dict:
 
 
 def _assign_slide_accents(spec: PresentationSpec, theme_key: str) -> list[str]:
-    """One accent per slide, cycling the theme palette. Slides sharing a section
-    keep the same color; sectionless slides each advance the cycle — so neighbors
-    differ, but everything stays within the theme palette."""
-    variants = THEME_ACCENT_VARIANTS.get(theme_key)
+    """One single accent color for the whole deck — a deck must not turn into a
+    traffic light of colors. Every slide uses the theme's base accent."""
     base = THEME_VARS.get(theme_key, THEME_VARS["clean_editorial"])["accent"]
-    if not variants:
-        return [base] * len(spec.slides)
-    accents: list[str] = []
-    section_color: dict[str, str] = {}
-    nxt = 0
-    for i, s in enumerate(spec.slides):
-        key = s.section or f"__idx_{i}"
-        if key not in section_color:
-            section_color[key] = variants[nxt % len(variants)]
-            nxt += 1
-        accents.append(section_color[key])
-    return accents
+    return [base] * len(spec.slides)
 
 
 def _extract_quote(slide: SlideSpec) -> str:
@@ -473,7 +460,9 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
         )
 
     if btype == "body":
-        if not slide.body or slide.bullets:
+        if not slide.body:
+            return ""
+        if slide.bullets and not b.get("always"):
             return ""
         fs = b.get("fontSize", 18)
         return (
@@ -508,6 +497,11 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
                 f'<span style="color:{t["accent"]};font-weight:700;font-size:{fs+1}px;flex-shrink:0;line-height:1.5;">—</span>'
                 f'<span style="font-size:{fs}px;font-weight:{fw};line-height:1.5;color:{t["text_primary"]};">{_rich(item, t)}</span>'
                 f'</div>'
+            )
+        if b.get("plain"):
+            return (
+                f'<div style="{p}display:flex;flex-direction:column;justify-content:center;">'
+                + "".join(rows) + "</div>"
             )
         return (
             f'<div style="{p}background:{t["panel_bg"]};border:1px solid {t["border"]};'
