@@ -240,11 +240,16 @@ def generate_assets(job_id: str, spec_json: dict, temp_dir: Path) -> tuple[dict,
     safe_job_id = sanitize_job_id_for_paths(job_id)
     uploaded_artifacts: list[UploadedArtifact] = []
 
+    from concurrent.futures import ThreadPoolExecutor
+
+    candidates = []
     for _, _, slide_id in _select_image_candidates(spec):
         slide = next((item for item in spec.slides if item.id == slide_id), None)
-        if slide is None or not slide.image_prompt:
-            continue
+        if slide is not None and slide.image_prompt:
+            candidates.append(slide)
 
+    def _generate_and_upload(slide) -> UploadedArtifact | None:
+        """Best-effort image generation + upload for one slide (runs in a worker thread)."""
         try:
             image_bytes = image_service.generate_slide_image(
                 slide.image_prompt,
@@ -252,7 +257,7 @@ def generate_assets(job_id: str, spec_json: dict, temp_dir: Path) -> tuple[dict,
                 slide_id=slide.id,
             )
             if image_bytes is None:
-                continue
+                return None
 
             safe_slide_id = _sanitize_slide_id(slide.id)
             image_local_path = temp_dir / f"{safe_slide_id}.png"
@@ -262,19 +267,24 @@ def generate_assets(job_id: str, spec_json: dict, temp_dir: Path) -> tuple[dict,
             public_url = storage.upload_file(image_local_path, storage_key, "image/png")
             slide.image_url = public_url
 
-            uploaded_artifacts.append(
-                UploadedArtifact(
-                    artifact_type="image",
-                    storage_key=storage_key,
-                    public_url=public_url,
-                    mime_type="image/png",
-                )
-            )
             logger.debug("image.saved job_id=%s slide_id=%s public_url=%s", job_id, slide.id, public_url)
+            return UploadedArtifact(
+                artifact_type="image",
+                storage_key=storage_key,
+                public_url=public_url,
+                mime_type="image/png",
+            )
         except Exception:
-            # Image path is best-effort only; we keep pipeline alive on any per-slide failure.
+            # Image path is best-effort only; we keep the pipeline alive on any per-slide failure.
             logger.exception("image.error job_id=%s slide_id=%s stage=generate_or_upload", job_id, slide.id)
-            continue
+            return None
+
+    # Generate all slide images concurrently — sequential generation was the main latency cost.
+    if candidates:
+        with ThreadPoolExecutor(max_workers=min(6, len(candidates))) as pool:
+            for artifact in pool.map(_generate_and_upload, candidates):
+                if artifact is not None:
+                    uploaded_artifacts.append(artifact)
 
     updated_spec = spec.model_dump()
     if uploaded_artifacts:

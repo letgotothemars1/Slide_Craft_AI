@@ -429,6 +429,38 @@ class AnthropicLLMService:
         self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         self.model = settings.ANTHROPIC_MODEL
 
+    def _classify_category(self, prompt: str) -> str:
+        """Cheap/fast topic classification to route to a category-specific prompt."""
+        try:
+            resp = self.client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=20,
+                system="Classify the presentation topic into exactly one category. Reply with ONLY the label.",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Topic: {prompt}\n\n"
+                            "Categories:\n"
+                            "- travel_visual: travel, places, cities, food, lifestyle, personal picks, 'top N ...' listicles\n"
+                            "- business_data: business, finance, strategy, market/data analysis, reports, consulting, pitch/case\n"
+                            "- general: anything else (educational explainers, how-to, general info)\n\n"
+                            "Answer with one label: travel_visual, business_data, or general."
+                        ),
+                    }
+                ],
+            )
+            text = "".join(
+                b.text for b in resp.content if getattr(b, "type", "") == "text"
+            ).strip().lower()
+            for cat in ("travel_visual", "business_data", "general"):
+                if cat in text:
+                    logger.debug("category.classified category=%s", cat)
+                    return cat
+        except Exception:
+            logger.warning("category.classify_failed — falling back to general", exc_info=True)
+        return "general"
+
     def generate_presentation_spec(
         self,
         *,
@@ -440,6 +472,7 @@ class AnthropicLLMService:
         retrieved_chunks: list[str] | None = None,
     ) -> dict:
         """Calls Claude once and returns validated structured spec as dict."""
+        category = self._classify_category(prompt)
         system_instruction, developer_instruction, user_input = build_presentation_prompt_parts(
             prompt=prompt,
             audience=audience,
@@ -447,6 +480,7 @@ class AnthropicLLMService:
             language=language,
             slides=slides,
             retrieved_chunks=retrieved_chunks,
+            category=category,
         )
         # Claude has no separate "developer" role — fold it into the system prompt.
         system_text = f"{system_instruction}\n\n{developer_instruction}"

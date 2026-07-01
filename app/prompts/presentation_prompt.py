@@ -1,5 +1,88 @@
 from __future__ import annotations
 
+# Presentation categories the orchestrator routes to. Each gets its own
+# "director" block on top of the shared mechanics — different topics want very
+# different decks (a travel listicle vs a financial report).
+PRESENTATION_CATEGORIES = ("travel_visual", "business_data", "general")
+
+
+def _common_rules() -> str:
+    """Schema mechanics + universal principles + per-layout formatting (category-agnostic)."""
+    return (
+        "You are producing a JSON presentation spec. "
+        "Output a single JSON object with fields: title, subtitle, theme_variant, image_density, audience, language, "
+        "style, slides. Each slide includes: id, type, layout_type, title, subtitle, visual_density, bullets, body, "
+        "visual_hint, section, key_message, image_prompt, image_url, chart, table, columns, source, speaker_notes. "
+        "MECHANICS: "
+        "1) slides length MUST equal the requested count. "
+        "2) Use the requested language for all content. "
+        "3) For empty fields return null; image_url is always null; columns is [] when unused; chart/table are null unless used. "
+        "4) Never output any text before or after the JSON. "
+        "5) NEVER create a quote slide: do not use layout_type=quote_focus or type=quote under any circumstances. "
+        "PRINCIPLES: one idea per slide; the slide titles read in sequence must convey the whole story, so on "
+        "content/analysis slides the title is a complete-sentence takeaway (~6-16 words, not a topic label) and the "
+        "short topic word goes in 'section'; keep bullets few, short and parallel (3-5); every slide earns its place. "
+        "LAYOUT MECHANICS (how to fill each layout when you choose it): "
+        "comparison_split — bullets as 'left | right' (pipe); section as 'Left Title/Right Title'; both sides compare the "
+        "same dimension; no 'Option A'/'Слева' prefixes. "
+        "agenda_clean — bullets are the presentation's SECTIONS (4-6), not content items. "
+        "kpi_cards — every bullet starts with a numeric metric then ':' or '—' then a short label; never use it without real numbers. "
+        "chart_focus — fill 'chart' with real numbers: single series via 'points' (3-6 label+value) OR grouped via "
+        "'categories'+'series' (2-3 named series aligned to categories); chart_type bar=compare, line=trend, pie=share; "
+        "set 'unit'; leave 'points' empty when using series and vice versa. "
+        "data_table — fill 'table' (3-5 headers, first column is the row label; 3-7 rows of short string cells). "
+        "process_flow — each stage a bullet (3-6), optionally 'Label — short detail'; a left-to-right pipeline. "
+        "multi_column — fill 'columns' with 3-5 {header, items} (2-5 short items each). "
+        "timeline_process — chronological steps as bullets. "
+        "source — a short citation (e.g. 'Источник: …') on slides with figures or factual claims; null otherwise. "
+    )
+
+
+# ── Category directors ─────────────────────────────────────────────────────────
+
+_TRAVEL = (
+    "DECK STYLE — VISUAL TRAVEL / LISTICLE. This deck is carried by imagery and atmosphere, not data. "
+    "Set image_density='rich' and theme_variant='clean_editorial'. "
+    "STRUCTURE: hero opener (hero_minimal, with image_prompt) -> optional short agenda -> ONE slide per "
+    "destination/item -> a short closing. "
+    "Every destination/item slide uses layout_type=content_two_column and MUST have: a set image_prompt (a vivid "
+    "English description of that specific place; render ALL images in ONE consistent warm editorial-ILLUSTRATION "
+    "style, NOT photorealistic — end every image_prompt with 'warm flat editorial illustration, cohesive style, soft "
+    "warm palette'), a 'section' tag "
+    "(e.g. 'Направление 1'), an action-title, a short evocative 'subtitle', a 1-2 sentence 'body' paragraph, and 3 "
+    "short 'bullets' of concrete highlights. Keep subtitle AND body AND bullets — do NOT null the subtitle here. "
+    "Use the SAME content_two_column layout for ALL destinations — consistency beats variety for a listicle. "
+    "Do NOT use kpi_cards, chart_focus or process_flow. At most ONE optional data_table or comparison_split near the "
+    "end, only if it genuinely helps. "
+    "NEVER use ** highlighting — this is an informational deck, no emphasis markup and no persuasion. "
+)
+
+_BUSINESS = (
+    "DECK STYLE — BUSINESS / DATA / ANALYTICAL. Lead with data, structure and takeaways. "
+    "Set image_density='minimal' (image_prompt only on the hero and at most one other slide) and theme_variant "
+    "'dark_tech_pitch' or 'clean_editorial'. "
+    "Use chart_focus and data_table for real numbers, kpi_cards for headline metrics, comparison_split, process_flow, "
+    "multi_column and infographic_visual to structure arguments. Maximize layout variety (use at least 4 distinct "
+    "layout_types; never repeat a layout on consecutive slides); content_two_column is a fallback for at most ~1/3 of "
+    "slides. On these slides set 'subtitle' to null (the action-title replaces it). "
+    "You MAY highlight the single most important number/term per key bullet with **double asterisks** (accent color) — "
+    "sparingly, at most one per line, never a whole sentence. "
+)
+
+_GENERAL = (
+    "DECK STYLE — GENERAL INFORMATIONAL / EDUCATIONAL. Balance clear text with visuals. "
+    "Set image_density='moderate'. Pick the layout that best fits each slide's meaning (content_two_column, "
+    "infographic_visual, timeline_process, comparison_split, multi_column; charts/tables only for real data). Favor "
+    "clarity and some layout variety; on content slides set 'subtitle' to null (the action-title replaces it). "
+    "Put image_prompt on the hero and a few key slides. Do NOT use ** highlighting unless the topic is clearly persuasive. "
+)
+
+_CATEGORY_DIRECTIVES = {
+    "travel_visual": _TRAVEL,
+    "business_data": _BUSINESS,
+    "general": _GENERAL,
+}
+
 
 def build_presentation_prompt_parts(
     *,
@@ -9,8 +92,9 @@ def build_presentation_prompt_parts(
     language: str,
     slides: int,
     retrieved_chunks: list[str] | None = None,
+    category: str = "general",
 ) -> tuple[str, str, str]:
-    """Builds system/developer/user prompt parts for structured presentation generation."""
+    """Builds (system, developer, user) prompt parts for the given deck category."""
 
     system_instruction = (
         "You are an expert presentation architect. "
@@ -18,118 +102,8 @@ def build_presentation_prompt_parts(
         "Do not include markdown fences, prose, or explanations."
     )
 
-    developer_instruction = (
-        "Generate a presentation specification with concise slide-friendly content. "
-        "Output must be a single JSON object with fields: "
-        "title, subtitle, theme_variant, image_density, audience, language, style, slides. "
-        "Each slide must include: id, type, layout_type, title, subtitle, visual_density, bullets, body, visual_hint, "
-        "section, key_message, image_prompt, image_url, chart_hint, speaker_notes. "
-        "GUIDING PRINCIPLES (apply to every slide — distilled from Duarte, Reynolds, Kawasaki, Knaflic): "
-        "- One idea per slide: each slide makes exactly ONE point; never cram several arguments onto one slide. "
-        "- Title test: a reader must grasp the whole argument by reading ONLY the slide titles in order, so every "
-        "title is a claim that advances the story (this is why content titles are action titles). "
-        "- Audience as hero: frame content around the audience's situation and the change you want them to make, "
-        "not around the topic in the abstract. "
-        "- Brevity and restraint: prefer few sharp points over exhaustive lists (3-5 bullets max, short, parallel "
-        "phrasing); cut filler words. High signal, low noise. "
-        "- One takeaway per slide that the rest of the slide proves. "
-        "- Every slide must earn its place: if it does not advance the argument, merge or drop it. "
-        "Rules: "
-        "1) slides array length MUST equal requested slides count. "
-        "2) Keep bullets short and practical for real slides. "
-        "3) Keep body and visual_hint concise. "
-        "4) Use the requested language for content. "
-        "5) Never output any text before or after JSON. "
-        "6) For fields with no value, return null (not omitted). "
-        "6.1) image_url must be null at spec generation time. "
-        "7) Choose theme_variant by topic: "
-        "AI/product/startup/architecture/technology/pitch => dark_tech_pitch; "
-        "history/culture/academic/conceptual/reflective => clean_editorial; "
-        "education/explainer/framework/method/process-heavy => infographic_bright. "
-        "STRUCTURE & VARIETY (this matters most — a deck that reuses one layout looks broken): "
-        "8) Do NOT follow a fixed template. Design the slide sequence around THIS topic's actual story, "
-        "not a generic 'title, agenda, content, content, conclusion' skeleton. "
-        "The first slide is the opener (hero_minimal). An agenda slide (agenda_clean) is OPTIONAL: "
-        "include at most one, and only when slides >= 8. End on a conclusion "
-        "(content_two_column or hero_minimal). Everything in between is yours to shape. "
-        "9) Maximize layout variety. Across the whole deck use AT LEAST 4 distinct layout_types "
-        "(more for longer decks), and NEVER use the same layout_type on two consecutive slides. "
-        "10) content_two_column is a FALLBACK for plain prose only — use it for AT MOST about one third "
-        "of the slides. Before assigning it, check whether the slide is really one of these and reshape "
-        "the content to fit the more expressive layout: "
-        "a comparison / before-vs-after / pros-vs-cons => comparison_split; "
-        "real numbers, results or KPIs => kpi_cards; "
-        "a process, roadmap, sequence of steps or timeline => timeline_process; "
-        "a set of 3-6 concepts, pillars, components or principles => infographic_visual; "
-        "a single powerful statement or insight => quote_focus; "
-        "a metric over time or compared across categories => chart_focus (a real numeric chart); "
-        "a structured table of values (metrics across periods/segments) => data_table; "
-        "a linear pipeline / value chain / sequence of stages shown left-to-right => process_flow; "
-        "3-5 parallel categories each with its own short list (inputs/process/outputs, audiences, etc.) => multi_column. "
-        "11) Match the mix to the topic: data-heavy topics lean on chart_focus/data_table/kpi_cards; "
-        "process/roadmap topics lean on timeline_process; narrative/conceptual topics lean on "
-        "infographic_visual/quote_focus/comparison_split. Layout mapping reference: "
-        "title=>hero_minimal, metrics=>kpi_cards (only with real numbers), process=>timeline_process, "
-        "concept/framework=>infographic_visual, quote=>quote_focus, comparison=>comparison_split. "
-        "12) Choose visual_density per slide: low for minimal/quote slides, medium for standard content, "
-        "high for KPI/process/infographic-heavy slides. "
-        "TITLES — consulting 'action title' style (this single change makes decks look professional): "
-        "13) For content_two_column, kpi_cards, timeline_process, comparison_split and infographic_visual "
-        "slides, the 'title' MUST be the slide's KEY TAKEAWAY written as a complete sentence that states the "
-        "conclusion (about 6-16 words), NOT a topic label. "
-        "Topic label (BAD): 'Рынок'. Action title (GOOD): 'Рынок онлайн-образования удвоится к 2027 году'. "
-        "The title should be a claim the rest of the slide proves. "
-        "Put the short topic/section word in the 'section' field, and set 'subtitle' to null on these slides "
-        "(the action title replaces the subtitle). "
-        "Keep hero_minimal and quote_focus titles short and punchy; the agenda_clean title is a short label. "
-        "FORMATTING PER LAYOUT: "
-        "14) For comparison_split slides: format bullets as 'left item | right item' (pipe separator). "
-        "Set section field as 'Left Column Title/Right Column Title'. "
-        "Both sides of each bullet MUST compare the same dimension (e.g. 'Manual process | Automated process'). "
-        "Never use prefixes like 'Слева:', 'Справа:', 'Option A', 'Option B' in bullets or titles. "
-        "15) For quote_focus slides: put the full quote text in body field (not speaker_notes). "
-        "Do NOT combine type=conclusion with layout_type=quote_focus — use type=quote for quote slides. "
-        "16) For agenda_clean slides: bullets must be the main SECTIONS/TOPICS of the presentation "
-        "(e.g. 'Market Overview', 'Investment Risks', 'Our Recommendation') — NOT content items or data points. "
-        "Provide 4-6 section titles. "
-        "17) For kpi_cards slides: EVERY bullet MUST start with a numeric metric "
-        "(number, percentage, currency, or ratio) followed by ':' or '—' then a short label. "
-        "Examples: '340%: рост рынка за 5 лет', '$2.5M: средняя стоимость объекта', '4 из 5: районов в плюсе'. "
-        "NEVER use kpi_cards for descriptive text without real numbers — use infographic_visual instead. "
-        "18) For conclusion/type=conclusion slides: use layout_type=content_two_column or hero_minimal. "
-        "Put key takeaways as bullets. They MUST be shown on the slide. "
-        "19) Never put speaker notes, meta-instructions, or renderer hints into title/subtitle/bullets/body fields. "
-        "20) For chart_focus slides: populate the 'chart' object with real numeric data. The action title states what "
-        "the chart proves. Set 'unit' (e.g. '%', '₽', ' млн') or empty string. Two modes: "
-        "(a) SINGLE series — fill 'points' (3-6 label+value), leave 'categories'/'series' empty. "
-        "chart_type='bar' to compare categories, 'line' for a trend over time, 'pie' for share of a whole. "
-        "(b) GROUPED — to compare 2-3 series over the same x labels (e.g. 2024 vs 2025 by segment), set chart_type "
-        "'bar' or 'line', fill 'categories' (shared x labels) and 'series' (2-3 entries: name + 'values' aligned to "
-        "categories), and leave 'points' empty. "
-        "Prefer chart_focus over kpi_cards when you have a SERIES of values, not isolated numbers. "
-        "21) For data_table slides: populate the 'table' object with 'headers' (3-5 columns; first column is the row "
-        "label) and 3-7 'rows' of short string cells. Use for multi-metric comparisons across periods or segments. "
-        "22) 'chart' and 'table' MUST be null on every slide except chart_focus (chart) and data_table (table) respectively. "
-        "23) For process_flow slides: put each stage as one bullet in 'bullets' (3-6 stages), optionally 'Label — short detail'. "
-        "Use process_flow for a left-to-right pipeline (e.g. a value chain); use timeline_process for a chronological roadmap. "
-        "24) For multi_column slides: fill 'columns' with 3-5 entries, each {header, items} (2-5 short items per column). "
-        "Leave 'columns' empty ([]) on every other slide. "
-        "25) Emphasis (do this — it makes slides pop): on content and data slides, highlight the single most important "
-        "number or term in a bullet by wrapping it in **double asterisks** so it renders in the accent color "
-        "(e.g. 'выручка выросла на **34%**'). Add at least one highlight on most content/bullet slides; at most ONE per "
-        "bullet line; never wrap a whole sentence. "
-        "26) Set a short 'source' citation (e.g. 'Источник: данные компании', 'Source: отраслевой отчёт 2025') on slides "
-        "with figures or factual claims (chart_focus, data_table, kpi_cards, and any slide citing numbers); under ~12 words. "
-        "Keep 'source' null on purely conceptual/quote/agenda slides. "
-        "27) Set presentation-level 'image_density': 'rich' for visual/narrative topics (travel, lifestyle, food, nature, "
-        "culture, personal, story-driven education) where photos carry the deck; 'minimal' for data/business/analytical "
-        "topics (reports, strategy, finance, market analysis) where charts and tables matter more than photos; 'moderate' "
-        "otherwise. "
-        "28) Set 'image_prompt' (a vivid English visual description) on content slides where an image genuinely strengthens "
-        "them. For image_density='rich', put an image_prompt on MOST section/item slides and use content_two_column for "
-        "those items — a consistent image+text layout per item beats layout variety here. For 'minimal', set image_prompt "
-        "only on the hero/title and at most one other slide; keep it null elsewhere."
-    )
+    directive = _CATEGORY_DIRECTIVES.get(category, _GENERAL)
+    developer_instruction = _common_rules() + directive
 
     user_input = (
         f"User prompt: {prompt}\n"
