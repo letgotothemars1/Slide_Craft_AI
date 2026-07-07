@@ -151,18 +151,31 @@ LAYOUTS_NO_IMAGE: dict[str, list[dict]] = {
         {"type": "title",        "x": 64,  "y": 88,  "w": 1152, "h": 130, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
         {"type": "accent_sub",   "x": 64,  "y": 224, "w": 1100, "h": 46,  "fontSize": 22, "fontWeight": 700},
         {"type": "body",         "x": 64,  "y": 300, "w": 1080, "h": 200, "fontSize": 18, "fontWeight": 400},
-        {"type": "bullets",      "x": 64,  "y": 300, "w": 1152, "h": 358, "fontSize": 18, "fontWeight": 500, "cols": 2},
+        {"type": "bullets",      "x": 64,  "y": 300, "w": 1152, "h": 358, "fontSize": 18, "fontWeight": 500, "cols": 2, "plain": True},
         {"type": "key_message",  "x": 64,  "y": 676, "w": 1152, "h": 26,  "fontSize": 14},
     ],
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _layout_blocks(slide: SlideSpec, layout_name: str) -> list[dict]:
+def _mirror_blocks(blocks: list[dict]) -> list[dict]:
+    """Flip a content+image layout horizontally: image goes left, text goes right."""
+    out = []
+    for b in blocks:
+        nb = dict(b)
+        nb["x"] = 64 if b["type"] in ("image", "image_right") else b["x"] + 440
+        out.append(nb)
+    return out
+
+
+def _layout_blocks(slide: SlideSpec, layout_name: str, mirror: bool = False) -> list[dict]:
     """Pick the full-width variant when a slide has no image, else the default."""
     if not slide.image_url and layout_name in LAYOUTS_NO_IMAGE:
         return LAYOUTS_NO_IMAGE[layout_name]
-    return LAYOUTS.get(layout_name, LAYOUTS["content_two_column"])
+    blocks = LAYOUTS.get(layout_name, LAYOUTS["content_two_column"])
+    if mirror and slide.image_url and layout_name == "content_two_column":
+        return _mirror_blocks(blocks)
+    return blocks
 
 def _resolve_layout(slide: SlideSpec) -> str:
     if slide.layout_type and slide.layout_type in LAYOUTS:
@@ -400,6 +413,22 @@ def _rich(text: str, t: dict) -> str:
     )
 
 
+def _fit_font(text: str, w: int, h: int, base_fs: int, lh: float, floor: int = 22) -> int:
+    """Shrink font size until the text fits the box — prevents long titles from
+    overflowing their fixed-height box and overlapping the elements below."""
+    n = len(text or "")
+    if n == 0:
+        return base_fs
+    fs = base_fs
+    while fs > floor:
+        chars_per_line = max(1, w / (0.54 * fs))
+        lines = max(1, math.ceil(n / chars_per_line))
+        if lines * fs * lh <= h:
+            break
+        fs -= 2
+    return int(fs)
+
+
 def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
     btype = b["type"]
     p = _pos(b)
@@ -419,9 +448,10 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
         )
 
     if btype == "title":
-        fs = b.get("fontSize", 48)
         fw = b.get("fontWeight", 800)
         lh = b.get("lineHeight", 1.08)
+        avail_h = b["h"] - (26 if b.get("action") else 6)
+        fs = _fit_font(slide.title or "", b["w"], avail_h, b.get("fontSize", 48), lh)
         if b.get("action"):
             # Consulting "action title": takeaway sentence + thin accent rule beneath.
             return (
@@ -484,10 +514,12 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
                 f'</div>'
                 for item in bullets
             )
+            box = "" if b.get("plain") else (
+                f'background:{t["panel_bg"]};border:1px solid {t["border"]};border-radius:20px;padding:24px 36px;'
+            )
             return (
-                f'<div style="{p}background:{t["panel_bg"]};border:1px solid {t["border"]};'
-                f'border-radius:20px;padding:24px 36px;display:grid;grid-template-columns:1fr 1fr;'
-                f'gap:4px 48px;align-content:center;">' + items + "</div>"
+                f'<div style="{p}{box}display:grid;grid-template-columns:1fr 1fr;'
+                f'gap:8px 48px;align-content:center;">' + items + "</div>"
             )
         rows = []
         for i, item in enumerate(bullets):
@@ -722,9 +754,9 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
 
 # ── Slide + document ──────────────────────────────────────────────────────────
 
-def _render_slide(slide: SlideSpec, theme: dict) -> str:
+def _render_slide(slide: SlideSpec, theme: dict, mirror: bool = False) -> str:
     layout_name = _resolve_layout(slide)
-    blocks = _layout_blocks(slide, layout_name)
+    blocks = _layout_blocks(slide, layout_name, mirror=mirror)
     blocks_html = "".join(_render_block(b, slide, theme) for b in blocks)
     source_html = (
         f'<div style="position:absolute;right:56px;bottom:22px;max-width:55%;text-align:right;'
@@ -745,10 +777,15 @@ def build_full_html(spec: PresentationSpec) -> str:
     theme = _resolve_theme(spec)
     theme_key = spec.theme_variant or "clean_editorial"
     accents = _assign_slide_accents(spec, theme_key)
-    slides_html = "\n".join(
-        _render_slide(s, _theme_with_accent(theme, a))
-        for s, a in zip(spec.slides, accents)
-    )
+    parts = []
+    dest_idx = 0
+    for s, a in zip(spec.slides, accents):
+        mirror = False
+        if _resolve_layout(s) == "content_two_column" and s.image_url:
+            mirror = dest_idx % 2 == 1  # alternate image side across destination slides
+            dest_idx += 1
+        parts.append(_render_slide(s, _theme_with_accent(theme, a), mirror=mirror))
+    slides_html = "\n".join(parts)
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
