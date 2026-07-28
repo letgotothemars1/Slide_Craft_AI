@@ -150,8 +150,8 @@ LAYOUTS_NO_IMAGE: dict[str, list[dict]] = {
         {"type": "tag",          "x": 64,  "y": 44,  "w": 400,  "h": 36},
         {"type": "title",        "x": 64,  "y": 88,  "w": 1152, "h": 130, "fontSize": 34, "fontWeight": 700, "lineHeight": 1.2, "action": True},
         {"type": "accent_sub",   "x": 64,  "y": 224, "w": 1100, "h": 46,  "fontSize": 22, "fontWeight": 700},
-        {"type": "body",         "x": 64,  "y": 300, "w": 1080, "h": 200, "fontSize": 18, "fontWeight": 400},
-        {"type": "bullets",      "x": 64,  "y": 300, "w": 1152, "h": 358, "fontSize": 18, "fontWeight": 500, "cols": 2, "plain": True},
+        {"type": "body",         "x": 64,  "y": 284, "w": 1080, "h": 104, "fontSize": 18, "fontWeight": 400, "always": True},
+        {"type": "bullet_cards", "x": 64,  "y": 396, "w": 1152, "h": 254},
         {"type": "key_message",  "x": 64,  "y": 676, "w": 1152, "h": 26,  "fontSize": 14},
     ],
 }
@@ -539,6 +539,30 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
             f'<div style="{p}background:{t["panel_bg"]};border:1px solid {t["border"]};'
             f'border-radius:20px;padding:20px 28px;display:flex;flex-direction:column;justify-content:space-evenly;">'
             + "".join(rows) + "</div>"
+        )
+
+    if btype == "bullet_cards":
+        # Image-less slides: lay bullets out as a card grid that fills the space,
+        # instead of a bare list of points floating in whitespace.
+        items = slide.bullets[:6]
+        if not items:
+            return ""
+        cols = 3 if len(items) in (3, 5, 6) else 2
+        cards = "".join(
+            f'<div style="background:{t["panel_bg"]};border:1px solid {t["border"]};border-radius:16px;'
+            f'padding:22px 24px;display:flex;flex-direction:column;justify-content:center;gap:12px;'
+            f'position:relative;overflow:hidden;">'
+            f'<div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:{t["accent"]};"></div>'
+            f'<div style="width:30px;height:30px;border-radius:9px;background:{t["accent_soft"]};'
+            f'border:1.5px solid {t["accent"]};color:{t["accent"]};font-size:14px;font-weight:700;'
+            f'display:flex;align-items:center;justify-content:center;flex-shrink:0;">{i + 1}</div>'
+            f'<div style="font-size:17px;line-height:1.45;font-weight:500;color:{t["text_primary"]};">{_rich(item, t)}</div>'
+            f'</div>'
+            for i, item in enumerate(items)
+        )
+        return (
+            f'<div style="{p}display:grid;grid-template-columns:repeat({cols},1fr);'
+            f'grid-auto-rows:1fr;gap:18px;">{cards}</div>'
         )
 
     if btype == "key_message":
