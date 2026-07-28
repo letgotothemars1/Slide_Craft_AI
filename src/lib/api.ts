@@ -10,7 +10,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "";
 export const audienceValues = ["executives", "students", "sales", "investors", "custom"] as const;
 export const styleValues = ["business", "minimal", "dark", "creative"] as const;
 export const languageValues = ["ru", "en"] as const;
-export const formatValues = ["pptx", "pdf", "both"] as const;
+export const formatValues = ["pdf", "pptx", "both"] as const;
 export const statusValues = ["queued", "running", "done", "error"] as const;
 
 export const generateRequestSchema = z.object({

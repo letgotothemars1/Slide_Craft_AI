@@ -43,7 +43,7 @@ export default function PromptForm({ onSubmit, isLoading }: Props) {
       style: "business",
       language: "ru",
       slides: 10,
-      format: "pptx",
+      format: "pdf",
       brandColor: null,
       logoUrl: null,
     },
