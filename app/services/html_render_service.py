@@ -414,15 +414,26 @@ def _rich(text: str, t: dict) -> str:
 
 
 def _fit_font(text: str, w: int, h: int, base_fs: int, lh: float, floor: int = 22) -> int:
-    """Shrink font size until the text fits the box — prevents long titles from
-    overflowing their fixed-height box and overlapping the elements below."""
-    n = len(text or "")
-    if n == 0:
+    """Shrink the font until the text fits its fixed-height box.
+
+    Simulates greedy word wrapping (not a plain chars/width estimate) — real
+    wrapping breaks on word boundaries and leaves a ragged edge, which costs an
+    extra line and used to clip the last line under overflow:hidden.
+    """
+    words = (text or "").split()
+    if not words:
         return base_fs
     fs = base_fs
     while fs > floor:
-        chars_per_line = max(1, w / (0.54 * fs))
-        lines = max(1, math.ceil(n / chars_per_line))
+        max_chars = max(1, int(w / (0.56 * fs)))  # ~0.56em average glyph width
+        lines, cur = 1, 0
+        for word in words:
+            need = len(word) if cur == 0 else cur + 1 + len(word)
+            if need <= max_chars:
+                cur = need
+            else:
+                lines += 1
+                cur = len(word)
         if lines * fs * lh <= h:
             break
         fs -= 2
