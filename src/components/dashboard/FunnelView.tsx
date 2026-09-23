@@ -53,7 +53,7 @@ export default function FunnelView({ steps }: Props) {
             </div>
             <div
               className={`text-right text-sm font-semibold ${
-                idx === 0 ? "text-muted-foreground font-normal" : "text-success"
+                idx === 0 ? "text-muted-foreground font-normal" : "text-success-strong"
               }`}
             >
               {idx === 0 ? "—" : `${Math.round((conv ?? 0) * 100)}%`}

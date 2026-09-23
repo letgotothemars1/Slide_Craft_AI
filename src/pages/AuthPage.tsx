@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import AppHeader from "@/components/AppHeader";
+import Reveal from "@/components/Reveal";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { cn } from "@/lib/utils";
 
 type AuthMode = "login" | "signup";
 
@@ -12,6 +15,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, signup } = useAuth();
+  const { t } = useLanguage();
 
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
@@ -20,102 +24,108 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
 
   const from = (location.state as { from?: string } | undefined)?.from || "/generate";
+  const isLogin = mode === "login";
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      if (mode === "login") {
+      if (isLogin) {
         await login(email, password);
       } else {
         await signup(email, password);
       }
       navigate(from, { replace: true });
     } catch (err: any) {
-      setError(err?.message || "Не удалось выполнить авторизацию");
+      setError(err?.message || t("auth.error"));
     } finally {
       setLoading(false);
     }
   };
 
+  const tabClass = (active: boolean) =>
+    cn(
+      "inline-flex h-10 flex-1 cursor-pointer items-center justify-center rounded-md text-sm font-medium transition-colors",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+      active ? "bg-card text-foreground shadow-card" : "text-muted-foreground hover:text-foreground",
+    );
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-lg">
-            <Sparkles className="h-5 w-5 text-primary" />
-            SlideCraft AI
-          </Link>
-        </div>
-      </header>
+    <div className="flex min-h-screen flex-col bg-background">
+      <AppHeader minimal />
 
-      <main className="flex-1 container py-12 flex items-center justify-center">
-        <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-card space-y-6">
-          <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-display font-bold">
-              {mode === "login" ? "Вход" : "Создание аккаунта"}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {mode === "login"
-                ? "Войдите, чтобы открыть генератор и историю."
-                : "Зарегистрируйтесь, чтобы сохранить доступ к генерациям."}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-secondary p-1">
-            <Button
-              type="button"
-              variant={mode === "login" ? "default" : "ghost"}
-              onClick={() => setMode("login")}
-            >
-              Login
-            </Button>
-            <Button
-              type="button"
-              variant={mode === "signup" ? "default" : "ghost"}
-              onClick={() => setMode("signup")}
-            >
-              Sign up
-            </Button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
+      <main className="flex flex-1 items-center justify-center px-4 py-14">
+        <Reveal className="w-full max-w-md">
+          <div className="space-y-6 rounded-2xl border border-border bg-card p-8 shadow-elevated">
+            <div className="space-y-2 text-center">
+              <h1 className="font-display text-2xl font-bold">
+                {isLogin ? t("auth.loginTitle") : t("auth.signupTitle")}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {isLogin ? t("auth.loginSubtitle") : t("auth.signupSubtitle")}
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
+            {/* Tabs as buttons with aria-pressed: two options, both always visible. */}
+            <div role="group" aria-label={t("auth.loginTitle")} className="flex gap-1 rounded-lg bg-muted p-1">
+              <button
+                type="button"
+                aria-pressed={isLogin}
+                onClick={() => setMode("login")}
+                className={tabClass(isLogin)}
+              >
+                {t("auth.tabLogin")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={!isLogin}
+                onClick={() => setMode("signup")}
+                className={tabClass(!isLogin)}
+              >
+                {t("auth.tabSignup")}
+              </button>
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">{t("auth.email")}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading
-                ? "Подождите…"
-                : mode === "login"
-                  ? "Войти"
-                  : "Создать аккаунт"}
-            </Button>
-          </form>
-        </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">{t("auth.password")}</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" className="h-11 w-full rounded-full" disabled={loading}>
+                {loading ? t("auth.pending") : isLogin ? t("auth.submitLogin") : t("auth.submitSignup")}
+              </Button>
+            </form>
+          </div>
+        </Reveal>
       </main>
     </div>
   );

@@ -36,10 +36,16 @@
 
     --radius: 0.75rem;
 
+    /* DEFAULT is the fill; `-strong` is the text-on-light variant. The fill
+       shades are too light to carry text: 142 71% 45% scores 2.3:1 on white,
+       well under the 4.5:1 minimum. Use `text-success-strong`, never
+       `text-success`. */
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
+    --success-strong: 142 71% 29%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+    --warning-strong: 38 92% 32%;
 
     --gradient-hero: linear-gradient(135deg, hsl(221 83% 53%), hsl(262 83% 58%));
     --shadow-card: 0 1px 3px 0 hsl(220 13% 91% / 0.5), 0 1px 2px -1px hsl(220 13% 91% / 0.5);
@@ -110,5 +116,68 @@
   }
   .shadow-elevated {
     box-shadow: var(--shadow-elevated);
+  }
+
+  /* Scroll reveal. The element starts shifted and transparent; the Reveal
+     component adds `is-revealed` when it enters the viewport. Only opacity and
+     transform animate — both are compositor-friendly and never reflow. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity 500ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+  .reveal.is-revealed {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Bars grow from the baseline once the preview is on screen. */
+  .bar-grow {
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .is-revealed .bar-grow {
+    transform: scaleY(1);
+  }
+
+  /* Caret for the typing line in the hero preview. */
+  .caret::after {
+    content: "";
+    display: inline-block;
+    width: 1px;
+    height: 1em;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    background: currentColor;
+    animation: caret-blink 1s steps(1) infinite;
+  }
+  @keyframes caret-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+}
+
+/* Anyone who asked the OS to reduce motion gets the final state immediately —
+   no fade, no growth, no blinking caret. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-revealed {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .bar-grow,
+  .is-revealed .bar-grow {
+    transform: scaleY(1);
+    transition: none;
+  }
+  .caret::after {
+    animation: none;
+    opacity: 0;
   }
 }

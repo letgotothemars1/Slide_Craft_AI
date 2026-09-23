@@ -26,7 +26,7 @@ export default function KpiCard({ label, value, sub, delta, helpText }: Props) {
       {delta && (
         <div
           className={`mt-2 text-xs font-medium ${
-            delta.positive ? "text-success" : "text-destructive"
+            delta.positive ? "text-success-strong" : "text-destructive"
           }`}
         >
           {delta.value}

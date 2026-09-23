@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AppHeader from "@/components/AppHeader";
+import { useLanguage } from "@/context/LanguageContext";
+import { formatRelativeSeconds, type TranslationKey } from "@/lib/i18n";
 import { fetchProductMetrics, invalidateMetricsCache } from "@/lib/dashboard-api";
 import KpiCard from "@/components/dashboard/KpiCard";
 import TrendChart from "@/components/dashboard/TrendChart";
@@ -11,27 +14,18 @@ import DonutBreakdown from "@/components/dashboard/DonutBreakdown";
 import ErrorsTable from "@/components/dashboard/ErrorsTable";
 
 const POLL_MS = 30_000;
-const PERIODS = [
-  { label: "7 дней", value: 7 },
-  { label: "30 дней", value: 30 },
-  { label: "90 дней", value: 90 },
+const PERIODS: { key: TranslationKey; value: number }[] = [
+  { key: "dash.period7", value: 7 },
+  { key: "dash.period30", value: 30 },
+  { key: "dash.period90", value: 90 },
 ];
 
 function formatPercent(v: number): string {
   return `${Math.round(v * 100)}%`;
 }
 
-function formatRelative(date: Date): string {
-  const diff = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (diff < 5) return "только что";
-  if (diff < 60) return `${diff} сек назад`;
-  const min = Math.floor(diff / 60);
-  if (min < 60) return `${min} мин назад`;
-  const hr = Math.floor(min / 60);
-  return `${hr} ч назад`;
-}
-
 export default function DashboardPage() {
+  const { t, language } = useLanguage();
   const [periodDays, setPeriodDays] = useState<number>(30);
   const [now, setNow] = useState<Date>(new Date());
 
@@ -63,31 +57,16 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top nav */}
-      <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm">
-        <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-lg">
-            <Sparkles className="h-5 w-5 text-primary" />
-            SlideCraft AI
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-              На главную
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="container mx-auto max-w-[1280px] py-8">
         {/* Title + controls */}
         <div className="mb-7 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-display font-bold tracking-tight">
-              SlideCraft AI Product Dashboard
+            <h1 className="font-display text-2xl font-bold tracking-tight">
+              {t("dash.productTitle")}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Воронка, конверсии и распределения по презентациям
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("dash.productSubtitle")}</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-xs text-muted-foreground">
@@ -96,9 +75,14 @@ export default function DashboardPage() {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
               </span>
               <span>
-                Auto-refresh каждые 30 сек ·{" "}
+                {t("dash.autoRefresh30")} ·{" "}
                 <b className="text-foreground">
-                  {lastUpdatedAt ? `обновлено ${formatRelative(lastUpdatedAt)}` : "загрузка…"}
+                  {lastUpdatedAt
+                    ? `${t("dash.updated")} ${formatRelativeSeconds(
+                        (now.getTime() - lastUpdatedAt.getTime()) / 1000,
+                        language,
+                      )}`
+                    : t("dash.loading")}
                 </b>
               </span>
             </div>
@@ -107,6 +91,7 @@ export default function DashboardPage() {
               {PERIODS.map((p) => (
                 <button
                   key={p.value}
+                  type="button"
                   onClick={() => setPeriodDays(p.value)}
                   className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                     periodDays === p.value
@@ -114,7 +99,7 @@ export default function DashboardPage() {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {p.label}
+                  {t(p.key)}
                 </button>
               ))}
             </div>

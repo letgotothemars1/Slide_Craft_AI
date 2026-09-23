@@ -5,8 +5,8 @@
 ## Что делает
 
 - Принимает промпт, аудиторию, стиль, язык и количество слайдов
-- Генерирует JSON-спецификацию всей презентации через LLM
-- Опционально проверяет и исправляет качество через Critic LLM
+- Генерирует JSON-спецификацию всей презентации через генеративную модель
+- Опционально проверяет и исправляет качество отдельным проходом-критиком
 - Рендерит каждый слайд как PNG через headless Chromium (Playwright) и склеивает в PDF
 - Сохраняет результат в облачное хранилище и отдаёт ссылку для скачивания
 
@@ -16,7 +16,7 @@
 
 **Фронтенд:** React, TypeScript, Vite, Tailwind CSS, shadcn/ui
 
-**AI:** OpenAI Responses API (structured JSON output), опционально DALL-E для изображений
+**Генерация:** провайдер переключается через `LLM_PROVIDER`; спецификация приходит строго по JSON-схеме. Иллюстрации и эмбеддинги — отдельным провайдером.
 
 **Рендеринг:** Playwright (headless Chromium) → PNG → PIL → PDF
 
@@ -24,24 +24,31 @@
 
 ## Технические особенности
 
-**Абсолютное пиксельное позиционирование слайдов** — каждый элемент слайда имеет точные координаты x/y/w/h на канвасе 1280×720px. 8 типов layout (hero, kpi_cards, timeline, comparison и др.), каждый со своим набором блоков.
+**Абсолютное пиксельное позиционирование слайдов** — каждый элемент слайда имеет точные координаты x/y/w/h на канвасе 1280×720px. 12 типов layout (титульный, оглавление, графики, таблицы, процессные цепочки, многоколоночные раскладки и др.), каждый со своим набором блоков.
 
-**Трёхагентная архитектура** — Master LLM генерирует спецификацию всей презентации, Critic LLM проверяет и исправляет качество (пустые буллеты, неправильные layout, перегруженные слайды), Worker LLM рендерит HTML для каждого слайда параллельно через `ThreadPoolExecutor`.
+**Многоступенчатая генерация** — основная модель выдаёт спецификацию всей презентации, опциональный проход-критик вычищает дефекты (пустые буллеты, неподходящие layout, перегруженные слайды), рендер собирает HTML каждого слайда параллельно через `ThreadPoolExecutor`.
 
-**RAG режим** — пользователь загружает PDF-документ, система разбивает его на чанки, создаёт эмбеддинги через OpenAI и подтягивает релевантный контекст в промпт при генерации.
+**RAG режим** — пользователь загружает PDF-документ, система разбивает его на чанки, строит эмбеддинги и подтягивает релевантный контекст в промпт при генерации.
 
 ## Что реализовано
 - PostgreSQL для jobs/specs/artifacts
 - Supabase Storage (с fallback в local storage mode)
-- OpenAI Responses API для генерации structured presentation spec
+- Генерация structured presentation spec по строгой JSON-схеме
 - MVP RAG для режима "generate from document" (PDF -> chunks -> embeddings -> retrieval)
 - Сохранение generated spec в `job_specs`
 - Реальный рендер PDF/PPTX из `spec_json` (не placeholder)
-- Система layout templates в рендере (`hero_minimal`, `agenda_clean`, `content_two_column`, `kpi_cards`, `timeline_process`, `infographic_visual`, `quote_focus`, `comparison_split`)
-- Повторный LLM вызов не делается, если в `job_specs` уже есть валидный spec для job
+- Система layout templates в рендере (`hero_minimal`, `agenda_clean`, `content_two_column`, `kpi_cards`, `timeline_process`, `infographic_visual`, `comparison_split`, `chart_focus`, `data_table`, `process_flow`, `multi_column`, `section_break`)
+- Повторный вызов генерации не делается, если в `job_specs` уже есть валидный spec для job
 
 ## Последние доработки
 
+- **Единая шапка на всё приложение** — каждая страница раньше рисовала свою: две разные высоты, три разных набора ссылок, переключатель языка ровно на одной. Вынесено в общий `AppHeader`, собственных `<header>` на страницах не осталось.
+- **Двуязычный интерфейс (ru/en)** — переключатель в шапке, выбор сохраняется и при первом заходе берётся из настроек браузера, `<html lang>` переключается вместе с языком. Словарь типизирован так, что ключ без английского перевода не проходит сборку. Даты и относительное время форматируются через `Intl` под активный язык — раньше локаль `ru-RU` была зашита в четырёх местах.
+- **Переработана страница ввода запроса** — вместо длинной вертикальной формы один композер: большое поле ввода, компактный ряд настроек внутри карточки, счётчик символов и кнопка отправки. Убрана правая колонка, которая обещала показать статус задачи, но заполниться не могла — при отправке происходит переход на страницу задачи.
+- **Переработана главная** — центрированный герой с продуктовым превью, ряд возможностей, карточки с тонированными подложками. Удалён футер с тремя десятками неработающих ссылок на несуществующие разделы.
+- **Появление блоков при скролле** — на `IntersectionObserver` и CSS-переходах, без анимационных библиотек: анимируются только `opacity` и `transform`, вся анимация выключается при системной настройке «уменьшить движение».
+- **Доступность** — исправлен контраст статусных цветов: зелёный «Готово» давал 2.3:1 при норме 4.5:1 и был нечитаем; заливка и текст разведены на отдельные токены. Тач-таргеты доведены до 44px, кнопкам возвращён `cursor: pointer`, текстовым ссылкам — видимое кольцо фокуса.
+- **Дизайн-система** — правила собраны в `design-system/slidecraft-ai/MASTER.md`: токены, типографика, отступы, компоненты, движение, локализация и чеклист перед сдачей страницы.
 - **Мониторинг `/health`** — эндпоинт принимает `GET` и `HEAD`. UptimeRobot на бесплатном тарифе опрашивает сервис `HEAD`-запросами; раньше эндпоинт отвечал только на `GET` и возвращал `405`, из-за чего внешний монитор считал сервис недоступным. Теперь `HEAD` возвращает `200` с пустым телом (по HTTP-спецификации), что и проверяет UptimeRobot.
 - **JWT-авторизация для админ-дашбордов** — вход выдаёт JWT, токен валидируется через `/auth/me`, эндпоинты метрик (`/metrics/*`) защищены проверкой прав администратора, на фронте добавлен guard `AdminRoute`.
 - **Рендеринг через Playwright (HTML → PDF)** — отрисовка слайдов переведена с ReportLab на headless Chromium: полноценный CSS (flex/grid, шрифты, тени, градиенты), корректный перенос текста.
@@ -67,13 +74,13 @@
 - `app/db.py` - SQLAlchemy модели
 - `app/repository.py` - CRUD jobs/specs/artifacts
 - `app/prompts/presentation_prompt.py` - prompt builder
-- `app/services/llm_service.py` - OpenAI Responses API + JSON validation
+- `app/services/llm_service.py` - вызов провайдера генерации + валидация JSON
 - `app/services/orchestrator.py` - orchestration pipeline (load -> spec -> render -> upload -> finalize)
 - `app/services/render_service.py` - low-level PDF/PPTX рендер и naming helpers
 - `app/services/generator.py` - минимальный background launcher
 - `app/services/storage_service.py` - Supabase/local storage abstraction
 - `app/services/document_service.py` - PDF parsing + chunking + indexing
-- `app/services/embedding_service.py` - OpenAI embeddings
+- `app/services/embedding_service.py` - построение эмбеддингов
 - `app/services/retrieval_service.py` - top-k retrieval по document chunks
 
 ## Установка
@@ -110,7 +117,7 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000
 
 Примечания:
 - Если `SUPABASE_*` не заданы, backend переходит в local storage mode и работает через `/files/...`.
-- Если `OPENAI_API_KEY` не задан, генерация job завершится в `error` на шаге LLM.
+- Если `OPENAI_API_KEY` не задан, генерация job завершится в `error` на шаге генерации.
 - Для RAG режима (document upload + retrieval) также нужен `OPENAI_EMBEDDING_MODEL`.
 - `OPENAI_IMAGE_*` переменные опциональны: если не заданы, backend продолжит работать с visual placeholders без image generation.
 - Image generation включается только когда заданы одновременно `OPENAI_API_KEY` и `OPENAI_IMAGE_MODEL`.
@@ -180,7 +187,7 @@ curl -s "http://localhost:8000/status/$JOB_ID"
 
 В `done`:
 - `result.pptx_url` / `result.pdf_url` должны быть заполнены
-- `job_specs` уже содержит structured spec из LLM
+- `job_specs` уже содержит structured spec от модели
 - PDF/PPTX содержат контент из `spec_json` (title, subtitle, slides, bullets/body)
 
 ## Проверка, что spec сохранился в `job_specs`
@@ -194,7 +201,7 @@ ORDER BY created_at DESC \
 LIMIT 1;"
 ```
 
-## LLM debug logs
+## Логи генерации
 В логах backend добавлены события:
 - `model.used`
 - `llm.request.started`
@@ -265,7 +272,7 @@ LIMIT 1;"
 
 ## Как работает image generation
 1. Backend выбирает максимум 1–2 слайда для генерации изображений (по приоритету: `hero_minimal` -> `content_two_column` -> `comparison_split/infographic_visual`).
-2. Для выбранных слайдов с `image_prompt` вызывается OpenAI image API.
+2. Для выбранных слайдов с `image_prompt` вызывается API генерации изображений.
 3. Изображения сохраняются в storage по ключам:
    - `jobs/<job_id>/images/<slide_id>.png`
 4. В `spec_json` у соответствующего слайда обновляется `image_url`.
