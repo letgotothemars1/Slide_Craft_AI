@@ -30,3 +30,9 @@ export function updateHistoryStatus(jobId: string, status: string) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   }
 }
+
+/** Wipes stored history. Pages must call this rather than reaching for the
+ *  storage key themselves — it lived in two places and could drift. */
+export function clearHistory() {
+  localStorage.removeItem(STORAGE_KEY);
+}

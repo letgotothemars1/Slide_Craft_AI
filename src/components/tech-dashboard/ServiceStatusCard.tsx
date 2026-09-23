@@ -19,7 +19,7 @@ function StatusBadge({ status }: { status: string }) {
   const isActive = status === "active";
   const isFailed = status === "failed";
   const color = isActive
-    ? "bg-success/15 text-success border-success/30"
+    ? "bg-success/15 text-success-strong border-success/30"
     : isFailed
     ? "bg-destructive/15 text-destructive border-destructive/30"
     : "bg-secondary text-muted-foreground border-border";

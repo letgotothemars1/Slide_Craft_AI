@@ -3,16 +3,19 @@ import { useParams, Link } from "react-router-dom";
 import { type JobStatus, getJobStatus } from "@/lib/api";
 import { updateHistoryStatus } from "@/lib/history";
 import { track } from "@/lib/analytics";
+import AppHeader from "@/components/AppHeader";
+import Reveal from "@/components/Reveal";
 import JobStatusCard from "@/components/JobStatusCard";
 import PreviewGallery from "@/components/PreviewGallery";
 import DownloadButtons from "@/components/DownloadButtons";
 import ShareLink from "@/components/ShareLink";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
+  const { t } = useLanguage();
   const [job, setJob] = useState<JobStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -38,7 +41,7 @@ export default function JobPage() {
           }
         }
       } catch (err: any) {
-        setError(err.message || "Не удалось получить статус задачи");
+        setError(err.message || t("job.statusError"));
         if (intervalRef.current) clearInterval(intervalRef.current);
       }
     };
@@ -49,77 +52,76 @@ export default function JobPage() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
+    // `t` is intentionally omitted: switching language mid-poll should not
+    // restart the interval, and the message is only read on failure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
-  if (!jobId) {
-    return <NotFoundState />;
-  }
+  if (!jobId) return <NotFoundState />;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-lg">
-            <Sparkles className="h-5 w-5 text-primary" />
-            SlideCraft AI
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/history" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              История
-            </Link>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/generate">
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Новая
-              </Link>
-            </Button>
-          </div>
+    <div className="flex min-h-screen flex-col bg-background">
+      <AppHeader />
+
+      <main className="flex-1 px-4 py-12 sm:py-16">
+        <div className="container max-w-3xl space-y-6">
+          {error ? (
+            <div className="space-y-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+              <p role="alert" className="font-medium text-destructive">
+                {error}
+              </p>
+              <Button asChild variant="outline" className="h-11 rounded-full px-6">
+                <Link to="/generate">{t("job.back")}</Link>
+              </Button>
+            </div>
+          ) : !job ? (
+            <div className="space-y-4">
+              <Skeleton className="h-40 rounded-2xl" />
+              <Skeleton className="h-8 w-48 rounded-full" />
+            </div>
+          ) : (
+            <>
+              <Reveal>
+                <JobStatusCard job={job} />
+              </Reveal>
+              <Reveal delay={80}>
+                <ShareLink jobId={job.job_id} />
+              </Reveal>
+
+              {job.status === "done" && job.result && (
+                <>
+                  <Reveal delay={140}>
+                    <DownloadButtons pptxUrl={job.result.pptx_url} pdfUrl={job.result.pdf_url} />
+                  </Reveal>
+                  {job.result.preview_images && job.result.preview_images.length > 0 && (
+                    <Reveal delay={200}>
+                      <PreviewGallery images={job.result.preview_images} />
+                    </Reveal>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </div>
-      </header>
-
-      <main className="flex-1 container py-8 max-w-3xl mx-auto space-y-6">
-        {error ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center space-y-3">
-            <p className="text-destructive font-medium">{error}</p>
-            <Button asChild variant="outline">
-              <Link to="/generate">Вернуться</Link>
-            </Button>
-          </div>
-        ) : !job ? (
-          <div className="space-y-4">
-            <Skeleton className="h-32 rounded-lg" />
-            <Skeleton className="h-8 w-48" />
-          </div>
-        ) : (
-          <>
-            <JobStatusCard job={job} />
-            <ShareLink jobId={job.job_id} />
-
-            {job.status === "done" && job.result && (
-              <>
-                <DownloadButtons pptxUrl={job.result.pptx_url} pdfUrl={job.result.pdf_url} />
-                {job.result.preview_images && job.result.preview_images.length > 0 && (
-                  <PreviewGallery images={job.result.preview_images} />
-                )}
-              </>
-            )}
-          </>
-        )}
       </main>
     </div>
   );
 }
 
 function NotFoundState() {
+  const { t } = useLanguage();
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <h1 className="text-2xl font-display font-bold">Задача не найдена</h1>
-        <p className="text-muted-foreground">Проверьте ссылку или создайте новую презентацию</p>
-        <Button asChild>
-          <Link to="/generate">Создать</Link>
-        </Button>
-      </div>
+    <div className="flex min-h-screen flex-col bg-background">
+      <AppHeader />
+      <main className="flex flex-1 items-center justify-center px-4">
+        <div className="space-y-4 text-center">
+          <h1 className="font-display text-2xl font-bold">{t("job.notFound")}</h1>
+          <p className="text-sm text-muted-foreground">{t("job.notFoundHint")}</p>
+          <Button asChild className="h-11 rounded-full px-6">
+            <Link to="/generate">{t("history.emptyCta")}</Link>
+          </Button>
+        </div>
+      </main>
     </div>
   );
 }

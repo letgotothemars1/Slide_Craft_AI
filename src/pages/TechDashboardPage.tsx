@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Server, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AppHeader from "@/components/AppHeader";
+import { useLanguage } from "@/context/LanguageContext";
+import { formatRelativeSeconds } from "@/lib/i18n";
 import { fetchInfraMetrics, invalidateInfraCache } from "@/lib/infra-api";
 import SystemHealthCard from "@/components/tech-dashboard/SystemHealthCard";
 import ServiceStatusCard from "@/components/tech-dashboard/ServiceStatusCard";
@@ -22,15 +25,6 @@ function formatRps(rps: number | null): string {
   if (rps === null) return "—";
   if (rps < 0.001) return "< 0.001 req/s";
   return `${rps.toFixed(3)} req/s`;
-}
-
-function formatRelative(date: Date): string {
-  const diff = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (diff < 5) return "только что";
-  if (diff < 60) return `${diff} сек назад`;
-  const min = Math.floor(diff / 60);
-  if (min < 60) return `${min} мин назад`;
-  return `${Math.floor(min / 60)} ч назад`;
 }
 
 type AlertLevel = "ok" | "warn" | "crit";
@@ -76,6 +70,7 @@ function KpiTile({ label, value, sub, alert = "ok", badge }: KpiProps) {
 }
 
 export default function TechDashboardPage() {
+  const { t, language } = useLanguage();
   const [now, setNow] = useState(new Date());
 
   const query = useQuery({
@@ -105,37 +100,16 @@ export default function TechDashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm">
-        <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-lg">
-            <Server className="h-5 w-5 text-primary" />
-            SlideCraft AI
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              to="/dashboard"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Product
-            </Link>
-            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-              На главную
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="container mx-auto max-w-[1280px] py-8">
         {/* Title row */}
         <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-display font-bold tracking-tight">
-              SlideCraft AI — Technical Dashboard
+            <h1 className="font-display text-2xl font-bold tracking-tight">
+              {t("dash.techTitle")}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Системные ресурсы, API производительность, статус сервиса
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("dash.techSubtitle")}</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-xs text-muted-foreground">
@@ -143,9 +117,11 @@ export default function TechDashboardPage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
               </span>
-              Auto-refresh 30 сек ·{" "}
+              {t("dash.autoRefresh30")} ·{" "}
               <b className="text-foreground">
-                {lastUpdated ? formatRelative(lastUpdated) : "загрузка…"}
+                {lastUpdated
+                  ? formatRelativeSeconds((Date.now() - lastUpdated.getTime()) / 1000, language)
+                  : t("dash.loading")}
               </b>
             </div>
             <Button
@@ -284,7 +260,7 @@ export default function TechDashboardPage() {
                               ? "text-destructive"
                               : s.status_code >= 400
                               ? "text-amber-500"
-                              : "text-success"
+                              : "text-success-strong"
                           }`}
                         >
                           {s.status_code}
