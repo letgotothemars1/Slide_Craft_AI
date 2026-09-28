@@ -128,6 +128,7 @@ class DocumentChunk(Base):
         nullable=False,
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     # MVP: JSON vector for compatibility. TODO: migrate to pgvector for DB-side similarity search.
     embedding: Mapped[list[float]] = mapped_column(JSON, nullable=False)
@@ -138,6 +139,25 @@ class DocumentChunk(Base):
     )
 
     document: Mapped[Document] = relationship(back_populates="chunks")
+
+
+class Project(Base):
+    """Persisted intake and editable state for the modular student journey."""
+
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    language: Mapped[str] = mapped_column(String(8), nullable=False, default="en")
+    phase: Mapped[str] = mapped_column(String(32), nullable=False, default="intake")
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    assignment_text: Mapped[str] = mapped_column(Text, nullable=False)
+    context_pack_text: Mapped[str] = mapped_column(Text, nullable=False)
+    source_document_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    theme: Mapped[str] = mapped_column(String(32), nullable=False)
+    outline_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    slides_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class JobArtifact(Base):
@@ -258,6 +278,7 @@ def _run_startup_migrations() -> None:
         dialect = conn.dialect.name
         try:
             if dialect == "postgresql":
+                conn.execute(text("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS page_number INTEGER"))
                 conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS document_id VARCHAR(64)"))
                 # Keep email uniqueness guaranteed even on old environments.
                 conn.execute(
@@ -268,6 +289,9 @@ def _run_startup_migrations() -> None:
                     text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE")
                 )
             elif dialect == "sqlite":
+                chunk_rows = conn.execute(text("PRAGMA table_info(document_chunks)")).fetchall()
+                if "page_number" not in {row[1] for row in chunk_rows}:
+                    conn.execute(text("ALTER TABLE document_chunks ADD COLUMN page_number INTEGER"))
                 rows = conn.execute(text("PRAGMA table_info(jobs)")).fetchall()
                 existing_columns = {row[1] for row in rows}
                 if "document_id" not in existing_columns:

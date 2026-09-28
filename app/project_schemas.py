@@ -75,3 +75,13 @@ class ProjectResponse(BaseModel):
     theme: Theme
     outline: list[OutlineItem]
     slides: list[ProjectSlide]
+
+
+class ProjectCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assignment_text: str = Field(min_length=1)
+    context_pack_text: str = Field(min_length=1)
+    source_document_id: str | None = None
+    theme: Theme = "clean_editorial"
+    language: Literal["en"] = "en"

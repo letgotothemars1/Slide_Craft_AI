@@ -6,6 +6,7 @@ import math
 from app import repository
 from app.db import SessionLocal
 from app.services.embedding_service import get_embedding_service
+from app.project_schemas import SourceRef
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +24,23 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 def retrieve_relevant_chunks(prompt: str, document_id: str, top_k: int = 5) -> list[str]:
-    logger.debug("retrieval.started document_id=%s top_k=%s", document_id, top_k)
+    """Legacy one-shot shape: return only chunk text."""
+    return [excerpt for _, excerpt in _rank_chunks(prompt, document_id, top_k)[1]]
 
-    embedding_service = get_embedding_service()
-    prompt_embedding = embedding_service.embed_text(prompt)
+
+def retrieve_relevant_source_refs(prompt: str, document_id: str, top_k: int = 5) -> list[SourceRef]:
+    """Modular project shape: never guess a missing source page."""
+    filename, ranked = _rank_chunks(prompt, document_id, top_k)
+    if any(page_number is None for page_number, _ in ranked):
+        raise RuntimeError("Document was indexed without page numbers; re-upload the PDF")
+    return [
+        SourceRef(document_id=document_id, filename=filename, page_number=page_number, excerpt=excerpt)
+        for page_number, excerpt in ranked
+    ]
+
+
+def _rank_chunks(prompt: str, document_id: str, top_k: int) -> tuple[str, list[tuple[int | None, str]]]:
+    logger.debug("retrieval.started document_id=%s top_k=%s", document_id, top_k)
 
     with SessionLocal() as session:
         document = repository.get_document(session, document_id)
@@ -37,13 +51,20 @@ def retrieve_relevant_chunks(prompt: str, document_id: str, top_k: int = 5) -> l
         if not chunks:
             raise RuntimeError(f"Document has no indexed chunks: {document_id}")
 
-    scored: list[tuple[float, str]] = []
+        filename = document.filename
+
+    embedding_service = get_embedding_service()
+    prompt_embedding = embedding_service.embed_text(prompt)
+
+    scored: list[tuple[float, int | None, str]] = []
     for chunk in chunks:
+        if len(chunk.embedding) != len(prompt_embedding):
+            raise RuntimeError("Document embedding provider changed; re-upload the PDF")
         score = _cosine_similarity(prompt_embedding, [float(value) for value in chunk.embedding])
-        scored.append((score, chunk.chunk_text))
+        scored.append((score, chunk.page_number, chunk.chunk_text))
 
     scored.sort(key=lambda item: item[0], reverse=True)
-    result = [text for _, text in scored[:top_k] if text.strip()]
+    result = [(page_number, excerpt) for _, page_number, excerpt in scored[:top_k] if excerpt.strip()]
 
     logger.debug(
         "retrieval.completed document_id=%s candidates=%s returned=%s",
@@ -51,4 +72,4 @@ def retrieve_relevant_chunks(prompt: str, document_id: str, top_k: int = 5) -> l
         len(scored),
         len(result),
     )
-    return result
+    return filename, result

@@ -25,6 +25,7 @@ The Vite development server proxies API routes to port 8000 while preserving the
 
 ## Known limitations
 
-- The modular project endpoint is read-only fixture data. Project persistence, outline editing and generation belong to M01–M06.
+- M02 now provides persisted `POST /projects` and `GET /projects/{id}`. The `demo-project` fixture remains read-only; outline editing and generation are still future work.
+- PDF upload uses deterministic local lexical vectors when no OpenAI key is configured. They support basic source lookup for the course demo; switching embedding providers requires re-uploading the PDF.
 - The current full TypeScript check has two pre-existing errors in `src/lib/analytics.ts` and `src/lib/api.ts`; the frontend build still succeeds.
 - The existing one-shot flow reports `done` with a placeholder PPTX when model generation fails. Treat the output as a fallback and make this state clear before using the flow in a demo.
