@@ -1,0 +1,18 @@
+{
+  "id": "demo-project",
+  "language": "en",
+  "phase": "outline_draft",
+  "revision": 1,
+  "assignment_text": "Prepare a five-slide presentation explaining a proposed improvement to a public service. Include the problem, evidence, mechanism, trade-offs and conclusion.",
+  "context_pack_text": "Purpose: explain how a source-grounded presentation can make an argument inspectable. Audience: master's students and course examiners. Thesis: reviewable stages help students correct an argument before slide design. Open question: whether the extra review step saves time overall.",
+  "source_document_id": null,
+  "theme": "clean_editorial",
+  "outline": [
+    {"id": "s1", "order": 1, "purpose": "Introduce the problem", "title": "The presentation problem", "key_message": "A polished deck can hide a weak argument.", "evidence_refs": [], "layout_type": "title"},
+    {"id": "s2", "order": 2, "purpose": "Show what students need", "title": "Requirements and evidence", "key_message": "Students must satisfy a brief and support claims with sources.", "evidence_refs": [], "layout_type": "content"},
+    {"id": "s3", "order": 3, "purpose": "Explain the proposed workflow", "title": "Review before design", "key_message": "An editable outline exposes decisions early.", "evidence_refs": [], "layout_type": "content"},
+    {"id": "s4", "order": 4, "purpose": "Compare approaches", "title": "Local edits versus full rebuilds", "key_message": "A local revision should preserve accepted work.", "evidence_refs": [], "layout_type": "comparison"},
+    {"id": "s5", "order": 5, "purpose": "Conclude and identify the test", "title": "What the pilot must show", "key_message": "Students should retain control of both evidence and the final file.", "evidence_refs": [], "layout_type": "content"}
+  ],
+  "slides": []
+}

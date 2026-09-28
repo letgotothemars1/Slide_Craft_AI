@@ -1,6 +1,6 @@
-# Proposed MVP contract: freeze on day 1
+# MVP contract: frozen for M01 and M02 on 2026-09-28
 
-This is a proposed interface for parallel work, not current behavior. M00 must verify names against the repository, settle small differences, and mark this file frozen before A and B implement separate sides. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and a new frontend route such as `/projects/:projectId`.
+The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. Only the read-only fixture endpoint exists today; the remaining endpoints are planned. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and a new frontend route such as `/projects/:projectId`.
 
 ## State model
 
