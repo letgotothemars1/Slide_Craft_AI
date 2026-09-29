@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import hashlib
+import re
 
 from app.config import settings
 
@@ -36,5 +38,24 @@ class OpenAIEmbeddingService:
         return [list(item.embedding) for item in sorted(response.data, key=lambda row: row.index)]
 
 
-def get_embedding_service() -> OpenAIEmbeddingService:
-    return OpenAIEmbeddingService()
+class LocalEmbeddingService:
+    """Deterministic lexical vectors for a key-free local course demo."""
+
+    dimensions = 256
+
+    def embed_text(self, text: str) -> list[float]:
+        vector = [0.0] * self.dimensions
+        for token in re.findall(r"[a-z0-9]+", text.lower()):
+            digest = hashlib.sha256(token.encode("utf-8")).digest()
+            index = int.from_bytes(digest[:4], "big") % self.dimensions
+            vector[index] += 1.0
+        return vector
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        return [self.embed_text(text) for text in texts]
+
+
+def get_embedding_service() -> OpenAIEmbeddingService | LocalEmbeddingService:
+    if settings.openai_enabled:
+        return OpenAIEmbeddingService()
+    return LocalEmbeddingService()

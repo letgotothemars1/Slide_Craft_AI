@@ -5,7 +5,8 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.db import Document, DocumentChunk, Job, JobArtifact, JobSpec, User
+from app.db import Document, DocumentChunk, Job, JobArtifact, JobSpec, Project, User
+from app.project_schemas import ProjectCreateRequest, ProjectResponse
 from app.schemas import GenerateRequest, JobResult, JobStatusResponse
 
 
@@ -110,6 +111,46 @@ def get_document(session: Session, document_id: str) -> Document | None:
     return session.query(Document).filter(Document.id == document_id).one_or_none()
 
 
+def create_project(session: Session, payload: ProjectCreateRequest) -> Project:
+    project = Project(
+        id=str(uuid4()),
+        language=payload.language,
+        phase="intake",
+        revision=0,
+        assignment_text=payload.assignment_text.strip(),
+        context_pack_text=payload.context_pack_text.strip(),
+        source_document_id=payload.source_document_id,
+        theme=payload.theme,
+        outline_json=[],
+        slides_json=[],
+    )
+    session.add(project)
+    session.commit()
+    session.refresh(project)
+    return project
+
+
+def get_project(session: Session, project_id: str) -> Project | None:
+    return session.query(Project).filter(Project.id == project_id).one_or_none()
+
+
+def project_response(session: Session, project: Project) -> ProjectResponse:
+    source = get_document(session, project.source_document_id) if project.source_document_id else None
+    return ProjectResponse(
+        id=project.id,
+        language=project.language,
+        phase=project.phase,
+        revision=project.revision,
+        assignment_text=project.assignment_text,
+        context_pack_text=project.context_pack_text,
+        source_document_id=project.source_document_id,
+        source_filename=source.filename if source else None,
+        theme=project.theme,
+        outline=project.outline_json,
+        slides=project.slides_json,
+    )
+
+
 def update_document_status(session: Session, document_id: str, status: str) -> Document | None:
     doc = get_document(session, document_id)
     if not doc:
@@ -125,14 +166,15 @@ def replace_document_chunks(
     session: Session,
     *,
     document_id: str,
-    chunks: list[tuple[int, str, list[float]]],
+    chunks: list[tuple[int, int, str, list[float]]],
 ) -> None:
     session.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
-    for chunk_index, chunk_text, embedding in chunks:
+    for chunk_index, page_number, chunk_text, embedding in chunks:
         session.add(
             DocumentChunk(
                 document_id=document_id,
                 chunk_index=chunk_index,
+                page_number=page_number,
                 chunk_text=chunk_text,
                 embedding=embedding,
             )

@@ -11,17 +11,22 @@ from app.services.embedding_service import get_embedding_service
 logger = logging.getLogger(__name__)
 
 
-def extract_text_from_pdf(file_path: Path) -> str:
-    """Extract plain text from PDF pages for downstream chunking."""
+def extract_pages_from_pdf(file_path: Path) -> list[tuple[int, str]]:
+    """Return non-empty PDF pages with their one-based page numbers."""
     from pypdf import PdfReader
 
     reader = PdfReader(str(file_path))
-    parts: list[str] = []
-    for page in reader.pages:
+    parts: list[tuple[int, str]] = []
+    for page_number, page in enumerate(reader.pages, start=1):
         text = page.extract_text() or ""
         if text.strip():
-            parts.append(text)
-    return "\n\n".join(parts).strip()
+            parts.append((page_number, text.strip()))
+    return parts
+
+
+def extract_text_from_pdf(file_path: Path) -> str:
+    """Preserve the old plain-text helper for one-shot callers."""
+    return "\n\n".join(text for _, text in extract_pages_from_pdf(file_path))
 
 
 def split_text_into_chunks(
@@ -72,8 +77,13 @@ def index_document(document_id: str, file_path: Path) -> int:
     Returns number of indexed chunks.
     """
     logger.debug("document.parsed document_id=%s path=%s", document_id, file_path)
-    text = extract_text_from_pdf(file_path)
-    chunks = split_text_into_chunks(text)
+    pages = extract_pages_from_pdf(file_path)
+    page_chunks = [
+        (page_number, chunk)
+        for page_number, text in pages
+        for chunk in split_text_into_chunks(text)
+    ]
+    chunks = [chunk for _, chunk in page_chunks]
     logger.debug("document.chunked document_id=%s chunks=%s", document_id, len(chunks))
 
     if not chunks:
@@ -86,7 +96,10 @@ def index_document(document_id: str, file_path: Path) -> int:
     if len(vectors) != len(chunks):
         raise RuntimeError("Embedding count mismatch")
 
-    rows = [(idx, chunk, vectors[idx]) for idx, chunk in enumerate(chunks)]
+    rows = [
+        (idx, page_number, chunk, vectors[idx])
+        for idx, (page_number, chunk) in enumerate(page_chunks)
+    ]
     with SessionLocal() as session:
         repository.replace_document_chunks(session, document_id=document_id, chunks=rows)
 

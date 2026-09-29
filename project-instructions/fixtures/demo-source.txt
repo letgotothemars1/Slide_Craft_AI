@@ -1,0 +1,11 @@
+Synthetic North Campus sorting pilot — fictional case for SlideCraft AI
+
+PAGE 1 — SETTING AND OBSERVATIONS
+This document contains invented figures for a software demonstration. It is not a real campus study or external research source.
+
+The fictional North Campus pilot examined 1,000 waste items per week for four weeks. Before the camera-assisted workflow, 42% of inspected items were placed in the incorrect stream. During the pilot, 29% were placed in the incorrect stream. These are observed shares from the fictional case. The pilot did not use a randomized control group, so the difference does not establish that the workflow caused the change.
+
+PAGE 2 — WORKFLOW AND LIMITS
+A camera classifier flags uncertain items for human review. Staff make the final decision on flagged items; the system does not automatically decide every case. In the fictional pilot, staff review took 18 minutes per day, and camera maintenance took two hours per week. No faces were stored in the example workflow. The model was evaluated only on a narrow campus sample. Performance at another site is unknown.
+
+Source and permission: team-authored synthetic example for a course software demo. All figures and the campus are fictional. Reuse is permitted within the SlideCraft AI project demonstration.

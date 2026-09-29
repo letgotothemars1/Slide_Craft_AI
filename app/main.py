@@ -30,6 +30,7 @@ from app.schemas import (
 )
 from app.routers import analytics as analytics_router
 from app.routers import infra as infra_router
+from app.routers import projects as projects_router
 from app.services.document_service import index_document
 from app.services.auth_service import (
     CurrentUser,
@@ -121,6 +122,7 @@ app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(analytics_router.router)
 app.include_router(infra_router.router)
+app.include_router(projects_router.router)
 
 # Local storage mode serves files from /files/...
 app.mount("/files", StaticFiles(directory=str(settings.STORAGE_PATH)), name="files")
