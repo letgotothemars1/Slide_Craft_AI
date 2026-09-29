@@ -41,6 +41,8 @@ export const projectSchema = z.object({
 });
 
 export type Project = z.infer<typeof projectSchema>;
+export type OutlineItem = Project["outline"][number];
+export type SourceRef = OutlineItem["evidence_refs"][number];
 
 export const projectCreateSchema = z.object({
   assignment_text: z.string().trim().min(1, "Add the assignment"),
@@ -71,4 +73,38 @@ export async function getProject(projectId: string): Promise<Project> {
   const response = await fetch(`${apiBase}/projects/${encodeURIComponent(projectId)}`);
   if (!response.ok) throw new Error(`Project request failed: ${response.status}`);
   return projectSchema.parse(await response.json());
+}
+
+async function projectRequest(projectId: string, path: string, method: string, body: unknown): Promise<Project> {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  const response = await fetch(`${apiBase}/projects/${encodeURIComponent(projectId)}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    const detail = data?.detail;
+    throw new Error(typeof detail === "string" ? detail : typeof detail?.message === "string" ? detail.message : `Project request failed: ${response.status}`);
+  }
+  return projectSchema.parse(await response.json());
+}
+
+export function createStarterOutline(project: Project): Promise<Project> {
+  return projectRequest(project.id, "/outline/generate", "POST", { expected_revision: project.revision });
+}
+
+export function saveOutline(project: Project, outline: OutlineItem[]): Promise<Project> {
+  return projectRequest(project.id, "/outline", "PUT", { expected_revision: project.revision, outline });
+}
+
+export function approveOutline(project: Project, theme: Project["theme"]): Promise<Project> {
+  return projectRequest(project.id, "/outline/approve", "POST", { expected_revision: project.revision, theme });
+}
+
+export async function getSourceCandidates(projectId: string): Promise<SourceRef[]> {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  const response = await fetch(`${apiBase}/projects/${encodeURIComponent(projectId)}/source-candidates`);
+  if (!response.ok) throw new Error(`Source request failed: ${response.status}`);
+  return z.array(sourceRefSchema).parse(await response.json());
 }

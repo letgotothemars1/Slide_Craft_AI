@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
+import OutlineEditor from "@/components/OutlineEditor";
 import { getProject, type Project } from "@/lib/project-api";
 
 export default function ProjectPage() {
@@ -29,7 +30,7 @@ export default function ProjectPage() {
           <section className="rounded-xl border bg-card p-5"><h2 className="font-semibold">Assignment</h2><p className="mt-3 whitespace-pre-wrap text-sm">{project.assignment_text}</p></section>
           <section className="rounded-xl border bg-card p-5"><h2 className="font-semibold">Context Pack</h2><p className="mt-3 whitespace-pre-wrap text-sm">{project.context_pack_text}</p></section>
           <section className="rounded-xl border bg-card p-5"><h2 className="font-semibold">Source PDF</h2><p className="mt-3 text-sm">{project.source_filename ? `${project.source_filename} · indexed` : "No PDF attached yet"}</p></section>
-          <p className="text-sm text-muted-foreground">Your inputs are saved. Editable outline generation is the next MVP module.</p>
+          <OutlineEditor project={project} onChange={setProject} />
         </div>}
       </main>
     </div>

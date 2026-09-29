@@ -86,3 +86,17 @@ class ProjectCreateRequest(BaseModel):
     source_document_id: str | None = None
     theme: Theme = "clean_editorial"
     language: Literal["en"] = "en"
+
+
+class OutlineRevisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=0)
+
+
+class OutlineSaveRequest(OutlineRevisionRequest):
+    outline: list[OutlineItem] = Field(min_length=5, max_length=5)
+
+
+class OutlineApproveRequest(OutlineRevisionRequest):
+    theme: Theme

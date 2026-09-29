@@ -1,6 +1,6 @@
 # MVP contract: frozen for M01 and M02 on 2026-09-28
 
-The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. Only the read-only fixture endpoint exists today; the remaining endpoints are planned. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and a new frontend route such as `/projects/:projectId`.
+The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The intake, source-candidate, outline draft, edit, and approval endpoints now exist locally. Build, block editing, and export remain planned. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and `/projects/:projectId`.
 
 ## State model
 
@@ -21,12 +21,15 @@ Every edit request carries an expected revision. If the current revision differs
 | `POST /projects/{id}/outline/generate` | One model call creates five outline items. | Updated project in `outline_draft` |
 | `PUT /projects/{id}/outline` | Save text/order edits with `expected_revision`. | Updated outline and revision |
 | `POST /projects/{id}/outline/approve` | Freeze thesis/order/theme for this build. | `outline_approved` state |
+| `GET /projects/{id}/source-candidates` | List page-numbered PDF excerpts for manual selection. | `SourceRef[]` |
 | `POST /projects/{id}/build` | Start a background loop: generate one slide spec, validate, save, then move to next. | 202 + project state |
 | `PATCH /projects/{id}/slides/{slide_id}/blocks/{block_key}` | Edit one ready block with `expected_revision`. | Updated block and revision |
 | `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/regenerate` | Rebuild only that block from approved outline, source, theme and neighboring slide context. | 202 + block `generating` |
 | `GET /projects/{id}/export.pptx` | Render the current accepted slide state. | PPTX download |
 
 Reuse existing `POST /documents/upload` for the one PDF, but adjust page extraction before presenting source references. Polling is sufficient for the three-week MVP; server-sent events are an upgrade, not a gate. Use existing auth only if local demo requires it; do not redesign authentication.
+
+The key-free local demo uses a five-slide starter template for `/outline/generate`. It does not make an AI model call or assert that PDF excerpts support the draft's claims. The student selects source candidates manually and must check them before approval.
 
 ## Source rules
 
