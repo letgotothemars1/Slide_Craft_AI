@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadDocument } from "@/lib/api";
-import { createProject, type ProjectCreate } from "@/lib/project-api";
+import { createProject, getDemoMaterials, getDemoPdf, type ProjectCreate } from "@/lib/project-api";
 
 const contextInstruction = `You are helping me prepare an academic presentation. Based only on our conversation and the materials already available to you, return a structured Context Pack in English with these headings:
 Purpose and audience
@@ -31,6 +31,7 @@ export default function NewProjectPage() {
   const [filename, setFilename] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingDemo, setLoadingDemo] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -44,14 +45,14 @@ export default function NewProjectPage() {
     }
   };
 
-  const attachPdf = async (file?: File) => {
-    if (!file) return;
+  const attachPdf = async (file?: File): Promise<boolean> => {
+    if (!file) return false;
     setError("");
     setSourceId(null);
     setFilename(null);
     if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
       setError("Choose a PDF file.");
-      return;
+      return false;
     }
     setUploading(true);
     try {
@@ -59,10 +60,29 @@ export default function NewProjectPage() {
       setSourceId(result.document_id);
       setFilename(file.name);
       setNotice("PDF indexed and ready to use as a source.");
+      return true;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "PDF indexing failed. Try another file.");
+      return false;
     } finally {
       setUploading(false);
+    }
+  };
+
+  const loadDemo = async () => {
+    setLoadingDemo(true);
+    setError("");
+    setNotice("");
+    try {
+      const [materials, pdf] = await Promise.all([getDemoMaterials(), getDemoPdf()]);
+      setAssignment(materials.assignment_text);
+      setContextPack(materials.context_pack_text);
+      const attached = await attachPdf(new File([pdf], materials.source_filename, { type: "application/pdf" }));
+      if (attached) setNotice("Synthetic example loaded with its two-page PDF. Review the inputs, then save the project.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Demo example could not be loaded.");
+    } finally {
+      setLoadingDemo(false);
     }
   };
 
@@ -98,7 +118,14 @@ export default function NewProjectPage() {
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Home</Link>
         <p className="mt-8 text-xs font-semibold uppercase tracking-widest text-primary">Academic MVP · Step 1</p>
         <h1 className="mt-2 font-display text-3xl font-bold">Create a presentation project</h1>
-        <p className="mt-3 text-muted-foreground">Bring in your assignment and the thinking you have already done. You can review the saved inputs before slide generation is added.</p>
+        <p className="mt-3 text-muted-foreground">Bring in your assignment and the thinking you have already done. Review the inputs, approve an outline, and build editable slides.</p>
+
+        <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-5">
+          <p className="font-semibold">Try the full workflow without API keys</p>
+          <p className="mt-1 text-sm text-muted-foreground">Load a fictional campus case, including a two-page PDF. All figures are synthetic.</p>
+          <Button type="button" variant="outline" className="mt-3" disabled={loadingDemo || uploading || saving} onClick={() => void loadDemo()}>{loadingDemo ? "Loading example…" : "Load synthetic demo example"}</Button>
+          <a className="ml-4 inline-block text-sm underline" href="/projects/demo/source.pdf" download>Download the sample PDF</a>
+        </div>
 
         <form onSubmit={save} className="mt-8 space-y-7">
           <section className="rounded-xl border bg-card p-5 sm:p-6">
@@ -136,7 +163,7 @@ export default function NewProjectPage() {
 
           {notice && <p role="status" className="text-sm text-success-strong">{notice}</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" size="lg" disabled={saving || uploading}>{saving ? "Saving project…" : "Save project"}</Button>
+          <Button type="submit" size="lg" disabled={saving || uploading || loadingDemo}>{saving ? "Saving project…" : "Save project"}</Button>
         </form>
       </main>
     </div>

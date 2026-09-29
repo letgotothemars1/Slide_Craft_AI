@@ -5,6 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
+from fastapi.responses import FileResponse
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,24 @@ from app.services.modular_export import render_project_pptx
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 _FIXTURE_PATH = Path(__file__).resolve().parents[2] / "project-instructions" / "fixtures" / "demo-project.json"
+_DEMO_DIR = _FIXTURE_PATH.parent
+
+
+@router.get("/demo/materials")
+def demo_materials() -> dict[str, str]:
+    assignment = (_DEMO_DIR / "demo-assignment.md").read_text(encoding="utf-8")
+    context_pack = (_DEMO_DIR / "demo-context-pack.md").read_text(encoding="utf-8")
+    return {
+        "assignment_text": assignment.split("\n", 1)[1].strip(),
+        "context_pack_text": context_pack.strip(),
+        "source_filename": "slidecraft-synthetic-demo-source.pdf",
+    }
+
+
+@router.get("/demo/source.pdf")
+def demo_source_pdf() -> FileResponse:
+    return FileResponse(_DEMO_DIR / "demo-source.pdf", media_type="application/pdf",
+                        filename="slidecraft-synthetic-demo-source.pdf")
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
@@ -147,7 +166,9 @@ def build_project(project_id: str, payload: OutlineRevisionRequest, background: 
     slides = [queued_slide(item).model_dump() for item in repository.project_response(session, project).outline]
     updated = _change_project(session, project, payload.expected_revision,
                               phase="building", slides_json=slides)
-    background.add_task(run_build, project_id)
+    # Pace the explicit key-free demo so observers can see and edit ready slides
+    # while later slides are queued. The worker still persists real states.
+    background.add_task(run_build, project_id, pause_seconds=0.8)
     return updated
 
 

@@ -7,6 +7,7 @@ builder can be injected later without changing the revision-safe state loop.
 from __future__ import annotations
 
 import logging
+import time
 from copy import deepcopy
 from typing import Callable
 
@@ -104,7 +105,7 @@ def _finish(project_id: str) -> None:
 
 def run_build(project_id: str, builder: SlideBuilder = build_slide_from_outline,
               after_slide: Callable[[str], None] | None = None,
-              only_slide_id: str | None = None) -> None:
+              only_slide_id: str | None = None, pause_seconds: float = 0.0) -> None:
     """Build eligible slides in approved order and persist each result."""
     with SessionLocal() as session:
         project = repository.get_project(session, project_id)
@@ -112,7 +113,7 @@ def run_build(project_id: str, builder: SlideBuilder = build_slide_from_outline,
             return
         outline = [OutlineItem.model_validate(item) for item in project.outline_json]
 
-    for item in outline:
+    for index, item in enumerate(outline):
         if only_slide_id and item.id != only_slide_id:
             continue
         if not _set_slide(project_id, item.id, status="generating"):
@@ -133,4 +134,6 @@ def run_build(project_id: str, builder: SlideBuilder = build_slide_from_outline,
             _set_slide(project_id, item.id, status="error", expected_slide_revision=started_revision)
         if after_slide:
             after_slide(item.id)
+        if pause_seconds > 0 and index < len(outline) - 1 and only_slide_id is None:
+            time.sleep(pause_seconds)
     _finish(project_id)

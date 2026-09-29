@@ -54,6 +54,26 @@ export const projectCreateSchema = z.object({
 
 export type ProjectCreate = z.infer<typeof projectCreateSchema>;
 
+const demoMaterialsSchema = z.object({
+  assignment_text: z.string().min(1),
+  context_pack_text: z.string().min(1),
+  source_filename: z.string().min(1),
+});
+
+export async function getDemoMaterials(): Promise<z.infer<typeof demoMaterialsSchema>> {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  const response = await fetch(`${apiBase}/projects/demo/materials`);
+  if (!response.ok) throw new Error(`Demo materials could not be loaded (${response.status})`);
+  return demoMaterialsSchema.parse(await response.json());
+}
+
+export async function getDemoPdf(): Promise<Blob> {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  const response = await fetch(`${apiBase}/projects/demo/source.pdf`);
+  if (!response.ok) throw new Error(`Demo PDF could not be loaded (${response.status})`);
+  return response.blob();
+}
+
 export async function createProject(input: ProjectCreate): Promise<Project> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
   const response = await fetch(`${apiBase}/projects`, {

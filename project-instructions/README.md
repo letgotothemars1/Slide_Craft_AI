@@ -4,4 +4,4 @@ This folder contains the three-week MVP plan and task handoff material. Start wi
 
 To continue a ticket in a new AI chat, open the repository and use [NEW_CHAT_PROMPT.md](NEW_CHAT_PROMPT.md). Ask the AI to read only the shared context and the relevant task card in [tasks/](tasks/). [HOW_TO_VIBECODE.md](HOW_TO_VIBECODE.md) explains the team's small-step build and check routine. The root `AGENTS.md` points new coding chats to this folder.
 
-The documents describe intended MVP work. They do not claim that the new modular workflow is already implemented in the current application.
+The modular local workflow is implemented through editable slides and PPTX export. [LOCAL_RUN.md](LOCAL_RUN.md) records the verified behavior and remaining model-dependent work; [DEMO.md](DEMO.md) gives the repeatable course-demo sequence.
