@@ -102,6 +102,33 @@ export function approveOutline(project: Project, theme: Project["theme"]): Promi
   return projectRequest(project.id, "/outline/approve", "POST", { expected_revision: project.revision, theme });
 }
 
+export function buildProject(project: Project): Promise<Project> {
+  return projectRequest(project.id, "/build", "POST", { expected_revision: project.revision });
+}
+
+export function editSlideBlock(project: Project, slideId: string, blockKey: "title" | "body" | "source_label", text: string): Promise<Project> {
+  return projectRequest(project.id, `/slides/${encodeURIComponent(slideId)}/blocks/${blockKey}`, "PATCH", {
+    expected_revision: project.revision, text,
+  });
+}
+
+export function resetBlockFromOutline(project: Project, slideId: string, blockKey: "title" | "body"): Promise<Project> {
+  return projectRequest(project.id, `/slides/${encodeURIComponent(slideId)}/blocks/${blockKey}/reset-from-outline`, "POST", {
+    expected_revision: project.revision,
+  });
+}
+
+export function retrySlide(project: Project, slideId: string): Promise<Project> {
+  return projectRequest(project.id, `/slides/${encodeURIComponent(slideId)}/retry`, "POST", {
+    expected_revision: project.revision,
+  });
+}
+
+export function exportPptxUrl(projectId: string): string {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  return `${apiBase}/projects/${encodeURIComponent(projectId)}/export.pptx`;
+}
+
 export async function getSourceCandidates(projectId: string): Promise<SourceRef[]> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
   const response = await fetch(`${apiBase}/projects/${encodeURIComponent(projectId)}/source-candidates`);

@@ -100,3 +100,7 @@ class OutlineSaveRequest(OutlineRevisionRequest):
 
 class OutlineApproveRequest(OutlineRevisionRequest):
     theme: Theme
+
+
+class BlockEditRequest(OutlineRevisionRequest):
+    text: str = Field(min_length=1, max_length=2000)

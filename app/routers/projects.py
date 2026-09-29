@@ -1,19 +1,22 @@
 """Read-only contract fixture for the first modular MVP milestone."""
 
 import json
+from copy import deepcopy
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app import repository
 from app.db import Project, get_session
 from app.project_schemas import (
-    OutlineApproveRequest, OutlineRevisionRequest, OutlineSaveRequest,
+    BlockEditRequest, OutlineApproveRequest, OutlineRevisionRequest, OutlineSaveRequest,
     ProjectCreateRequest, ProjectResponse, SourceRef,
 )
 from app.services.outline_service import starter_outline
+from app.services.modular_build import queued_slide, run_build
+from app.services.modular_export import render_project_pptx
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -132,3 +135,92 @@ def approve_outline(project_id: str, payload: OutlineApproveRequest, session: Se
         raise HTTPException(status_code=422, detail="Complete the five-slide draft before approval")
     return _change_project(session, project, payload.expected_revision,
                            phase="outline_approved", theme=payload.theme)
+
+
+@router.post("/{project_id}/build", response_model=ProjectResponse, status_code=202)
+def build_project(project_id: str, payload: OutlineRevisionRequest, background: BackgroundTasks,
+                  session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if project.phase != "outline_approved" or len(project.outline_json) != 5:
+        raise HTTPException(status_code=422, detail="Approve the five-slide outline first")
+    slides = [queued_slide(item).model_dump() for item in repository.project_response(session, project).outline]
+    updated = _change_project(session, project, payload.expected_revision,
+                              phase="building", slides_json=slides)
+    background.add_task(run_build, project_id)
+    return updated
+
+
+@router.patch("/{project_id}/slides/{slide_id}/blocks/{block_key}", response_model=ProjectResponse)
+def edit_slide_block(project_id: str, slide_id: str, block_key: str, payload: BlockEditRequest,
+                     session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if block_key not in {"title", "body", "source_label"}:
+        raise HTTPException(status_code=404, detail="Unknown slide block")
+    text = payload.text.strip()
+    if not text or (block_key in {"title", "source_label"} and len(text) > 200):
+        raise HTTPException(status_code=422, detail="Block text is empty or too long")
+    slides = deepcopy(project.slides_json)
+    target = next((slide for slide in slides if slide["id"] == slide_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    if target["status"] != "ready":
+        raise HTTPException(status_code=422, detail="Slide is not ready for editing")
+    target["blocks"][block_key]["text"] = text
+    target["blocks"][block_key]["revision"] += 1
+    target["revision"] += 1
+    return _change_project(session, project, payload.expected_revision, slides_json=slides)
+
+
+@router.post("/{project_id}/slides/{slide_id}/blocks/{block_key}/reset-from-outline", response_model=ProjectResponse)
+def reset_slide_block(project_id: str, slide_id: str, block_key: str, payload: OutlineRevisionRequest,
+                      session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if block_key not in {"title", "body"}:
+        raise HTTPException(status_code=404, detail="Only title and body can be reset from the outline")
+    item = next((item for item in project.outline_json if item["id"] == slide_id), None)
+    slides = deepcopy(project.slides_json)
+    target = next((slide for slide in slides if slide["id"] == slide_id), None)
+    if item is None or target is None:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    if target["status"] != "ready":
+        raise HTTPException(status_code=422, detail="Slide is not ready")
+    target["blocks"][block_key]["text"] = item["title" if block_key == "title" else "key_message"]
+    target["blocks"][block_key]["revision"] += 1
+    target["revision"] += 1
+    return _change_project(session, project, payload.expected_revision, slides_json=slides)
+
+
+@router.post("/{project_id}/slides/{slide_id}/retry", response_model=ProjectResponse, status_code=202)
+def retry_slide(project_id: str, slide_id: str, payload: OutlineRevisionRequest,
+                background: BackgroundTasks, session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    slides = deepcopy(project.slides_json)
+    target = next((slide for slide in slides if slide["id"] == slide_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    if target["status"] != "error":
+        raise HTTPException(status_code=422, detail="Only a failed slide can be retried")
+    updated = _change_project(session, project, payload.expected_revision, phase="building")
+    background.add_task(run_build, project_id, only_slide_id=slide_id)
+    return updated
+
+
+@router.get("/{project_id}/export.pptx")
+def export_project_pptx(project_id: str, session: Session = Depends(get_session)) -> Response:
+    project = _editable_project(session, project_id)
+    response = repository.project_response(session, project)
+    if response.phase != "ready":
+        raise HTTPException(status_code=422, detail="All slides must be ready before export")
+    try:
+        data = render_project_pptx(response)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers={"Content-Disposition": f'attachment; filename="slidecraft-{project_id}.pptx"'},
+    )

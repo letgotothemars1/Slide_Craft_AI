@@ -1,6 +1,6 @@
 # MVP contract: frozen for M01 and M02 on 2026-09-28
 
-The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The intake, source-candidate, outline draft, edit, and approval endpoints now exist locally. Build, block editing, and export remain planned. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and `/projects/:projectId`.
+The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The local key-free path now covers intake, outline editing and approval, one-slide-at-a-time build, block editing, and PPTX export. Model-based generation and regeneration remain planned. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and `/projects/:projectId`.
 
 ## State model
 
@@ -18,18 +18,19 @@ Every edit request carries an expected revision. If the current revision differs
 | --- | --- | --- |
 | `POST /projects` | Save assignment, Context Pack, selected theme, one `source_document_id`, and five-slide intent. | `project_id`, `revision`, `phase` |
 | `GET /projects/{id}` | Read complete project state for refresh and 2-second polling. | All project fields, outline, slide states and blocks |
-| `POST /projects/{id}/outline/generate` | One model call creates five outline items. | Updated project in `outline_draft` |
+| `POST /projects/{id}/outline/generate` | Create five editable starter items locally; model generation is planned. | Updated project in `outline_draft` |
 | `PUT /projects/{id}/outline` | Save text/order edits with `expected_revision`. | Updated outline and revision |
 | `POST /projects/{id}/outline/approve` | Freeze thesis/order/theme for this build. | `outline_approved` state |
 | `GET /projects/{id}/source-candidates` | List page-numbered PDF excerpts for manual selection. | `SourceRef[]` |
-| `POST /projects/{id}/build` | Start a background loop: generate one slide spec, validate, save, then move to next. | 202 + project state |
+| `POST /projects/{id}/build` | Start a background loop that copies each approved outline item into one editable slide, then saves it before the next. | 202 + project state |
 | `PATCH /projects/{id}/slides/{slide_id}/blocks/{block_key}` | Edit one ready block with `expected_revision`. | Updated block and revision |
-| `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/regenerate` | Rebuild only that block from approved outline, source, theme and neighboring slide context. | 202 + block `generating` |
+| `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/reset-from-outline` | Restore only a title or body from the approved outline. | Updated project and revision |
+| `POST /projects/{id}/slides/{slide_id}/retry` | Retry one failed slide without restarting ready slides. | 202 + project state |
 | `GET /projects/{id}/export.pptx` | Render the current accepted slide state. | PPTX download |
 
 Reuse existing `POST /documents/upload` for the one PDF, but adjust page extraction before presenting source references. Polling is sufficient for the three-week MVP; server-sent events are an upgrade, not a gate. Use existing auth only if local demo requires it; do not redesign authentication.
 
-The key-free local demo uses a five-slide starter template for `/outline/generate`. It does not make an AI model call or assert that PDF excerpts support the draft's claims. The student selects source candidates manually and must check them before approval.
+The key-free local demo uses a five-slide starter template for `/outline/generate` and copies approved title/message text into slides during build. It does not make an AI model call or assert that PDF excerpts support the draft's claims. The student selects source candidates manually and must check them before approval and export.
 
 ## Source rules
 
