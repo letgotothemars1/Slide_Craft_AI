@@ -72,6 +72,7 @@ class ProjectResponse(BaseModel):
     assignment_text: str
     context_pack_text: str
     source_document_id: str | None
+    source_filename: str | None = None
     theme: Theme
     outline: list[OutlineItem]
     slides: list[ProjectSlide]

@@ -92,7 +92,9 @@ export async function uploadDocument(file: File): Promise<{ document_id: string 
     body: formData,
   });
 
-  return documentUploadResponseSchema.parse(res);
+  const parsed = documentUploadResponseSchema.parse(res);
+  if (!parsed.document_id) throw new Error("Document upload did not return an ID");
+  return { document_id: parsed.document_id };
 }
 
 export async function getJobStatus(jobId: string): Promise<JobStatus> {

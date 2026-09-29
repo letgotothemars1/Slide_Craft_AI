@@ -30,13 +30,14 @@ function getOrCreateSessionId(): string {
 }
 
 function generateSessionId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
+  const webCrypto = globalThis.crypto;
+  if (webCrypto && typeof webCrypto.randomUUID === "function") {
+    return webCrypto.randomUUID();
   }
   // Fallback (old browsers): 16 bytes of random hex.
   const arr = new Uint8Array(16);
-  if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
-    crypto.getRandomValues(arr);
+  if (webCrypto && typeof webCrypto.getRandomValues === "function") {
+    webCrypto.getRandomValues(arr);
   } else {
     for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
   }

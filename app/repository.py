@@ -134,7 +134,8 @@ def get_project(session: Session, project_id: str) -> Project | None:
     return session.query(Project).filter(Project.id == project_id).one_or_none()
 
 
-def project_response(project: Project) -> ProjectResponse:
+def project_response(session: Session, project: Project) -> ProjectResponse:
+    source = get_document(session, project.source_document_id) if project.source_document_id else None
     return ProjectResponse(
         id=project.id,
         language=project.language,
@@ -143,6 +144,7 @@ def project_response(project: Project) -> ProjectResponse:
         assignment_text=project.assignment_text,
         context_pack_text=project.context_pack_text,
         source_document_id=project.source_document_id,
+        source_filename=source.filename if source else None,
         theme=project.theme,
         outline=project.outline_json,
         slides=project.slides_json,

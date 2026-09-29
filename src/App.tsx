@@ -16,6 +16,8 @@ import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import TechDashboardPage from "./pages/TechDashboardPage";
+import NewProjectPage from "./pages/NewProjectPage";
+import ProjectPage from "./pages/ProjectPage";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +31,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/projects/new" element={<NewProjectPage />} />
+              <Route path="/projects/:projectId" element={<ProjectPage />} />
               <Route
                 path="/auth"
                 element={

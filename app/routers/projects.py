@@ -22,7 +22,7 @@ def get_project(project_id: str, session: Session = Depends(get_session)) -> Pro
     project = repository.get_project(session, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    return repository.project_response(project)
+    return repository.project_response(session, project)
 
 
 @router.post("", response_model=ProjectResponse, status_code=201)
@@ -34,4 +34,4 @@ def create_project(payload: ProjectCreateRequest, session: Session = Depends(get
         if source is None or source.status != "ready":
             raise HTTPException(status_code=422, detail="Source PDF is missing or not ready")
     project = repository.create_project(session, payload)
-    return repository.project_response(project)
+    return repository.project_response(session, project)

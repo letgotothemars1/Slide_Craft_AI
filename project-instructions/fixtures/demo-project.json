@@ -6,6 +6,7 @@
   "assignment_text": "Prepare a five-slide presentation explaining a proposed improvement to a public service. Include the problem, evidence, mechanism, trade-offs and conclusion.",
   "context_pack_text": "Purpose: explain how a source-grounded presentation can make an argument inspectable. Audience: master's students and course examiners. Thesis: reviewable stages help students correct an argument before slide design. Open question: whether the extra review step saves time overall.",
   "source_document_id": null,
+  "source_filename": null,
   "theme": "clean_editorial",
   "outline": [
     {"id": "s1", "order": 1, "purpose": "Introduce the problem", "title": "The presentation problem", "key_message": "A polished deck can hide a weak argument.", "evidence_refs": [], "layout_type": "title"},

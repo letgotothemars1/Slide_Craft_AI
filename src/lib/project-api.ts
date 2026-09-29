@@ -21,6 +21,7 @@ export const projectSchema = z.object({
   assignment_text: z.string(),
   context_pack_text: z.string(),
   source_document_id: z.string().nullable(),
+  source_filename: z.string().nullable(),
   theme: z.enum(["clean_editorial", "dark_tech_pitch", "infographic_bright"]),
   outline: z.array(z.object({
     id: z.string(),
@@ -40,6 +41,30 @@ export const projectSchema = z.object({
 });
 
 export type Project = z.infer<typeof projectSchema>;
+
+export const projectCreateSchema = z.object({
+  assignment_text: z.string().trim().min(1, "Add the assignment"),
+  context_pack_text: z.string().trim().min(1, "Add a Context Pack"),
+  source_document_id: z.string().nullable(),
+  theme: projectSchema.shape.theme,
+  language: z.literal("en"),
+});
+
+export type ProjectCreate = z.infer<typeof projectCreateSchema>;
+
+export async function createProject(input: ProjectCreate): Promise<Project> {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
+  const response = await fetch(`${apiBase}/projects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(projectCreateSchema.parse(input)),
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(typeof detail?.detail === "string" ? detail.detail : `Project could not be saved (${response.status})`);
+  }
+  return projectSchema.parse(await response.json());
+}
 
 export async function getProject(projectId: string): Promise<Project> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";

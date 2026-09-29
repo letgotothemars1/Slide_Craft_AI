@@ -6,6 +6,8 @@ The response shape is validated by the checked-in `demo-project.json` fixture in
 
 Use persistent project data, not browser-only state. A project stores: `id`, `language` (`en` for MVP), `assignment_text`, `context_pack_text`, `source_document_id`, `theme`, `phase`, `revision`, `outline[]`, and `slides[]`. An outline item has stable `id`, `order`, `purpose`, `title`, `key_message`, `evidence_refs[]`, and `layout_type`. A slide has the same stable ID, `status`, `revision`, and editable blocks. Initial block keys: `title`, `body`, `source_label`. A source reference has `document_id`, `filename`, `page_number`, and a short excerpt. Use one database row or several tables as B prefers, but expose these fields in the API.
 
+The project response also returns `source_filename` from the attached document, or `null`, so the saved-input screen can identify the PDF after refresh.
+
 Allowed phases: `intake → outline_draft → outline_approved → building → ready`, plus `error`. Slide status: `queued | generating | ready | error`. Block status: `ready | generating | error`. A draft outline is black-and-white and editable; choosing a theme does not silently change its meaning. The theme must be confirmed at outline approval. Accepted edits survive later generation and export.
 
 Every edit request carries an expected revision. If the current revision differs, return HTTP 409 and the latest object so the UI can offer refresh. A background result updates only the target slide or block and must be discarded if that block was edited since work began. Do not overwrite the whole project JSON with an old job snapshot. Revision protection matters especially when a student edits while another slide is generating.
