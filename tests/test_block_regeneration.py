@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app import repository
 from app.db import Base
-from app.project_schemas import BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineRevisionRequest, ProjectCreateRequest
+from app.project_schemas import BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, ProjectCreateRequest
 from app.routers.projects import approve_outline, build_project, edit_slide_block, export_project_pptx, generate_outline, regenerate_slide_block
 from app.services import modular_build, modular_regenerate
 
@@ -29,7 +29,7 @@ class BlockRegenerationTest(unittest.TestCase):
             project = repository.create_project(session, ProjectCreateRequest(
                 assignment_text='Make five slides', context_pack_text='Thesis: review matters.'))
             self.project_id = project.id
-            draft = generate_outline(project.id, OutlineRevisionRequest(expected_revision=0), session)
+            draft = generate_outline(project.id, OutlineGenerateRequest(expected_revision=0), session)
             approved = approve_outline(project.id, OutlineApproveRequest(
                 expected_revision=draft.revision, theme='clean_editorial'), session)
             build_project(project.id, BuildRequest(expected_revision=approved.revision), BackgroundTasks(), session)
@@ -103,6 +103,37 @@ class BlockRegenerationTest(unittest.TestCase):
         modular_regenerate.run_regeneration(self.project_id, 's1', 'title',
             retry.slides[0].blocks.title.revision, lambda *args: 'Retry succeeded')
         self.assertEqual(self.state().slides[0].blocks.title.text, 'Retry succeeded')
+
+    def test_restart_recovers_pending_block_and_preserves_accepted_text(self):
+        from app.services import modular_recovery
+        started = self.start()
+        with patch.object(modular_recovery, 'SessionLocal', self.sessions):
+            modular_recovery.recover_interrupted_work()
+        final = self.state()
+        self.assertEqual(final.phase, 'ready')
+        self.assertEqual(final.slides[0].blocks.title.status, 'error')
+        self.assertEqual(final.slides[0].blocks.title.text, started.slides[0].blocks.title.text)
+        self.assertEqual(final.slides[1:], started.slides[1:])
+        self.assertIn('restart', final.slides[0].blocks.title.error)
+
+    def test_restart_marks_unfinished_slides_retryable(self):
+        from app.services import modular_recovery
+        from copy import deepcopy
+        before = self.state()
+        with self.sessions() as session:
+            project = repository.get_project(session, self.project_id)
+            slides = deepcopy(project.slides_json)
+            slides[1]['status'] = 'generating'
+            slides[2]['status'] = 'queued'
+            project.slides_json = slides
+            project.phase = 'building'
+            session.commit()
+        with patch.object(modular_recovery, 'SessionLocal', self.sessions):
+            modular_recovery.recover_interrupted_work()
+        final = self.state()
+        self.assertEqual(final.phase, 'error')
+        self.assertEqual([slide.status for slide in final.slides], ['ready', 'error', 'error', 'ready', 'ready'])
+        self.assertEqual(final.slides[0], before.slides[0])
 
     def test_duplicate_and_source_regeneration_rejected(self):
         self.start()

@@ -167,3 +167,19 @@ export async function getSourceCandidates(projectId: string): Promise<SourceRef[
   if (!response.ok) throw new Error(`Source request failed: ${response.status}`);
   return z.array(sourceRefSchema).parse(await response.json());
 }
+
+export async function downloadProjectPptx(projectId: string): Promise<void> {
+  const response = await fetch(exportPptxUrl(projectId));
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(typeof data?.detail === "string" ? data.detail : "PPTX could not be downloaded. Try again.");
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `slidecraft-${projectId}.pptx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

@@ -124,7 +124,7 @@ export default function NewProjectPage() {
           <p className="font-semibold">Try the full workflow without API keys</p>
           <p className="mt-1 text-sm text-muted-foreground">Load a fictional campus case, including a two-page PDF. All figures are synthetic.</p>
           <Button type="button" variant="outline" className="mt-3" disabled={loadingDemo || uploading || saving} onClick={() => void loadDemo()}>{loadingDemo ? "Loading example…" : "Load synthetic demo example"}</Button>
-          <a className="ml-4 inline-block text-sm underline" href="/projects/demo/source.pdf" download>Download the sample PDF</a>
+          <a className="ml-4 inline-block text-sm underline" href={`${(import.meta.env.VITE_API_BASE_URL as string) || ""}/projects/demo/source.pdf`} download>Download the sample PDF</a>
         </div>
 
         <form onSubmit={save} className="mt-8 space-y-7">

@@ -60,3 +60,10 @@ Open this repository folder in the new chat and paste:
 > Work on ticket **T__** in `project-instructions/EXECUTION_BOARD.md`. Read `AGENTS.md`, `project-instructions/START_HERE.md`, `project-instructions/CONTRACT.md`, the relevant module card in `project-instructions/tasks/`, and the ticket. First inspect the existing code path and say which files need changing. Then implement only this ticket, preserve `/generate`, run its Check, and report what works, what remains, and how I can reproduce it. Do not commit secrets or private student material.
 
 For classmate tasks replace `T__` with `C__` and ask for a no-code explanation. Developers should record completed ticket ID, branch, date, and evidence in the matching module card. If a ticket needs an API change, update the contract with the other developer before coding against it.
+
+## Latest implementation evidence — 2026-09-30
+
+- T15: implemented on `mvp/T15-block-regenerate`, commit `eb55112`; delayed-result protection, failure/retry, independent blocks and export gating are tested.
+- T16: implemented on `mvp/T16-regeneration-ui`, commit `bd5cfd7`; target-only controls and draft-preserving polling. Integration corrects test selector typing.
+- T19: implemented on `mvp/T19-integrated-e2e`; full model and template journeys, source/order/text parity, restart recovery, browser desktop/mobile and five-slide render inspection. See M07 completion record.
+- T20: demo instructions and acceptance checklist prepared on `mvp/T20-demo-handoff`; external classmate run and final recorded rehearsal are pending human participation.

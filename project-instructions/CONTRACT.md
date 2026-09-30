@@ -66,3 +66,9 @@ The example shows field shape, not a requirement to use those exact words or IDs
 ## Block regeneration
 
 T15 marks only the requested title/body as `generating` and increments its revision before calling the model. A second request for that block returns 409. Other blocks stay editable. A manual edit or reset to the target supersedes its pending model result; the worker saves only if the target revision and status still match its start token. Failures retain previous text and return block `status: error` with a safe `error` message. Retry starts a new revision. Export waits for pending block generation; failed regeneration leaves the accepted text exportable.
+
+## Local recovery and export constraints
+
+Run one API process/worker for this MVP. Background tasks are in memory. Startup marks interrupted queued/generating slides retryable and interrupted block generations as errors while retaining accepted text. This recovery is not a distributed job queue and must not be used with multiple workers.
+
+Accepted titles are limited to 200 characters, outline key messages and slide bodies to 500. Comparison edits require exactly two nonempty points separated internally by `|`. Export refuses pending slides or block generations. Browser download surfaces API errors and exports the current persisted state.

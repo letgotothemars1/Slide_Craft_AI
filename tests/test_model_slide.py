@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app import repository
 from app.db import Base
-from app.project_schemas import BuildRequest, OutlineApproveRequest, OutlineRevisionRequest, ProjectCreateRequest
+from app.project_schemas import BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, ProjectCreateRequest
 from app.routers.projects import approve_outline, build_project, generate_outline
 from app.services import modular_build
 from app.services.llm_service import OpenAILLMService
@@ -39,7 +39,7 @@ class ModelSlideTest(unittest.TestCase):
             with sessions() as session:
                 project = repository.create_project(session, ProjectCreateRequest(
                     assignment_text="Five slides", context_pack_text="Thesis: cautious"))
-                draft = generate_outline(project.id, OutlineRevisionRequest(expected_revision=0), session)
+                draft = generate_outline(project.id, OutlineGenerateRequest(expected_revision=0), session)
                 comparison = draft.outline[3]
                 with patch("app.services.modular_slide_llm._model_body", return_value="Human review | Maintenance time") as model:
                     body = generate_slide_body(project, comparison)
@@ -59,7 +59,7 @@ class ModelSlideTest(unittest.TestCase):
                 with sessions() as session:
                     project = repository.create_project(session, ProjectCreateRequest(
                         assignment_text="Five slides", context_pack_text="Thesis: cautious"))
-                    draft = generate_outline(project.id, OutlineRevisionRequest(expected_revision=0), session)
+                    draft = generate_outline(project.id, OutlineGenerateRequest(expected_revision=0), session)
                     approved = approve_outline(project.id, OutlineApproveRequest(
                         expected_revision=draft.revision, theme="clean_editorial"), session)
                     with patch("app.routers.projects.get_llm_service"):

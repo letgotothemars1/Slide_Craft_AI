@@ -27,7 +27,7 @@ describe('Local block editor', () => {
     const project = readyProject();
     const onChange = vi.fn();
     const view = render(<SlideWorkspace project={project} onChange={onChange} />);
-    fireEvent.change(screen.getByRole('textbox', {name: 'Body', exact: true}), {target: {value: 'My unsaved body'}});
+    fireEvent.change(screen.getByRole('textbox', {name: 'Body'}), {target: {value: 'My unsaved body'}});
     const started = structuredClone(project);
     started.revision++;
     started.slides[0].blocks.title.status = 'generating';
@@ -35,28 +35,28 @@ describe('Local block editor', () => {
     fireEvent.click(screen.getByRole('button', {name: 'Regenerate title with AI'}));
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(started));
     view.rerender(<SlideWorkspace project={started} onChange={onChange} />);
-    expect(screen.getByRole('textbox', {name: 'Title', exact: true})).toBeDisabled();
-    expect(screen.getByRole('textbox', {name: 'Body', exact: true})).toBeEnabled();
-    expect(screen.getByRole('textbox', {name: 'Body', exact: true})).toHaveValue('My unsaved body');
+    expect(screen.getByRole('textbox', {name: 'Title'})).toBeDisabled();
+    expect(screen.getByRole('textbox', {name: 'Body'})).toBeEnabled();
+    expect(screen.getByRole('textbox', {name: 'Body'})).toHaveValue('My unsaved body');
     const finished = structuredClone(started);
     finished.slides[0].blocks.title.status = 'ready';
     finished.slides[0].blocks.title.text = 'New model title';
     finished.slides[0].revision++;
     view.rerender(<SlideWorkspace project={finished} onChange={onChange} />);
-    await waitFor(() => expect(screen.getByRole('textbox', {name: 'Title', exact: true})).toHaveValue('New model title'));
-    expect(screen.getByRole('textbox', {name: 'Body', exact: true})).toHaveValue('My unsaved body');
+    await waitFor(() => expect(screen.getByRole('textbox', {name: 'Title'})).toHaveValue('New model title'));
+    expect(screen.getByRole('textbox', {name: 'Body'})).toHaveValue('My unsaved body');
   });
 
   it('retains a draft after a revision conflict and refreshes the saved project', async () => {
     const project = readyProject();
     const onChange = vi.fn();
     render(<SlideWorkspace project={project} onChange={onChange} />);
-    fireEvent.change(screen.getByRole('textbox', {name: 'Body', exact: true}), {target: {value: 'Keep this draft'}});
+    fireEvent.change(screen.getByRole('textbox', {name: 'Body'}), {target: {value: 'Keep this draft'}});
     vi.mocked(editSlideBlock).mockRejectedValue(new Error('Project changed. Refresh before saving again.'));
     vi.mocked(getProject).mockResolvedValue(project);
     fireEvent.click(screen.getByRole('button', {name: 'Save body'}));
     await waitFor(() => expect(onChange).toHaveBeenCalled());
-    expect(screen.getByRole('textbox', {name: 'Body', exact: true})).toHaveValue('Keep this draft');
+    expect(screen.getByRole('textbox', {name: 'Body'})).toHaveValue('Keep this draft');
     expect(screen.getByRole('alert')).toHaveTextContent('Refresh');
   });
 });

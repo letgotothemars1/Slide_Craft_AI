@@ -102,7 +102,8 @@ def generate_slide_body(project: Project, item: OutlineItem, accepted_context: s
         "Preserve exact wording required by the assignment. The approved title and source label are handled separately. "
         "Do not write a title or citation label in the body. Use concise text suitable for a 16:9 slide. "
         "For comparison layout, put one short point in each of the left and right JSON fields. "
-        "For other layouts, write one body field without '|'. Return only the JSON schema requested."
+        "For other layouts, write one body field without '|'. Keep the complete body under 450 characters, "
+        "and each comparison point under 200 characters. Return only the JSON schema requested."
     )
     user = (
         f"ASSIGNMENT:\n{project.assignment_text[:12000]}\n\n"

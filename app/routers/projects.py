@@ -146,6 +146,8 @@ def save_outline(project_id: str, payload: OutlineSaveRequest, session: Session 
         raise HTTPException(status_code=422, detail="Slide order must be 1 through 5")
     if any(not item.title.strip() or not item.key_message.strip() or not item.purpose.strip() for item in items):
         raise HTTPException(status_code=422, detail="Every slide needs a purpose, title and key message")
+    if any(len(item.title) > 200 or len(item.key_message) > 500 for item in items):
+        raise HTTPException(status_code=422, detail="Keep titles under 200 characters and key messages under 500")
     source = repository.get_document(session, project.source_document_id) if project.source_document_id else None
     chunks = {(chunk.page_number, chunk.chunk_text[:600]) for chunk in repository.list_document_chunks(session, source.id)} if source else set()
     for item in items:
@@ -203,6 +205,12 @@ def edit_slide_block(project_id: str, slide_id: str, block_key: str, payload: Bl
         raise HTTPException(status_code=404, detail="Slide not found")
     if target["status"] != "ready":
         raise HTTPException(status_code=422, detail="Slide is not ready for editing")
+    if block_key == "body":
+        if len(text) > 500:
+            raise HTTPException(status_code=422, detail="Keep slide body text under 500 characters")
+        item = next(item for item in project.outline_json if item["id"] == slide_id)
+        if item["layout_type"] == "comparison" and (len(text.split("|")) != 2 or not all(part.strip() for part in text.split("|"))):
+            raise HTTPException(status_code=422, detail="Comparison slides need two points separated by |")
     target["blocks"][block_key]["text"] = text
     target["blocks"][block_key]["status"] = "ready"
     target["blocks"][block_key]["error"] = None
