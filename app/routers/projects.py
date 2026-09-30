@@ -19,6 +19,7 @@ from app.services.outline_service import starter_outline
 from app.services.modular_build import queued_slide, run_build
 from app.services.modular_export import render_project_pptx
 from app.services.llm_service import get_llm_service
+from app.services.modular_regenerate import run_regeneration
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -194,6 +195,8 @@ def edit_slide_block(project_id: str, slide_id: str, block_key: str, payload: Bl
     if target["status"] != "ready":
         raise HTTPException(status_code=422, detail="Slide is not ready for editing")
     target["blocks"][block_key]["text"] = text
+    target["blocks"][block_key]["status"] = "ready"
+    target["blocks"][block_key]["error"] = None
     target["blocks"][block_key]["revision"] += 1
     target["revision"] += 1
     return _change_project(session, project, payload.expected_revision, slides_json=slides)
@@ -214,9 +217,38 @@ def reset_slide_block(project_id: str, slide_id: str, block_key: str, payload: O
     if target["status"] != "ready":
         raise HTTPException(status_code=422, detail="Slide is not ready")
     target["blocks"][block_key]["text"] = item["title" if block_key == "title" else "key_message"]
+    target["blocks"][block_key]["status"] = "ready"
+    target["blocks"][block_key]["error"] = None
     target["blocks"][block_key]["revision"] += 1
     target["revision"] += 1
     return _change_project(session, project, payload.expected_revision, slides_json=slides)
+
+
+@router.post("/{project_id}/slides/{slide_id}/blocks/{block_key}/regenerate", response_model=ProjectResponse, status_code=202)
+def regenerate_slide_block(project_id: str, slide_id: str, block_key: str, payload: OutlineRevisionRequest,
+                           background: BackgroundTasks, session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if block_key not in {"title", "body"}:
+        raise HTTPException(status_code=404, detail="Only title and body can be regenerated")
+    slides = deepcopy(project.slides_json)
+    target = next((slide for slide in slides if slide["id"] == slide_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    if target["status"] != "ready":
+        raise HTTPException(status_code=422, detail="Slide is not ready")
+    block = target["blocks"][block_key]
+    if block["status"] == "generating":
+        raise HTTPException(status_code=409, detail="This block is already regenerating. Refresh to see its progress.")
+    try:
+        get_llm_service()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="AI provider is not configured for regeneration") from exc
+    block.update(status="generating", revision=block["revision"] + 1, error=None)
+    target["revision"] += 1
+    updated = _change_project(session, project, payload.expected_revision, slides_json=slides)
+    background.add_task(run_regeneration, project_id, slide_id, block_key, block["revision"])
+    return updated
 
 
 @router.post("/{project_id}/slides/{slide_id}/retry", response_model=ProjectResponse, status_code=202)
@@ -241,6 +273,9 @@ def export_project_pptx(project_id: str, session: Session = Depends(get_session)
     response = repository.project_response(session, project)
     if response.phase != "ready":
         raise HTTPException(status_code=422, detail="All slides must be ready before export")
+    if any(block.status == "generating" for slide in response.slides
+           for block in (slide.blocks.title, slide.blocks.body, slide.blocks.source_label)):
+        raise HTTPException(status_code=422, detail="Wait for block regeneration to finish before exporting")
     try:
         data = render_project_pptx(response)
     except ValueError as exc:

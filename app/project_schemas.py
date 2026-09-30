@@ -44,6 +44,7 @@ class SlideBlock(BaseModel):
     text: str
     status: BlockStatus
     revision: int = Field(ge=0)
+    error: str | None = None
 
 
 class SlideBlocks(BaseModel):

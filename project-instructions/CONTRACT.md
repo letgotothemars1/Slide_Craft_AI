@@ -1,6 +1,6 @@
 # MVP contract: frozen for M01 and M02 on 2026-09-28
 
-The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The local key-free path now covers intake, outline editing and approval, one-slide-at-a-time build, block editing, and PPTX export. Model-based generation and regeneration remain planned. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and `/projects/:projectId`.
+The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The local key-free path now covers intake, outline editing and approval, one-slide-at-a-time build, block editing, and PPTX export. Model slide generation is available; block regeneration is now available for title and body. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and `/projects/:projectId`.
 
 ## State model
 
@@ -24,6 +24,7 @@ Every edit request carries an expected revision. If the current revision differs
 | `GET /projects/{id}/source-candidates` | List page-numbered PDF excerpts for manual selection. | `SourceRef[]` |
 | `POST /projects/{id}/build` | With `expected_revision` and `mode: "model"`, generate each slide body in a separate model call; `mode: "template"` (the default) copies approved outline text. Save each slide before the next. | 202 + project state |
 | `PATCH /projects/{id}/slides/{slide_id}/blocks/{block_key}` | Edit one ready block with `expected_revision`. | Updated block and revision |
+| `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/regenerate` | Regenerate title/body using the configured provider. Return immediately; poll block status. | 202 + project state |
 | `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/reset-from-outline` | Restore only a title or body from the approved outline. | Updated project and revision |
 | `POST /projects/{id}/slides/{slide_id}/retry` | Retry one failed slide without restarting ready slides. | 202 + project state |
 | `GET /projects/{id}/export.pptx` | Render the current accepted slide state. | PPTX download |
@@ -61,3 +62,7 @@ Use three layouts with tested PPTX equivalents: title, content, comparison/concl
 ```
 
 The example shows field shape, not a requirement to use those exact words or IDs. M00 should add a checked-in fixture matching the final API so both developers can work independently.
+
+## Block regeneration
+
+T15 marks only the requested title/body as `generating` and increments its revision before calling the model. A second request for that block returns 409. Other blocks stay editable. A manual edit or reset to the target supersedes its pending model result; the worker saves only if the target revision and status still match its start token. Failures retain previous text and return block `status: error` with a safe `error` message. Retry starts a new revision. Export waits for pending block generation; failed regeneration leaves the accepted text exportable.

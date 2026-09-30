@@ -80,7 +80,7 @@ def _model_body(system: str, user: str, comparison: bool) -> str:
     return _SlideDraft.model_validate(parsed).body
 
 
-def generate_slide_body(project: Project, item: OutlineItem) -> str:
+def generate_slide_body(project: Project, item: OutlineItem, accepted_context: str = "") -> str:
     """Keep approved title and sources fixed; the model writes only the body."""
     outline = sorted((OutlineItem.model_validate(raw) for raw in project.outline_json), key=lambda row: row.order)
     previous = [row for row in outline if row.order == item.order - 1]
@@ -111,6 +111,7 @@ def generate_slide_body(project: Project, item: OutlineItem) -> str:
         f"Approved title: {item.title}\nPurpose: {item.purpose}\n"
         f"Approved key message: {item.key_message}\n\n"
         f"ADJACENT SLIDES:\n{neighbors}\n\nSELECTED PDF EXCERPTS:\n{evidence}"
+        f"\n\nCURRENT ACCEPTED SLIDE CONTEXT:\n{accepted_context[:3000]}"
     )
     body = _SOURCE_LABEL.sub("", _model_body(system, user, item.layout_type == "comparison")).strip()
     if not body or len(body) > 500:
