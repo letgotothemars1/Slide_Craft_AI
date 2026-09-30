@@ -3,6 +3,8 @@
 Checked on 2026-09-29 in an isolated working copy on branch `mvp/M07-demo`.
 No model API key was supplied.
 
+On 2026-09-30, T06 was checked separately with a locally configured provider. The local key file was not opened or committed.
+
 ## Start locally
 
 From the repository root:
@@ -29,13 +31,14 @@ The Vite development server proxies API routes to port 8000 while preserving the
 - Inspected the browser at desktop and 390px width. The narrow view initially clipped the slide preview and squeezed navigation labels; after adjustment, it uses a smaller preview and horizontally scrollable slide navigation without text overlap.
 - `python -m unittest discover -s tests -p test_modular_project.py -v` covers per-slide persistence while later slides are queued, concurrent edit preservation, stale revision 409, one-slide failure/retry, block reset, and PPTX export.
 - Full TypeScript check succeeds with `./node_modules/.bin/tsc --noEmit -p tsconfig.app.json`.
+- With a configured provider, the new **Generate AI outline** action returned five persisted, editable slides from the synthetic assignment, Context Pack, and two-page PDF. Browser refresh preserved the draft. Source references remained empty until selected by the student. A live old-flow generation returned five slides; the modular key-free flow built and exported five editable slides with page labels. Python model-outline and modular-project tests and the frontend build passed.
 - Existing `POST /generate` accepts a synthetic request and `GET /status/{id}` reaches `done`, but this is **not real generation without a model key**. The resulting PPTX contains one placeholder slide. Do not show this as a successful five-slide demo.
 
 On 2026-09-30, T11 was checked in an isolated worktree with a locally configured provider and the synthetic two-page case. The local key file was used by the application but was not opened or committed. The browser completed project intake, PDF indexing, outline approval, and model slide building. Four slides became ready while the comparison slide returned an invalid format; after the comparison schema was changed to explicit left/right points, retrying only that slide yielded 5/5 ready. Page 1 and page 2 source labels remained attached to the selected slides. Editing a ready slide title survived refresh and appeared in the exported PPTX, which contained five slides and 41 native editable text frames. Browser inspection showed the comparison points and source label. Targeted Python tests, TypeScript check, and frontend build passed.
 
 ## Known limitations
 
-- M02 provides persisted `POST /projects` and `GET /projects/{id}`. The `demo-project` fixture remains read-only. The outline draft is a template, not AI-generated content; model-based outline generation is still future work.
+- M02 provides persisted `POST /projects` and `GET /projects/{id}`. The `demo-project` fixture remains read-only. The outline can be either a model draft or an explicitly labeled key-free template. The model draft still requires student review and manual PDF evidence selection.
 - PDF upload uses deterministic local lexical vectors when no OpenAI key is configured. They support basic source lookup for the course demo; switching embedding providers requires re-uploading the PDF.
 - The existing one-shot flow reports `done` with a placeholder PPTX when model generation fails. Treat the output as a fallback and make this state clear before using the flow in a demo.
 - The modular slides can be model-written drafts or key-free copies of the approved outline. Users must review text and sources before presenting. Model-based regeneration of one block is still future work; `reset-from-outline` restores one block locally.

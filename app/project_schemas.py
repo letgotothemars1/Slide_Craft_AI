@@ -101,6 +101,10 @@ class BuildRequest(OutlineRevisionRequest):
     mode: BuildMode = "template"
 
 
+class OutlineGenerateRequest(OutlineRevisionRequest):
+    mode: BuildMode = "template"
+
+
 class OutlineSaveRequest(OutlineRevisionRequest):
     outline: list[OutlineItem] = Field(min_length=5, max_length=5)
 

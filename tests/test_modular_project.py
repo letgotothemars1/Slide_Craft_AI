@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from app import repository
 from app.db import Base
 from app.project_schemas import (
-    BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineRevisionRequest, ProjectCreateRequest,
+    BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, ProjectCreateRequest,
 )
 from app.routers.projects import (
     approve_outline, build_project, edit_slide_block, generate_outline, reset_slide_block,
@@ -37,7 +37,7 @@ class ModularProjectTest(unittest.TestCase):
                 theme="dark_tech_pitch",
             ))
             self.project_id = project.id
-            draft = generate_outline(project.id, OutlineRevisionRequest(expected_revision=0), session)
+            draft = generate_outline(project.id, OutlineGenerateRequest(expected_revision=0), session)
             approved = approve_outline(project.id, OutlineApproveRequest(
                 expected_revision=draft.revision, theme="dark_tech_pitch"), session)
             build_project(project.id, BuildRequest(expected_revision=approved.revision), BackgroundTasks(), session)

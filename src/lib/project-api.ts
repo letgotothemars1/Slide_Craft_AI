@@ -113,7 +113,11 @@ async function projectRequest(projectId: string, path: string, method: string, b
 }
 
 export function createStarterOutline(project: Project): Promise<Project> {
-  return projectRequest(project.id, "/outline/generate", "POST", { expected_revision: project.revision });
+  return projectRequest(project.id, "/outline/generate", "POST", { expected_revision: project.revision, mode: "template" });
+}
+
+export function createModelOutline(project: Project): Promise<Project> {
+  return projectRequest(project.id, "/outline/generate", "POST", { expected_revision: project.revision, mode: "model" });
 }
 
 export function saveOutline(project: Project, outline: OutlineItem[]): Promise<Project> {
