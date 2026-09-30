@@ -63,7 +63,7 @@ For classmate tasks replace `T__` with `C__` and ask for a no-code explanation. 
 
 ## Latest implementation evidence — 2026-09-30
 
-- T15: implemented on `mvp/T15-block-regenerate`, commit `eb55112`; delayed-result protection, failure/retry, independent blocks and export gating are tested.
-- T16: implemented on `mvp/T16-regeneration-ui`, commit `bd5cfd7`; target-only controls and draft-preserving polling. Integration corrects test selector typing.
+- T15: implemented on `mvp/T15-block-regeneration`, commit `eb55112`; delayed-result protection, failure/retry, independent blocks and export gating are tested.
+- T16: implemented on `mvp/T16-block-regeneration-ui`, commit `bd5cfd7`; target-only controls and draft-preserving polling. Integration corrects test selector typing.
 - T19: implemented on `mvp/T19-integrated-e2e`; full model and template journeys, source/order/text parity, restart recovery, browser desktop/mobile and five-slide render inspection. See M07 completion record.
 - T20: demo instructions and acceptance checklist prepared on `mvp/T20-demo-handoff`; external classmate run and final recorded rehearsal are pending human participation.

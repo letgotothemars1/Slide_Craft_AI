@@ -41,5 +41,34 @@ On 2026-09-30, T11 was checked in an isolated worktree with a locally configured
 - M02 provides persisted `POST /projects` and `GET /projects/{id}`. The `demo-project` fixture remains read-only. The outline can be either a model draft or an explicitly labeled key-free template. The model draft still requires student review and manual PDF evidence selection.
 - PDF upload uses deterministic local lexical vectors when no OpenAI key is configured. They support basic source lookup for the course demo; switching embedding providers requires re-uploading the PDF.
 - The existing one-shot flow reports `done` with a placeholder PPTX when model generation fails. Treat the output as a fallback and make this state clear before using the flow in a demo.
-- The modular slides can be model-written drafts or key-free copies of the approved outline. Users must review text and sources before presenting. Model-based regeneration of one block is still future work; `reset-from-outline` restores one block locally.
+- The modular slides can be model-written drafts or key-free copies of the approved outline. Users must review text and sources before presenting. Model-backed title/body regeneration is available and locks only its target; `reset-from-outline` remains a separate local reset.
 - The brief delay between local slides is intentional for live demonstration of progressive persistence and editing. It is not model latency.
+
+## Integrated model MVP — 2026-09-30
+
+For the current test session the API is at `127.0.0.1:8001` and frontend at `127.0.0.1:8081`. For the same ports in a fresh checkout, run from its root:
+
+```sh
+DATABASE_URL=sqlite:///./storage_tmp/slidecraft-mvp-local.db CORS_ORIGINS='["http://127.0.0.1:8081","http://localhost:8081"]' .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+```
+
+In a second terminal:
+
+```sh
+VITE_API_BASE_URL=http://127.0.0.1:8001 npm run dev -- --host 127.0.0.1 --port 8081 --strictPort
+```
+
+Open `http://127.0.0.1:8081/projects/new`. Use one API process, without multiple workers or reload, because generation tasks run in memory. Restart recovery preserves accepted content and exposes retries for interrupted work.
+
+The backend uses the existing ignored `.env` file, **not** frontend `.env.local`. Configure the provider using the documented settings in `app/config.py`: `LLM_PROVIDER` plus `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` as appropriate. Restart the API after changing settings. Never prefix server credentials with `VITE_`, commit them, or paste them into a test report. The agent did not open the user's key file.
+
+Repeatable HTTP checks (server already running):
+
+```sh
+python3 scripts/smoke_modular_mvp.py --api http://127.0.0.1:8001
+python3 scripts/smoke_modular_mvp.py --api http://127.0.0.1:8001 --model
+```
+
+The second command calls the configured provider and consumes generation usage. Each creates a fresh synthetic project, checks PDF pages, reordered outline, progressive build, edit during build and native PPTX text parity. Model mode additionally checks title regeneration isolation. A PPTX and JSON receipt are written under `/tmp` by default.
+
+Verification: 14 Python tests, 3 Vitest tests, TypeScript check and production build passed. The browser model journey and HTTP model/template journeys passed. Desktop and 390px inspection passed, and all five model-exported slides were rendered and inspected without clipping. Native text editing was verified by programmatic save/reopen. A human must still edit one title and one body in PowerPoint or Impress and perform the independent N02 usability run.
