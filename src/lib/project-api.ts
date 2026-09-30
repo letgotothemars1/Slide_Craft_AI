@@ -11,6 +11,7 @@ const blockSchema = z.object({
   text: z.string(),
   status: z.enum(["ready", "generating", "error"]),
   revision: z.number().int().nonnegative(),
+  error: z.string().nullable().optional(),
 });
 
 export const projectSchema = z.object({
@@ -135,6 +136,12 @@ export function editSlideBlock(project: Project, slideId: string, blockKey: "tit
 
 export function resetBlockFromOutline(project: Project, slideId: string, blockKey: "title" | "body"): Promise<Project> {
   return projectRequest(project.id, `/slides/${encodeURIComponent(slideId)}/blocks/${blockKey}/reset-from-outline`, "POST", {
+    expected_revision: project.revision,
+  });
+}
+
+export function regenerateBlock(project: Project, slideId: string, blockKey: "title" | "body"): Promise<Project> {
+  return projectRequest(project.id, `/slides/${encodeURIComponent(slideId)}/blocks/${blockKey}/regenerate`, "POST", {
     expected_revision: project.revision,
   });
 }

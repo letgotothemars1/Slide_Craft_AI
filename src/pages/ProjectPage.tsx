@@ -9,6 +9,12 @@ export default function ProjectPage() {
   const { projectId } = useParams();
   const [project, setProject] = useState<Project | null>(null);
   const [error, setError] = useState("");
+  const acceptProject = (fresh: Project) => setProject((current) =>
+    current && fresh.id === current.id && fresh.revision < current.revision ? current : fresh
+  );
+  const working = project?.phase === "building" || project?.slides.some((slide) =>
+    Object.values(slide.blocks).some((block) => block.status === "generating")
+  );
 
   useEffect(() => {
     if (!projectId) return;
@@ -18,14 +24,14 @@ export default function ProjectPage() {
   }, [projectId]);
 
   useEffect(() => {
-    if (!projectId || project?.phase !== "building") return;
+    if (!projectId || !working) return;
     const timer = window.setInterval(() => {
       getProject(projectId).then((fresh) => setProject((current) =>
         current && fresh.revision <= current.revision ? current : fresh
       )).catch(() => undefined);
     }, 600);
     return () => window.clearInterval(timer);
-  }, [projectId, project?.phase]);
+  }, [projectId, working]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,9 +48,9 @@ export default function ProjectPage() {
           <section className="rounded-xl border bg-card p-5"><h2 className="font-semibold">Context Pack</h2><p className="mt-3 whitespace-pre-wrap text-sm">{project.context_pack_text}</p></section>
           <section className="rounded-xl border bg-card p-5"><h2 className="font-semibold">Source PDF</h2><p className="mt-3 text-sm">{project.source_filename ? `${project.source_filename} · indexed` : "No PDF attached yet"}</p></section>
           {project.phase === "intake" || project.phase === "outline_draft"
-            ? <OutlineEditor project={project} onChange={setProject} />
-            : <details className="rounded-xl border bg-card p-5"><summary className="cursor-pointer font-semibold">Approved outline</summary><div className="mt-4"><OutlineEditor project={project} onChange={setProject} /></div></details>}
-          {!["intake", "outline_draft"].includes(project.phase) && <SlideWorkspace project={project} onChange={setProject} />}
+            ? <OutlineEditor project={project} onChange={acceptProject} />
+            : <details className="rounded-xl border bg-card p-5"><summary className="cursor-pointer font-semibold">Approved outline</summary><div className="mt-4"><OutlineEditor project={project} onChange={acceptProject} /></div></details>}
+          {!["intake", "outline_draft"].includes(project.phase) && <SlideWorkspace project={project} onChange={acceptProject} />}
         </div>}
       </main>
     </div>
