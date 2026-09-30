@@ -3,6 +3,8 @@
 Checked on 2026-09-29 in an isolated working copy on branch `mvp/M07-demo`.
 No model API key was supplied.
 
+On 2026-09-30, T06 was checked separately with a locally configured provider. The local key file was not opened or committed.
+
 ## Start locally
 
 From the repository root:
@@ -29,11 +31,12 @@ The Vite development server proxies API routes to port 8000 while preserving the
 - Inspected the browser at desktop and 390px width. The narrow view initially clipped the slide preview and squeezed navigation labels; after adjustment, it uses a smaller preview and horizontally scrollable slide navigation without text overlap.
 - `python -m unittest discover -s tests -p test_modular_project.py -v` covers per-slide persistence while later slides are queued, concurrent edit preservation, stale revision 409, one-slide failure/retry, block reset, and PPTX export.
 - Full TypeScript check succeeds with `./node_modules/.bin/tsc --noEmit -p tsconfig.app.json`.
+- With a configured provider, the new **Generate AI outline** action returned five persisted, editable slides from the synthetic assignment, Context Pack, and two-page PDF. Browser refresh preserved the draft. Source references remained empty until selected by the student. A live old-flow generation returned five slides; the modular key-free flow built and exported five editable slides with page labels. Python model-outline and modular-project tests and the frontend build passed.
 - Existing `POST /generate` accepts a synthetic request and `GET /status/{id}` reaches `done`, but this is **not real generation without a model key**. The resulting PPTX contains one placeholder slide. Do not show this as a successful five-slide demo.
 
 ## Known limitations
 
-- M02 provides persisted `POST /projects` and `GET /projects/{id}`. The `demo-project` fixture remains read-only. The outline draft is a template, not AI-generated content; model-based outline generation is still future work.
+- M02 provides persisted `POST /projects` and `GET /projects/{id}`. The `demo-project` fixture remains read-only. The outline can be either a model draft or an explicitly labeled key-free template. The model draft still requires student review and manual PDF evidence selection.
 - PDF upload uses deterministic local lexical vectors when no OpenAI key is configured. They support basic source lookup for the course demo; switching embedding providers requires re-uploading the PDF.
 - The existing one-shot flow reports `done` with a placeholder PPTX when model generation fails. Treat the output as a fallback and make this state clear before using the flow in a demo.
 - The modular slides are drafts copied from the approved outline. The local path does not write new slide content with an LLM or regenerate with a model; users must review text and sources before presenting. The `reset-from-outline` action restores one block locally.

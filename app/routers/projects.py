@@ -12,10 +12,11 @@ from sqlalchemy.orm import Session
 from app import repository
 from app.db import Project, get_session
 from app.project_schemas import (
-    BlockEditRequest, OutlineApproveRequest, OutlineRevisionRequest, OutlineSaveRequest,
+    BlockEditRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
     ProjectCreateRequest, ProjectResponse, SourceRef,
 )
 from app.services.outline_service import starter_outline
+from app.services.project_outline_llm import generate_model_outline
 from app.services.modular_build import queued_slide, run_build
 from app.services.modular_export import render_project_pptx
 
@@ -112,12 +113,20 @@ def source_candidates(project_id: str, session: Session = Depends(get_session)) 
 
 
 @router.post("/{project_id}/outline/generate", response_model=ProjectResponse)
-def generate_outline(project_id: str, payload: OutlineRevisionRequest, session: Session = Depends(get_session)) -> ProjectResponse:
+def generate_outline(project_id: str, payload: OutlineGenerateRequest, session: Session = Depends(get_session)) -> ProjectResponse:
     project = _editable_project(session, project_id)
     _require_revision(session, project, payload.expected_revision)
     if project.phase != "intake":
         raise HTTPException(status_code=422, detail="An outline already exists")
-    outline = [item.model_dump() for item in starter_outline(project.context_pack_text)]
+    if payload.mode == "model":
+        candidates = source_candidates(project_id, session)
+        try:
+            items = generate_model_outline(project.assignment_text, project.context_pack_text, candidates)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="AI outline could not be created. Check the configured provider and retry.") from exc
+    else:
+        items = starter_outline(project.context_pack_text)
+    outline = [item.model_dump() for item in items]
     return _change_project(session, project, payload.expected_revision, phase="outline_draft", outline_json=outline)
 
 
