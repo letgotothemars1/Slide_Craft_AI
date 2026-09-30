@@ -121,6 +121,7 @@ def create_project(session: Session, payload: ProjectCreateRequest) -> Project:
         context_pack_text=payload.context_pack_text.strip(),
         source_document_id=payload.source_document_id,
         theme=payload.theme,
+        build_mode="template",
         outline_json=[],
         slides_json=[],
     )
@@ -146,6 +147,7 @@ def project_response(session: Session, project: Project) -> ProjectResponse:
         source_document_id=project.source_document_id,
         source_filename=source.filename if source else None,
         theme=project.theme,
+        build_mode=project.build_mode,
         outline=project.outline_json,
         slides=project.slides_json,
     )

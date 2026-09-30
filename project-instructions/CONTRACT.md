@@ -22,13 +22,15 @@ Every edit request carries an expected revision. If the current revision differs
 | `PUT /projects/{id}/outline` | Save text/order edits with `expected_revision`. | Updated outline and revision |
 | `POST /projects/{id}/outline/approve` | Freeze thesis/order/theme for this build. | `outline_approved` state |
 | `GET /projects/{id}/source-candidates` | List page-numbered PDF excerpts for manual selection. | `SourceRef[]` |
-| `POST /projects/{id}/build` | Start a background loop that copies each approved outline item into one editable slide, then saves it before the next. | 202 + project state |
+| `POST /projects/{id}/build` | With `expected_revision` and `mode: "model"`, generate each slide body in a separate model call; `mode: "template"` (the default) copies approved outline text. Save each slide before the next. | 202 + project state |
 | `PATCH /projects/{id}/slides/{slide_id}/blocks/{block_key}` | Edit one ready block with `expected_revision`. | Updated block and revision |
 | `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/reset-from-outline` | Restore only a title or body from the approved outline. | Updated project and revision |
 | `POST /projects/{id}/slides/{slide_id}/retry` | Retry one failed slide without restarting ready slides. | 202 + project state |
 | `GET /projects/{id}/export.pptx` | Render the current accepted slide state. | PPTX download |
 
 Reuse existing `POST /documents/upload` for the one PDF, but adjust page extraction before presenting source references. Polling is sufficient for the three-week MVP; server-sent events are an upgrade, not a gate. Use existing auth only if local demo requires it; do not redesign authentication.
+
+The project response persists `build_mode` (`template` or `model`). A failed slide's retry uses that mode. The approved outline title and selected PDF source label remain fixed during model slide building; the model writes only the slide body. A comparison body has two explicit fields in the model response, displayed as two editable points.
 
 The key-free local demo uses a five-slide starter template for `/outline/generate` and copies approved title/message text into slides during build. It does not make an AI model call or assert that PDF excerpts support the draft's claims. The student selects source candidates manually and must check them before approval and export.
 

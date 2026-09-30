@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from app import repository
 from app.db import Base
 from app.project_schemas import (
-    BlockEditRequest, OutlineApproveRequest, OutlineRevisionRequest, ProjectCreateRequest,
+    BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineRevisionRequest, ProjectCreateRequest,
 )
 from app.routers.projects import (
     approve_outline, build_project, edit_slide_block, generate_outline, reset_slide_block,
@@ -40,7 +40,7 @@ class ModularProjectTest(unittest.TestCase):
             draft = generate_outline(project.id, OutlineRevisionRequest(expected_revision=0), session)
             approved = approve_outline(project.id, OutlineApproveRequest(
                 expected_revision=draft.revision, theme="dark_tech_pitch"), session)
-            build_project(project.id, OutlineRevisionRequest(expected_revision=approved.revision), BackgroundTasks(), session)
+            build_project(project.id, BuildRequest(expected_revision=approved.revision), BackgroundTasks(), session)
 
     def tearDown(self) -> None:
         self.patcher.stop()

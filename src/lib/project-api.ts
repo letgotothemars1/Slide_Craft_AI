@@ -23,6 +23,7 @@ export const projectSchema = z.object({
   source_document_id: z.string().nullable(),
   source_filename: z.string().nullable(),
   theme: z.enum(["clean_editorial", "dark_tech_pitch", "infographic_bright"]),
+  build_mode: z.enum(["template", "model"]).default("template"),
   outline: z.array(z.object({
     id: z.string(),
     order: z.number().int().positive(),
@@ -122,8 +123,8 @@ export function approveOutline(project: Project, theme: Project["theme"]): Promi
   return projectRequest(project.id, "/outline/approve", "POST", { expected_revision: project.revision, theme });
 }
 
-export function buildProject(project: Project): Promise<Project> {
-  return projectRequest(project.id, "/build", "POST", { expected_revision: project.revision });
+export function buildProject(project: Project, mode: "template" | "model" = "template"): Promise<Project> {
+  return projectRequest(project.id, "/build", "POST", { expected_revision: project.revision, mode });
 }
 
 export function editSlideBlock(project: Project, slideId: string, blockKey: "title" | "body" | "source_label", text: string): Promise<Project> {

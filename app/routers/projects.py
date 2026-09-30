@@ -12,12 +12,13 @@ from sqlalchemy.orm import Session
 from app import repository
 from app.db import Project, get_session
 from app.project_schemas import (
-    BlockEditRequest, OutlineApproveRequest, OutlineRevisionRequest, OutlineSaveRequest,
+    BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineRevisionRequest, OutlineSaveRequest,
     ProjectCreateRequest, ProjectResponse, SourceRef,
 )
 from app.services.outline_service import starter_outline
 from app.services.modular_build import queued_slide, run_build
 from app.services.modular_export import render_project_pptx
+from app.services.llm_service import get_llm_service
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -157,18 +158,22 @@ def approve_outline(project_id: str, payload: OutlineApproveRequest, session: Se
 
 
 @router.post("/{project_id}/build", response_model=ProjectResponse, status_code=202)
-def build_project(project_id: str, payload: OutlineRevisionRequest, background: BackgroundTasks,
+def build_project(project_id: str, payload: BuildRequest, background: BackgroundTasks,
                   session: Session = Depends(get_session)) -> ProjectResponse:
     project = _editable_project(session, project_id)
     _require_revision(session, project, payload.expected_revision)
     if project.phase != "outline_approved" or len(project.outline_json) != 5:
         raise HTTPException(status_code=422, detail="Approve the five-slide outline first")
+    if payload.mode == "model":
+        try:
+            get_llm_service()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="AI provider is not configured for slide building") from exc
     slides = [queued_slide(item).model_dump() for item in repository.project_response(session, project).outline]
     updated = _change_project(session, project, payload.expected_revision,
-                              phase="building", slides_json=slides)
-    # Pace the explicit key-free demo so observers can see and edit ready slides
-    # while later slides are queued. The worker still persists real states.
-    background.add_task(run_build, project_id, pause_seconds=0.8)
+                              phase="building", slides_json=slides, build_mode=payload.mode)
+    # Pace only the key-free demo; model calls provide their own visible progress.
+    background.add_task(run_build, project_id, pause_seconds=0.8 if payload.mode == "template" else 0.0)
     return updated
 
 
