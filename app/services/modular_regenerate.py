@@ -68,6 +68,7 @@ def run_regeneration(project_id: str, slide_id: str, block_key: str, started_rev
         if block["revision"] != started_revision or block["status"] != "generating":
             return None
         if text is not None:
+            target.update(design=None,design_status="none",design_error=None)
             block["text"] = text.strip()
             if block_key == "body":
                 target["visual"] = None

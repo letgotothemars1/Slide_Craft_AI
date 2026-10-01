@@ -237,3 +237,5 @@
 .draft-title:has(.with-visual) h3, .draft-title .draft-body.with-visual { margin-top: 0; }
 
 .draft-thumbnail, .draft-reorder button:not(:disabled) { cursor: pointer; }
+
+.designed-canvas { position: relative; }

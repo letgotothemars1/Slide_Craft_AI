@@ -17,7 +17,7 @@ const blockSchema = z.object({
 export const projectSchema = z.object({
   id: z.string(),
   language: z.literal("en"),
-  phase: z.enum(["intake", "drafting", "outline_draft", "outline_approved", "building", "ready", "error"]),
+  phase: z.enum(["intake", "designing", "drafting", "outline_draft", "outline_approved", "building", "ready", "error"]),
   revision: z.number().int().nonnegative(),
   assignment_text: z.string(),
   context_pack_text: z.string(),
@@ -39,6 +39,10 @@ export const projectSchema = z.object({
     id: z.string(),
     status: z.enum(["queued", "generating", "ready", "error"]),
     revision: z.number().int().nonnegative(),
+    design: z.object({layout:z.enum(['hero','editorial','chart','process','comparison','statement']),emphasis:z.enum(['quiet','accent','inverse']),rationale:z.string(),visual:z.object({kind:z.enum(['none','process','bars']),labels:z.array(z.string()),values:z.array(z.number()),unit:z.string()}).nullable().optional()}).nullable().optional(),
+    design_status: z.enum(['none','queued','generating','ready','error']).optional(),
+    design_error: z.string().nullable().optional(),
+    scene: z.array(z.object({kind:z.enum(['text','rect']),x:z.number(),y:z.number(),w:z.number(),h:z.number(),text:z.string(),color:z.string(),size:z.number(),bold:z.boolean(),font:z.enum(['Arial','Georgia']),block_key:z.enum(['title','body','source_label']).nullable(),column:z.number().nullable()})).optional(),
     show_source: z.boolean().optional(),
     revision_instruction: z.string().optional(),
     visual: z.object({kind: z.enum(["none","process","bars"]), labels: z.array(z.string()), values: z.array(z.number()), unit: z.string()}).nullable().optional(),
@@ -212,4 +216,11 @@ export function setSlideSourceVisibility(project: Project, slideId: string, show
 }
 export function regenerateWholeSlide(project: Project, slideId: string, instruction: string): Promise<Project> {
   return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/regenerate`, 'POST', {expected_revision: project.revision, instruction});
+}
+
+export function startAIDesign(project: Project, theme: Project['theme']): Promise<Project> {
+  return projectRequest(project.id,'/design/start','POST',{expected_revision:project.revision,theme});
+}
+export function retryAIDesign(project: Project, slideId: string): Promise<Project> {
+  return projectRequest(project.id,`/design/slides/${encodeURIComponent(slideId)}/retry`,'POST',{expected_revision:project.revision});
 }

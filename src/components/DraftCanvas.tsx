@@ -18,6 +18,9 @@ export default function DraftCanvas({project, slideId, grayscale = true, onSelec
   const body = slide?.blocks.body.text ?? '';
   const parts = body.split('|');
   const visual = slide?.blocks.body.status === 'generating' ? undefined : slide?.visual;
+  if (slide?.scene?.length && slide.design) return <div className="draft-canvas designed-canvas" aria-label={`Slide ${item.order} preview`}>
+    {slide.scene.map((element,index) => <div key={index} {...(element.block_key ? editable(element.block_key,element.column ?? undefined) : {})} style={{position:'absolute',left:`${element.x}%`,top:`${element.y/56.25*100}%`,width:`${element.w}%`,height:`${element.h/56.25*100}%`,background:element.kind === 'rect' ? element.color : undefined,color:element.color,fontSize:`${element.size}cqw`,fontFamily:element.font,fontWeight:element.bold ? 700 : 400,lineHeight:1.16,whiteSpace:'pre-wrap',overflowWrap:'break-word',overflow:'hidden'}}>{element.kind === 'text' ? element.text : null}</div>)}
+  </div>;
   return <div className="draft-canvas" style={{background: palette.background, color: palette.foreground}} aria-label={`Slide ${item.order} preview`}>
     <div className={`draft-canvas-content draft-${item.layout_type}`}>
       <h3 {...editable('title')}>{title}</h3>

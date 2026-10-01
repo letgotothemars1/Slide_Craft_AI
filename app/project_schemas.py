@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-ProjectPhase = Literal["intake", "drafting", "outline_draft", "outline_approved", "building", "ready", "error"]
+ProjectPhase = Literal["intake", "designing", "drafting", "outline_draft", "outline_approved", "building", "ready", "error"]
 SlideStatus = Literal["queued", "generating", "ready", "error"]
 BlockStatus = Literal["ready", "generating", "error"]
 Theme = Literal["clean_editorial", "dark_tech_pitch", "infographic_bright"]
@@ -64,6 +64,30 @@ class DraftVisual(BaseModel):
     unit: str = Field(max_length=20)
 
 
+class DesignPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    layout: Literal["hero", "editorial", "chart", "process", "comparison", "statement"]
+    emphasis: Literal["quiet", "accent", "inverse"]
+    visual: DraftVisual | None = None
+    rationale: str = Field(max_length=300)
+
+
+class SceneElement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["text", "rect"]
+    x: float
+    y: float
+    w: float
+    h: float
+    text: str = ""
+    color: str
+    size: float = 2
+    bold: bool = False
+    font: Literal["Arial", "Georgia"] = "Arial"
+    block_key: Literal["title", "body", "source_label"] | None = None
+    column: int | None = None
+
+
 class ProjectSlide(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -71,6 +95,10 @@ class ProjectSlide(BaseModel):
     status: SlideStatus
     revision: int = Field(ge=0)
     visual: DraftVisual | None = None
+    design: DesignPlan | None = None
+    design_status: Literal["none", "queued", "generating", "ready", "error"] = "none"
+    design_error: str | None = None
+    scene: list[SceneElement] = Field(default_factory=list)
     show_source: bool = False
     revision_instruction: str = Field(default="", max_length=1000)
     blocks: SlideBlocks

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-01T13:24:54.931828+00:00",
+  "generatedAt": "2026-10-01T19:16:53.499251+00:00",
   "title": "Design System: SlideCraft AI",
   "extensions": {
     "shadows": [
@@ -99,20 +99,23 @@
     "overview": "SlideCraft uses its existing light application shell: pale background, white surfaces, dark text, blue actions, and rounded controls. The live editor extends that system with a slide rail, central artifact, and external inspector. The approved editor structure does not establish a new brand identity.",
     "keyCharacteristics": [
       "Actual slide content in the canvas and thumbnails.",
-      "Grayscale draft; selected slide and actions use the existing blue.",
-      "Inspector controls stay outside the slide."
+      "Grayscale content draft followed by complete AI designs per slide; selected slide and actions use the existing blue.",
+      "Inspector controls stay outside the slide.",
+      "Final preview and editable PowerPoint share one native text-and-rectangle scene."
     ],
     "rules": [],
     "dos": [
       "Do reuse the existing application color and typography tokens.",
       "Do render real slide text, process steps, bars, and source labels in both canvas and thumbnails.",
       "Do keep the selected thumbnail visible when the rail becomes horizontal.",
-      "Do use success-strong and warning-strong for status text on light surfaces."
+      "Do use success-strong and warning-strong for status text on light surfaces.",
+      "Do show actual per-slide design states and preserve accepted content and completed designs during retries."
     ],
     "donts": [
       "Don't place editor controls inside the slide artifact.",
       "Don't treat a suggested excerpt or copied chart numbers as verified evidence.",
-      "Don't apply a new identity to the existing application shell."
+      "Don't apply a new identity to the existing application shell.",
+      "Don't describe numeric provenance checks as factual verification or simulate final-design token streaming."
     ]
   }
 }

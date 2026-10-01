@@ -51,6 +51,9 @@ def render_project_pptx(project: ProjectResponse) -> bytes:
     if len(ordered) != 5 or len(ready) != 5 or any(item.id not in ready for item in ordered):
         raise ValueError("All five slides must be ready before export")
 
+    if any(slide.design for slide in project.slides) and any(slide.design_status != 'ready' for slide in project.slides):
+        raise ValueError('Refresh unfinished or outdated AI designs before export')
+
     background, foreground, muted, accent, panel = PALETTES[project.theme]
     deck = Presentation()
     deck.slide_width = Inches(13.333)
@@ -59,6 +62,22 @@ def render_project_pptx(project: ProjectResponse) -> bytes:
 
     for item in ordered:
         saved = ready[item.id]
+        if saved.design:
+            from app.services.design_scene import build_scene
+            slide = deck.slides.add_slide(blank)
+            for element in build_scene(saved,project.theme,item.order):
+                x,y,w,h = (value * 13.333 / 100 for value in (element.x,element.y,element.w,element.h))
+                if element.kind == 'rect':
+                    _rect(slide,x,y,w,h,element.color.lstrip('#'))
+                else:
+                    _text(slide,element.text,x,y,w,h,element.size*9.6,element.color.lstrip('#'),bold=element.bold)
+                    frame = slide.shapes[-1].text_frame
+                    frame.margin_left=frame.margin_right=frame.margin_top=frame.margin_bottom=0
+                    for paragraph in frame.paragraphs:
+                        paragraph.font.name=element.font
+                        paragraph.line_spacing=1.16
+            slide.notes_slide.notes_text_frame.text = f"Source: {saved.blocks.source_label.text}"
+            continue
         title = saved.blocks.title.text
         body = saved.blocks.body.text
         source = saved.blocks.source_label.text

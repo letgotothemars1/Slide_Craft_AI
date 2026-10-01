@@ -1,0 +1,17 @@
+# T27 — Separate AI design after content review
+Status: implemented and verified
+Owner: Codex
+Dependencies: T22 live draft, T24 canvas editing, T25 guided revision, T26 completion controls.
+User request: the first pass is a reviewable content/rough-layout draft; after approval another AI pass must compose genuinely designed slides rather than just apply the selected background palette. Preserve visible progress and perform necessary tests during and after implementation.
+
+Implementation: POST design/start queues five individual provider design calls over accepted content. Six native composition families (cover, editorial split, quantitative chart, process panels, two-column comparison, statement), theme typography and explanatory native visuals. Completed designs appear while later slides are processed. Shared scene geometry renders browser previews and editable PPTX. Title/body/source blocks are preserved. Numeric charts require values in both accepted body and PDF excerpt; provenance checking does not establish factual correctness. Failed slides keep prior accepted text and completed neighbor designs; retry targets one slide. Restart recovery and revision checks reject stale designs. Manual content edits/reset invalidate affected design; unfinished/outdated mixed designs cannot export. Optional source footers remain in notes when hidden. Unsaved title/body edits anywhere in the deck block starting final design. Remove visual retains native editorial design.
+
+Acceptance evidence:
+- 30 Python backend tests passed, including content preservation, intermediate statuses, individual retry, stale edit rejection, restart recovery, schema restrictions, numeric protection, native geometry/text/source notes, visual removal, reset/export guard and normal/inverse theme contrast.
+- 16 frontend tests passed, including canvas-to-field focus, completed design during ongoing design, individual failed-design retry and unsaved edits across slide selection. TypeScript and production build passed.
+- Real configured-provider E2E on synthetic project 2f9f6a21-c230-47ea-bdb4-c6e62854ea9d: five final designs ready. One original qualitative-slide chart proposal was rejected for adding PDF numbers absent from accepted body; tightened per-slide schema and individual retry completed it without redoing the four successful plans.
+- Compared accepted blocks before/after: identical. Browser title/body click focuses inspector. Desktop all five slides and375px mobile chart inspected. No page horizontal overflow. Screenshots .impeccable/review/T27.
+- Downloaded PowerPoint through browser; parsed all five slides, verified native editable elements, shared scene positions/text, retained PDF source notes.
+- Impeccable detector run once: existing Inter and2px radius advisories; no identity replacement. Fresh finish reviewer: ship, scoped to pictured cover/chart/mobile editor and sampled source. Broader browser observations are main-agent evidence, not a broadened reviewer approval.
+
+Limits: bounded native composition families, no photo/image generation or free canvas. Design progress is one complete slide per model response, not element/token streaming. PowerPoint application rendering/editing was not manually inspected; structural native preview/export parity was verified. Existing build emits bundle-size/Browserslist notices. Local keys loaded only by app; secret files not inspected. Existing one-shot generation kept intact.

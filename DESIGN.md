@@ -117,8 +117,9 @@ SlideCraft uses its existing light application shell: pale background, white sur
 **Key Characteristics:**
 
 - Actual slide content in the canvas and thumbnails.
-- Grayscale draft; selected slide and actions use the existing blue.
+- Grayscale content draft followed by complete AI designs per slide; selected slide and actions use the existing blue.
 - Inspector controls stay outside the slide.
+- Final preview and editable PowerPoint share one native text-and-rectangle scene.
 
 ## Colors
 
@@ -138,13 +139,15 @@ Blue `primary` identifies main actions and selected slide borders. `ring` suppli
 
 `destructive` is used for errors. Success and warning fills have separate `-strong` values for text on light backgrounds, as specified in the stylesheet.
 
-Draft colors belong to the artifact: white background, dark title, muted body, light panel, gray bars. The three accepted-content palettes are `clean_editorial`, `dark_tech_pitch`, and `infographic_bright`; their background, foreground, muted, accent, and panel tokens apply to slides when the project is ready. They do not recolor the surrounding editor. The stylesheet also defines `.dark` overrides; this document captures the reviewed light interface.
+Draft colors belong to the artifact: white background, dark title, muted body, light panel, gray bars. The three accepted-content palettes are `clean_editorial`, `dark_tech_pitch`, and `infographic_bright`; their background, foreground, muted, accent, and panel tokens apply to each slide as its final design completes. Inverse emphasis exchanges the theme foreground and background within the artifact. If accent contrast against that field is below (3:1), the scene uses existing muted theme ink instead; text on an accent panel uses whichever theme foreground/background provides greater contrast. These choices preserve the palette and do not recolor the surrounding editor. The stylesheet also defines `.dark` overrides; this document captures the reviewed light interface.
 
 ## Typography
 
 Plus Jakarta Sans is the display and heading family; Inter is the body and control family, both with sans-serif fallbacks. The editor title uses the `editor-title` role. Supporting editor text uses the existing small and extra-small utility sizes; inspector input and textarea text is explicitly (13px).
 
-The slide sizes type relative to its own width: regular titles (4.1cqw), cover titles (5cqw), body (2.8cqw), and source labels (1.25cqw). Title line height is (1.15); body line height is (1.4). A visual reduces body size to (2cqw). This same renderer supplies thumbnails, so miniature content follows the actual slide.
+The grayscale draft sizes type relative to its own width: regular titles (4.1cqw), cover titles (5cqw), body (2.8cqw), and source labels (1.25cqw). Title line height is (1.15); body line height is (1.4). A visual reduces body size to (2cqw). This same renderer supplies thumbnails, so miniature content follows the actual slide.
+
+Designed slides use the shared native scene: Georgia titles for `clean_editorial`, Arial titles for the other two themes, and Arial for supporting text, values, labels, and source footers. Text sizes scale with artifact width in the browser and map to PowerPoint points from the same scene. Each composition assigns its own title/body hierarchy; the scene reduces size to fit an estimated line count. Browser line height and PowerPoint line spacing both use (1.16). The application shell retains its existing Plus Jakarta Sans and Inter roles.
 
 ## Layout
 
@@ -152,7 +155,7 @@ The project page retains `AppHeader`, a centered container with (2rem) side padd
 
 At widths through (1199px), the grid becomes (130px / flexible), with (20px) gaps; the inspector moves under the canvas in column two. At widths through (640px), the editor stacks with (24px) gaps. The rail becomes horizontally scrollable, with thumbnails fixed to (140px); the selected thumbnail is centered automatically on selection and resize using immediate scroll behavior.
 
-The artifact keeps a (16:9) aspect ratio, clips overflow, and uses (6%) internal padding. The inspector uses an external divider and (24px) left padding on the three-column layout. Content and Sources views control inspector density independently of the canvas.
+The artifact keeps a (16:9) aspect ratio and clips overflow. Grayscale content uses (6%) internal padding; designed scenes place native elements on a (100 × 56.25) coordinate field, shared by the central canvas, thumbnails, and PowerPoint export. The inspector uses an external divider and (24px) left padding on the three-column layout. Content and Sources views control inspector density independently of the canvas.
 
 ## Elevation & Depth
 
@@ -182,7 +185,7 @@ Each slide thumbnail is a native button with a real miniature, order/title, and 
 
 ### Draft canvas and inspector
 
-The canvas renders title, body, comparison panels, process steps, bars, and source label from project content. Draft states use the grayscale palette; ready slides use the selected theme. Missing, interrupted, and arriving content have explicit placeholders or adjacent status messages. The separate inspector switches between Content and Sources; source excerpts stay suggestions until the user checks them.
+The canvas renders title, body, comparison panels, process steps, bars, and source label from project content. Content drafts use the grayscale palette; each completed AI design renders its saved scene in the selected theme. Missing, interrupted, and arriving content have explicit placeholders or adjacent status messages. The separate inspector switches between Content and Sources; source excerpts stay suggestions until the user checks them.
 
 ## Do's and Don'ts
 
@@ -205,5 +208,17 @@ Central canvas title, body, comparison columns and source label select/focus the
 ### Guided revision and optional evidence footer (T25)
 A labelled instruction field and explicit AI action sit below the selected canvas. They revise the selected title/text/visual while preserving other slides, and respect unsaved text edits. Sources live in the inspector; a per-slide checkbox opts into showing the footer, with the same setting in PPTX. Hidden source labels remain available in PowerPoint notes. Visual cover layouts use the available height for body and diagrams instead of cover margins.
 
-### Loading and current completion controls (T26)
-Clickable canvas elements use pointer cursors. Planning shows a reduced-motion-aware skeleton of the editor. Approve & style opens a finish panel without toggling it closed on repeated clicks; its prominent top-right Finish presentation action becomes full-width on mobile. The selected theme is retained. The current backend applies a palette; a substantive AI design pass is a separate required follow-up from the user.
+### Loading and completion controls (T26–T27)
+Clickable canvas elements use pointer cursors. Planning shows a reduced-motion-aware skeleton of the editor. Approve & style opens the finish panel without toggling it closed on repeated clicks. The panel retains the selected theme and explains that AI composes final slides one by one while preserving reviewed text. Its prominent top-right Generate final slides with AI action becomes full-width on mobile. Starting design requires five completed content slides and no pending generation or unsaved title/body edits. Once all five designs are ready, the header shows Presentation and Download PowerPoint.
+
+### Final slide artifacts and progress (T27)
+The second AI pass selects one of six bounded native compositions: hero with dominant title and accent side field; editorial with title/body split and divider; chart with accepted supporting text and labelled bars; process with explanatory text and two to four step panels; comparison with exactly two accepted body points in opposing panels; or statement with a large title and supporting text. Meaningful data graphics, title hierarchy, and whitespace distinguish the final artifact from the content draft. All families reuse the existing three palettes and native text/rectangles.
+
+The header reports the actual completed design count, and the rail reports queued, generating, ready, or error for each slide. One whole validated design appears after its model call completes; there is no simulated token or element streaming. The canvas and miniature both consume the same saved scene. Native scene text selects the corresponding external inspector field; a comparison’s columns retain their field mapping. The source visibility checkbox controls the visible footer in preview and export; hidden labels remain in PowerPoint notes.
+
+### Design recovery and evidence limits (T27)
+A failed design keeps accepted content and finished designs on other slides. Update this slide’s design retries the affected slide. If content changes during a call, the result is rejected as stale. Saving title/body edits later clears that slide’s design; unfinished or outdated designs must be updated before exporting a designed deck. The inspector can explicitly replace an AI design with a draft composition or remove its visual.
+
+Chart validation requires two to four positive values present in both accepted body text and the supplied PDF excerpts; confirmed references are preferred, with suggested excerpts used when no confirmed references exist. This is provenance validation, not fact verification. Users must still check that the source supports the claim and that labels, units, and context are correct. Process visuals are bounded panels with structurally valid labels; their factual meaning still needs review.
+
+The shared scene supplies browser positions, dimensions, colors, text, and fonts and creates native editable PowerPoint shapes/text boxes. Structural preview/export agreement does not certify PowerPoint application rendering or identical font metrics on another computer.

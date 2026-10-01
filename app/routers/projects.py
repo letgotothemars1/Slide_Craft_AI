@@ -23,6 +23,7 @@ from app.services.llm_service import get_llm_service
 from app.services.modular_regenerate import run_regeneration
 from app.services.live_draft import run_live_draft
 from app.services.slide_revision import run_slide_revision
+from app.services.ai_design import run_design
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -179,6 +180,7 @@ def change_composition(project_id: str, slide_id: str, payload: CompositionReque
         raise HTTPException(status_code=422, detail="Shorten the slide text before changing its composition")
     body["revision"] += 1
     item["layout_type"] = payload.layout_type
+    target.update(design=None, design_status="none", design_error=None)
     target["visual"] = None
     target["revision"] += 1
     return _change_project(session, project, payload.expected_revision, slides_json=slides, outline_json=outline)
@@ -193,7 +195,13 @@ def hide_visual(project_id: str, slide_id: str, payload: OutlineRevisionRequest,
     target = next((s for s in slides if s["id"] == slide_id), None)
     if not target or target["status"] != "ready":
         raise HTTPException(status_code=422, detail="Wait for this slide to finish")
+    if project.phase == "designing":
+        raise HTTPException(status_code=422, detail="Wait for design to finish")
     target["visual"] = None
+    if target.get("design"):
+        target["design"]["visual"] = None
+        if target["design"]["layout"] in {"chart", "process"}:
+            target["design"]["layout"] = "editorial"
     target["revision"] += 1
     return _change_project(session, project, payload.expected_revision, slides_json=slides)
 
@@ -252,6 +260,44 @@ def retry_draft(project_id: str, slide_id: str, payload: OutlineRevisionRequest,
         raise HTTPException(status_code=422, detail="Only a failed draft slide can be retried")
     updated = _change_project(session, project, payload.expected_revision, phase="drafting")
     background.add_task(run_live_draft, project_id, only_slide_id=slide_id)
+    return updated
+
+
+@router.post("/{project_id}/design/start", response_model=ProjectResponse, status_code=202)
+def start_design(project_id: str, payload: OutlineApproveRequest, background: BackgroundTasks,
+                 session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if project.phase not in {"outline_draft", "ready"} or len(project.slides_json) != 5 or any(row["status"] != "ready" or any(b["status"] == "generating" for b in row["blocks"].values()) for row in project.slides_json):
+        raise HTTPException(status_code=422, detail="Complete all five slide texts before AI design")
+    try:
+        get_llm_service()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="AI provider is not configured for design") from exc
+    rows = deepcopy(project.slides_json)
+    outline = deepcopy(project.outline_json)
+    for row in rows:
+        row.update(design_status="queued", design_error=None)
+        item = next(item for item in outline if item["id"] == row["id"])
+        item["title"] = row["blocks"]["title"]["text"]
+        item["key_message"] = row["blocks"]["body"]["text"]
+    updated = _change_project(session, project, payload.expected_revision, phase="designing", theme=payload.theme, slides_json=rows, outline_json=outline)
+    background.add_task(run_design, project_id)
+    return updated
+
+
+@router.post("/{project_id}/design/slides/{slide_id}/retry", response_model=ProjectResponse, status_code=202)
+def retry_design(project_id: str, slide_id: str, payload: OutlineRevisionRequest, background: BackgroundTasks,
+                 session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    rows = deepcopy(project.slides_json)
+    target = next((row for row in rows if row["id"] == slide_id), None)
+    if project.phase not in {"outline_draft", "ready"} or not target or target.get("design_status", "none") not in {"error", "none"} or any(b["status"] == "generating" for b in target["blocks"].values()):
+        raise HTTPException(status_code=422, detail="Retry a failed or outdated slide design")
+    target.update(design_status="queued", design_error=None)
+    updated = _change_project(session, project, payload.expected_revision, phase="designing", slides_json=rows)
+    background.add_task(run_design, project_id, only_slide_id=slide_id)
     return updated
 
 
@@ -361,6 +407,8 @@ def edit_slide_block(project_id: str, slide_id: str, block_key: str, payload: Bl
         item = next(item for item in project.outline_json if item["id"] == slide_id)
         if item["layout_type"] == "comparison" and (len(text.split("|")) != 2 or not all(part.strip() for part in text.split("|"))):
             raise HTTPException(status_code=422, detail="Comparison slides need two points separated by |")
+    if block_key in {"title", "body"} and target.get("design"):
+        target.update(design=None, design_status="none", design_error=None)
     if block_key == "body":
         target["visual"] = None
     target["blocks"][block_key]["text"] = text
@@ -385,6 +433,8 @@ def reset_slide_block(project_id: str, slide_id: str, block_key: str, payload: O
         raise HTTPException(status_code=404, detail="Slide not found")
     if target["status"] != "ready":
         raise HTTPException(status_code=422, detail="Slide is not ready")
+    if target.get("design"):
+        target.update(design=None, design_status="none", design_error=None)
     if block_key == "body":
         target["visual"] = None
     target["blocks"][block_key]["text"] = item["title" if block_key == "title" else "key_message"]

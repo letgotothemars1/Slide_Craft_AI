@@ -13,7 +13,7 @@ export default function ProjectPage() {
   const acceptProject = (fresh: Project) => setProject((current) =>
     current && fresh.id === current.id && fresh.revision < current.revision ? current : fresh
   );
-  const working = project?.phase === "drafting" || project?.phase === "building" || project?.slides.some((slide) =>
+  const working = project?.phase === "designing" || project?.phase === "drafting" || project?.phase === "building" || project?.slides.some((slide) =>
     Object.values(slide.blocks).some((block) => block.status === "generating")
   );
 
@@ -43,7 +43,7 @@ export default function ProjectPage() {
         {!project && !error && <p className="mt-6">Loading project…</p>}
         {project && <div className="mt-4 space-y-4">
           <details className="border-b pb-4"><summary className="cursor-pointer text-sm text-muted-foreground">Assignment, Context Pack & shared PDF</summary><div className="mt-4 grid gap-5 md:grid-cols-2"><section><h2 className="font-semibold">Assignment</h2><p className="mt-2 whitespace-pre-wrap text-sm">{project.assignment_text}</p></section><section><h2 className="font-semibold">Context Pack</h2><p className="mt-2 whitespace-pre-wrap text-sm">{project.context_pack_text}</p></section></div><p className="mt-4 text-sm">{project.source_filename || "No PDF uploaded"}</p></details>
-          {(["intake", "drafting", "outline_draft", "ready"].includes(project.phase) || (project.phase === "error" && !project.outline.length)) && (project.phase !== "outline_draft" || project.slides.length > 0) ? <LiveDraftEditor project={project} onChange={acceptProject}/> : <>
+          {(["intake", "designing", "drafting", "outline_draft", "ready"].includes(project.phase) || (project.phase === "error" && !project.outline.length)) && (project.phase !== "outline_draft" || project.slides.length > 0) ? <LiveDraftEditor project={project} onChange={acceptProject}/> : <>
           {project.phase === "intake" || project.phase === "outline_draft"
             ? <OutlineEditor project={project} onChange={acceptProject} />
             : <details className="rounded-xl border bg-card p-5"><summary className="cursor-pointer font-semibold">Approved outline</summary><div className="mt-4"><OutlineEditor project={project} onChange={acceptProject} /></div></details>}

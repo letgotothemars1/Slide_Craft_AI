@@ -3,10 +3,10 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import LiveDraftEditor from './LiveDraftEditor';
 import {LanguageProvider} from '@/context/LanguageContext';
 import {LANGUAGE_STORAGE_KEY} from '@/lib/i18n';
-import {projectSchema, saveOutline, regenerateWholeSlide, setSlideSourceVisibility, approveOutline} from '@/lib/project-api';
+import {projectSchema, saveOutline, regenerateWholeSlide, setSlideSourceVisibility, startAIDesign, retryAIDesign} from '@/lib/project-api';
 import fixture from '../../project-instructions/fixtures/demo-project.json';
 
-vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn(), regenerateWholeSlide: vi.fn(), setSlideSourceVisibility: vi.fn(), approveOutline: vi.fn()}));
+vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn(), regenerateWholeSlide: vi.fn(), setSlideSourceVisibility: vi.fn(), startAIDesign: vi.fn(), retryAIDesign: vi.fn()}));
 const makeProject = () => {
   const project = projectSchema.parse(structuredClone(fixture));
   project.phase = 'outline_draft';
@@ -95,20 +95,43 @@ describe('Canvas editing and slide order', () => {
     expect(screen.getByRole('button',{name:'Edit title'})).toBeInTheDocument();
   });
   it('keeps approval visible and finishes with the selected theme without collapsing on another click', async () => {
-    const project=makeProject(); const finished={...project,phase:'ready' as const,theme:'dark_tech_pitch' as const};
-    vi.mocked(approveOutline).mockResolvedValue(finished);
+    const project=makeProject(); const finished={...project,phase:'ready' as const,theme:'dark_tech_pitch' as const,slides:project.slides.map(row=>({...row,design_status:'ready' as const,design:{layout:'editorial' as const,emphasis:'quiet' as const,visual:null,rationale:'Clear hierarchy'}}))};
+    vi.mocked(startAIDesign).mockResolvedValue(finished);
     const onChange=vi.fn();
     const view=render(<LanguageProvider><LiveDraftEditor project={project} onChange={onChange}/></LanguageProvider>);
     const approve=screen.getByRole('button',{name:'Approve & style'});
     fireEvent.click(approve); fireEvent.click(approve);
     expect(approve).toHaveAttribute('aria-expanded','true');
     fireEvent.click(screen.getByRole('radio',{name:'Dark tech'}));
-    fireEvent.click(screen.getByRole('button',{name:'Finish presentation'}));
+    fireEvent.click(screen.getByRole('button',{name:'Generate final slides with AI'}));
     await waitFor(()=>expect(onChange).toHaveBeenCalledWith(finished));
-    expect(approveOutline).toHaveBeenCalledWith(project,'dark_tech_pitch');
+    expect(startAIDesign).toHaveBeenCalledWith(project,'dark_tech_pitch');
     view.rerender(<LanguageProvider><LiveDraftEditor project={finished} onChange={onChange}/></LanguageProvider>);
     expect(screen.getByRole('button',{name:'Download PowerPoint'})).toBeInTheDocument();
-    expect(screen.queryByRole('button',{name:'Finish presentation'})).not.toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'Generate final slides with AI'})).not.toBeInTheDocument();
+  });
+
+  it('keeps a completed design visible while other slides are being designed', () => {
+    const project=makeProject(); project.phase='designing';
+    Object.assign(project.slides[0],{design_status:'ready',design:{layout:'statement',emphasis:'quiet',visual:null,rationale:'Clear hierarchy'},scene:[{kind:'text',x:7,y:9,w:86,h:15,text:'Accepted title',color:'#111111',size:4,bold:true,font:'Georgia',block_key:'title'}]});
+    Object.assign(project.slides[1],{design_status:'generating'});
+    render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    expect(screen.getByText('AI is designing your slides · 1/5 ready')).toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Edit title'})).toHaveTextContent('Accepted title');
+    fireEvent.click(screen.getByRole('button',{name:'Edit title'}));
+    expect(screen.getByRole('textbox',{name:'Title'})).toHaveFocus();
+    expect(screen.queryByRole('button',{name:'Download PowerPoint'})).not.toBeInTheDocument();
+  });
+  it('retries only the selected failed design and blocks finishing with unsaved text', async () => {
+    const project=makeProject(); Object.assign(project.slides[0],{design_status:'error',design_error:'Design unavailable. Retry this slide.'});
+    vi.mocked(retryAIDesign).mockResolvedValue(project);
+    render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    fireEvent.click(screen.getByRole('button',{name:'Update this slide’s design'}));
+    await waitFor(()=>expect(retryAIDesign).toHaveBeenCalledWith(project,project.slides[0].id));
+    fireEvent.change(screen.getByRole('textbox',{name:'Body'}),{target:{value:'Unsaved wording'}});
+    fireEvent.click(screen.getByRole('button',{name:`Slide 2: ${project.outline[1].title}`}));
+    fireEvent.click(screen.getByRole('button',{name:'Approve & style'}));
+    expect(screen.getByRole('button',{name:'Generate final slides with AI'})).toBeDisabled();
   });
 
 });

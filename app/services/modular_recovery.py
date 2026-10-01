@@ -19,6 +19,9 @@ def recover_interrupted_work() -> None:
             slides = deepcopy(project.slides_json)
             changed = False
             for slide in slides:
+                if slide.get("design_status") in {"queued","generating"}:
+                    slide.update(design_status="error", design_error="Design interrupted by a restart. Retry this slide.", revision=slide["revision"]+1)
+                    changed=True
                 if slide["status"] in {"queued", "generating"}:
                     slide.update(status="error", revision=slide["revision"] + 1)
                     for block in slide["blocks"].values():
@@ -33,6 +36,8 @@ def recover_interrupted_work() -> None:
                                          error="Generation was interrupted by a restart. Your previous text is kept. Try again.")
                             slide["revision"] += 1
                             changed = True
+            if project.phase == "designing":
+                return {"slides_json":slides,"phase":"outline_draft"}
             if project.phase == "drafting":
                 return {"slides_json": slides, "phase": "outline_draft" if project.outline_json else "intake"}
             if not changed:
