@@ -61,4 +61,18 @@ describe('Persistent intake and direct generation',()=> {
     expect(screen.getByRole('textbox',{name:'Assignment brief'})).toHaveValue('');
     expect(screen.getByRole('radio',{name:'Clean editorial'})).toBeChecked();
   });
+  it('starts a blank project and keeps it blank after refresh',async()=> {
+    localStorage.setItem(intakeStorageKey,JSON.stringify(savedInputs));
+    const view=showForm();
+    fireEvent.click(screen.getByRole('button',{name:'Start from scratch'}));
+    expect(screen.getByRole('textbox',{name:'Assignment brief'})).toHaveValue('');
+    expect(screen.getByRole('textbox',{name:'Context Pack'})).toHaveValue('');
+    expect(screen.getByRole('radio',{name:'Clean editorial'})).toBeChecked();
+    expect(screen.queryByText(/synthetic.pdf/)).not.toBeInTheDocument();
+    await waitFor(()=>expect(JSON.parse(localStorage.getItem(intakeStorageKey)!)).toEqual({assignment:'',contextPack:'',theme:'clean_editorial',sourceId:null,filename:null}));
+    view.unmount();showForm();
+    expect(screen.getByRole('textbox',{name:'Assignment brief'})).toHaveValue('');
+    expect(screen.queryByText(/synthetic.pdf/)).not.toBeInTheDocument();
+  });
+
 });

@@ -123,7 +123,7 @@ class AIDesignTest(unittest.TestCase):
             before=self.state()
             after=hide_visual(self.id,'s1',OutlineRevisionRequest(expected_revision=before.revision),session)
         self.assertEqual(after.phase,'ready')
-        self.assertEqual(after.slides[0].design.layout,'editorial')
+        self.assertEqual(after.slides[0].design.layout,'hero')
         self.assertIsNone(after.slides[0].design.visual)
         self.assertEqual(after.slides[0].blocks,before.slides[0].blocks)
         self.assertTrue(after.slides[0].scene)
@@ -147,3 +147,30 @@ class AIDesignTest(unittest.TestCase):
                 for element in (r for r in scene if r.kind=='text'):
                     surface=next(r for r in reversed(scene[:scene.index(element)]) if r.kind=='rect' and r.x<=element.x and r.y<=element.y and r.x+r.w>=element.x+element.w and r.y+r.h>=element.y+element.h)
                     self.assertGreaterEqual(_contrast(element.color,surface.color),4.5,(theme,emphasis,element.text))
+
+    def test_design_preserves_reviewed_visuals_and_theme_including_old_plans(self):
+        from app.project_schemas import DraftVisual
+        from app.services.design_constraints import preserve_reviewed_structure, allowed_layouts
+        visual=DraftVisual(kind='process',labels=['Flag uncertain items','Staff review'],values=[],unit='')
+        proposed=DesignPlan(layout='editorial',emphasis='inverse',rationale='Old model plan.')
+        locked=preserve_reviewed_structure(proposed,'content',visual)
+        self.assertEqual(locked.layout,'process')
+        self.assertEqual(locked.visual,visual)
+        self.assertEqual(locked.emphasis,'quiet')
+        self.assertEqual(allowed_layouts('comparison',None),['comparison'])
+        self.assertEqual(allowed_layouts('title',None),['hero'])
+        self.start()
+        with patch.object(ai_design,'generate_design',side_effect=self.plan): ai_design.run_design(self.id)
+        with self.sessions() as session:
+            project=repository.get_project(session,self.id); slides=deepcopy(project.slides_json)
+            slides[0]['design']['emphasis']='inverse'
+            slides[1]['visual']=visual.model_dump()
+            slides[1]['design']['layout']='editorial'; slides[1]['design']['visual']=None
+            project.slides_json=slides; session.commit()
+        after=self.state()
+        self.assertEqual(after.slides[0].design.emphasis,'quiet')
+        self.assertEqual(after.slides[1].design.layout,'process')
+        self.assertEqual(after.slides[1].design.visual,visual)
+        self.assertEqual(len({slide.scene[0].color for slide in after.slides}),1)
+        deck=Presentation(BytesIO(render_project_pptx(after)))
+        self.assertIn('Staff review',' '.join(shape.text for shape in deck.slides[1].shapes if shape.has_text_frame))

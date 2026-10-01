@@ -63,6 +63,8 @@ def render_project_pptx(project: ProjectResponse) -> bytes:
     for item in ordered:
         saved = ready[item.id]
         if saved.design:
+            from app.services.design_constraints import preserve_reviewed_structure
+            saved=saved.model_copy(update={'design':preserve_reviewed_structure(saved.design,item.layout_type,saved.visual)})
             from app.services.design_scene import build_scene
             slide = deck.slides.add_slide(blank)
             for element in build_scene(saved,project.theme,item.order):

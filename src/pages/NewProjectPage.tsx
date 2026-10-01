@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { uploadDocument } from "@/lib/api";
 import { createProject, startLiveDraft, getProject, getDemoMaterials, getDemoPdf, type ProjectCreate, type Project } from "@/lib/project-api";
 
-import { restoreIntakeDraft, storeIntakeDraft } from "@/lib/intake-draft";
+import { restoreIntakeDraft, storeIntakeDraft, emptyIntakeDraft } from "@/lib/intake-draft";
 
 const contextInstruction = `You are helping me prepare an academic presentation. Based only on our conversation and the materials already available to you, return a structured Context Pack in English with these headings:
 Purpose and audience
@@ -43,6 +43,14 @@ export default function NewProjectPage() {
   useEffect(() => {
     setLocallySaved(storeIntakeDraft({assignment, contextPack, theme, sourceId, filename}));
   }, [assignment, contextPack, theme, sourceId, filename]);
+
+  const startFresh = () => {
+    setAssignment(''); setContextPack(''); setTheme(emptyIntakeDraft.theme);
+    setSourceId(null); setFilename(null); createdProject.current=null;
+    setError(''); setDemoError('');
+    setNotice(tr('Started a blank project. Previously created projects are kept.', 'Начат пустой проект. Созданные ранее проекты сохранены.'));
+    setLocallySaved(storeIntakeDraft({...emptyIntakeDraft}));
+  };
 
   const copyInstruction = async () => {
     try {
@@ -137,7 +145,7 @@ export default function NewProjectPage() {
       <AppHeader />
       <main className="container max-w-3xl py-10 sm:py-14">
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Home</Link>
-        <h1 className="mt-8 font-display text-3xl font-bold">Create a presentation project</h1>
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4"><h1 className="font-display text-3xl font-bold">Create a presentation project</h1><Button type="button" variant="outline" disabled={saving || uploading || loadingDemo} onClick={startFresh}>{tr('Start from scratch', 'Начать с нуля')}</Button></div>
         <p className="mt-3 text-muted-foreground">Bring in your assignment and the thinking you have already done. Review the inputs and choose how to generate your live draft.</p>
 
         <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-5">

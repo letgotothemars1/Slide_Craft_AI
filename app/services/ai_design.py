@@ -5,7 +5,8 @@ import logging
 import re
 from app import repository
 from app.db import SessionLocal
-from app.project_schemas import DesignPlan, OutlineItem
+from app.project_schemas import DesignPlan, OutlineItem, DraftVisual
+from app.services.design_constraints import allowed_layouts, preserve_reviewed_structure
 from app.services.modular_build import _mutate
 from app.services.draft_visual import VISUAL_SCHEMA, validated_visual
 from app.services.llm_service import get_llm_service, OpenAILLMService, AnthropicLLMService
@@ -28,18 +29,18 @@ def generate_design(project,item,slide,previous):
       'For no visual return kind none, empty labels/values/unit. chart requires bars; process requires process. '
       'emphasis quiet keeps the theme surface, accent creates focal hierarchy, inverse reverses the theme foreground/background. '
       'Keep chart category labels under 18 characters and process labels under 45 characters and rationale under 250 characters. Use the supplied theme consistently. Return requested JSON only.')
+    accepted_visual=DraftVisual.model_validate(slide['visual']) if slide.get('visual') else None
     refs=item.evidence_refs or item.suggested_refs
     user=json.dumps({'theme':project.theme,'slide_order':item.order,'purpose':item.purpose,
-      'accepted_title':slide['blocks']['title']['text'],'accepted_body':slide['blocks']['body']['text'],
+      'reviewed_layout':item.layout_type,'reviewed_visual':slide.get('visual'),'accepted_title':slide['blocks']['title']['text'],'accepted_body':slide['blocks']['body']['text'],
       'evidence':[ref.model_dump() for ref in refs], 'previous_designs':previous,
       'deck':[{'order':r['order'],'title':r['title']} for r in project.outline_json]},ensure_ascii=False)
     accepted_numbers={float(n) for n in re.findall(r'(?<![\w.])-?\d+(?:\.\d+)?(?![\w.])',slide['blocks']['body']['text'])}
     schema=deepcopy(DESIGN_SCHEMA)
-    if len(accepted_numbers)<2 or not refs:
-        schema['properties']['layout']['enum'].remove('chart')
-        schema['properties']['visual']['properties']['kind']['enum'].remove('bars')
-    if '|' not in slide['blocks']['body']['text']:
-        schema['properties']['layout']['enum'].remove('comparison')
+    schema['properties']['layout']['enum']=allowed_layouts(item.layout_type,accepted_visual)
+    schema['properties']['emphasis']['enum']=['quiet','accent']
+    schema['properties']['visual']['properties']['kind']['enum']=[accepted_visual.kind if accepted_visual else 'none']
+    system += ' Preserve the reviewed structure and any existing visual exactly (labels, values, units). Do not introduce or remove visuals. Keep the selected theme background on every slide; never invert it.'
     user += '\nAllowed numeric values on this slide: '+str(sorted(accepted_numbers))+'. If this list has fewer than two values, choose a text or process composition, never a chart.'
     service=get_llm_service()
     if isinstance(service,OpenAILLMService):
@@ -52,7 +53,9 @@ def generate_design(project,item,slide,previous):
         if response.stop_reason in {'max_tokens','refusal'}: raise ValueError('Incomplete design')
         raw=next((b.text for b in response.content if b.type=='text'),'')
     else: raise ValueError('Unsupported provider')
-    plan=DesignPlan.model_validate(json.loads(raw))
+    data=json.loads(raw)
+    if accepted_visual: data['visual']=accepted_visual.model_dump()
+    plan=DesignPlan.model_validate(data)
     if plan.visual and plan.visual.kind=='none': plan.visual=None
     if plan.visual:
         validated=validated_visual(plan.visual.model_dump(),item)
@@ -64,7 +67,7 @@ def generate_design(project,item,slide,previous):
     if plan.layout=='chart' and (not plan.visual or plan.visual.kind!='bars'): raise ValueError('Chart requires data')
     if plan.layout=='process' and (not plan.visual or plan.visual.kind!='process'): raise ValueError('Process requires steps')
     if plan.layout=='comparison' and '|' not in slide['blocks']['body']['text']: raise ValueError('Comparison requires two accepted points')
-    return plan
+    return preserve_reviewed_structure(plan,item.layout_type,accepted_visual)
 
 
 def run_design(project_id,only_slide_id=None):
