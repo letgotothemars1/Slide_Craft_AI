@@ -72,3 +72,6 @@ T15 marks only the requested title/body as `generating` and increments its revis
 Run one API process/worker for this MVP. Background tasks are in memory. Startup marks interrupted queued/generating slides retryable and interrupted block generations as errors while retaining accepted text. This recovery is not a distributed job queue and must not be used with multiple workers.
 
 Accepted titles are limited to 200 characters, outline key messages and slide bodies to 500. Comparison edits require exactly two nonempty points separated internally by `|`. Export refuses pending slides or block generations. Browser download surfaces API errors and exports the current persisted state.
+
+## T22 approved live draft extension
+`drafting` is a new phase. POST `/draft/start` returns immediately and generates an outline then streamed bodies. GET polling exposes actual model text; unvalidated partial text is marked generating. Suggested PDF references are separate from confirmed evidence. All five ready slides can be approved directly into `ready`, applying the theme without generating again. Old outline/build routes remain supported. Draft completion and retry update target blocks with revision protection.

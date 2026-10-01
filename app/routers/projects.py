@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app import repository
 from app.db import Project, get_session
 from app.project_schemas import (
-    BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
+    ConfirmSourceRequest, CompositionRequest, BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
     ProjectCreateRequest, ProjectResponse, SourceRef,
 )
 from app.services.outline_service import starter_outline
@@ -21,6 +21,7 @@ from app.services.modular_build import queued_slide, run_build
 from app.services.modular_export import render_project_pptx
 from app.services.llm_service import get_llm_service
 from app.services.modular_regenerate import run_regeneration
+from app.services.live_draft import run_live_draft
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -114,6 +115,101 @@ def source_candidates(project_id: str, session: Session = Depends(get_session)) 
             if chunk.page_number is not None][:30]
 
 
+@router.post("/{project_id}/draft/start", response_model=ProjectResponse, status_code=202)
+def start_draft(project_id: str, payload: BuildRequest, background: BackgroundTasks,
+                session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if project.phase != "intake" and not (project.phase == "error" and not project.outline_json):
+        raise HTTPException(status_code=422, detail="Start a draft from saved materials")
+    if payload.mode == "model":
+        try:
+            get_llm_service()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="AI provider is not configured. Try the key-free draft.") from exc
+    updated = _change_project(session, project, payload.expected_revision, phase="drafting", build_mode=payload.mode)
+    background.add_task(run_live_draft, project_id)
+    return updated
+
+
+@router.post("/{project_id}/draft/slides/{slide_id}/source", response_model=ProjectResponse)
+def confirm_draft_source(project_id: str, slide_id: str, payload: ConfirmSourceRequest,
+                         session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    candidates = source_candidates(project_id, session)
+    if payload.source_ref not in candidates:
+        raise HTTPException(status_code=422, detail="Select an excerpt from the shared PDF")
+    outline = deepcopy(project.outline_json)
+    slides = deepcopy(project.slides_json)
+    target = next((s for s in slides if s["id"] == slide_id), None)
+    item = next((s for s in outline if s["id"] == slide_id), None)
+    if project.phase != "outline_draft" or not target or target["status"] != "ready":
+        raise HTTPException(status_code=422, detail="Wait for this draft slide before confirming its source")
+    ref = payload.source_ref
+    item["evidence_refs"] = [ref.model_dump()]
+    target["blocks"]["source_label"].update(text=f"{ref.filename}, p. {ref.page_number}", status="ready", error=None,
+                                          revision=target["blocks"]["source_label"]["revision"] + 1)
+    target["revision"] += 1
+    return _change_project(session, project, payload.expected_revision, slides_json=slides, outline_json=outline)
+
+
+@router.patch("/{project_id}/draft/slides/{slide_id}/composition", response_model=ProjectResponse)
+def change_composition(project_id: str, slide_id: str, payload: CompositionRequest,
+                       session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    outline = deepcopy(project.outline_json)
+    slides = deepcopy(project.slides_json)
+    item = next((s for s in outline if s["id"] == slide_id), None)
+    target = next((s for s in slides if s["id"] == slide_id), None)
+    if project.phase not in {"outline_draft", "ready"} or not target or target["status"] != "ready" or target["blocks"]["body"]["status"] == "generating":
+        raise HTTPException(status_code=422, detail="Wait for the slide before changing its composition")
+    body = target["blocks"]["body"]
+    if payload.layout_type == "comparison" and "|" not in body["text"]:
+        import re
+        points = re.split(r"(?<=[.!?])\s+|\n", body["text"], maxsplit=1)
+        if len(points) != 2 or not all(p.strip() for p in points):
+            raise HTTPException(status_code=422, detail="A comparison needs two points. Add two sentences first.")
+        body["text"] = " | ".join(points)
+    elif payload.layout_type != "comparison":
+        body["text"] = body["text"].replace(" | ", "\n").replace("|", "\n")
+    if len(body["text"]) > 500:
+        raise HTTPException(status_code=422, detail="Shorten the slide text before changing its composition")
+    body["revision"] += 1
+    item["layout_type"] = payload.layout_type
+    target["visual"] = None
+    target["revision"] += 1
+    return _change_project(session, project, payload.expected_revision, slides_json=slides, outline_json=outline)
+
+
+@router.delete("/{project_id}/draft/slides/{slide_id}/visual", response_model=ProjectResponse)
+def hide_visual(project_id: str, slide_id: str, payload: OutlineRevisionRequest,
+                session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    slides = deepcopy(project.slides_json)
+    target = next((s for s in slides if s["id"] == slide_id), None)
+    if not target or target["status"] != "ready":
+        raise HTTPException(status_code=422, detail="Wait for this slide to finish")
+    target["visual"] = None
+    target["revision"] += 1
+    return _change_project(session, project, payload.expected_revision, slides_json=slides)
+
+
+@router.post("/{project_id}/draft/slides/{slide_id}/retry", response_model=ProjectResponse, status_code=202)
+def retry_draft(project_id: str, slide_id: str, payload: OutlineRevisionRequest, background: BackgroundTasks,
+                session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    target = next((s for s in project.slides_json if s["id"] == slide_id), None)
+    if project.phase != "outline_draft" or not target or target["status"] != "error":
+        raise HTTPException(status_code=422, detail="Only a failed draft slide can be retried")
+    updated = _change_project(session, project, payload.expected_revision, phase="drafting")
+    background.add_task(run_live_draft, project_id, only_slide_id=slide_id)
+    return updated
+
+
 @router.post("/{project_id}/outline/generate", response_model=ProjectResponse)
 def generate_outline(project_id: str, payload: OutlineGenerateRequest, session: Session = Depends(get_session)) -> ProjectResponse:
     project = _editable_project(session, project_id)
@@ -165,8 +261,17 @@ def approve_outline(project_id: str, payload: OutlineApproveRequest, session: Se
     _require_revision(session, project, payload.expected_revision)
     if project.phase != "outline_draft" or len(project.outline_json) != 5:
         raise HTTPException(status_code=422, detail="Complete the five-slide draft before approval")
-    return _change_project(session, project, payload.expected_revision,
-                           phase="outline_approved", theme=payload.theme)
+    if project.slides_json and any(slide["status"] != "ready" or any(b["status"] == "generating" for b in slide["blocks"].values()) for slide in project.slides_json):
+        raise HTTPException(status_code=422, detail="Wait for all five draft slides before approval")
+    values = {"phase": "ready" if project.slides_json else "outline_approved", "theme": payload.theme}
+    if project.slides_json:
+        accepted = {slide["id"]: slide for slide in project.slides_json}
+        outline = deepcopy(project.outline_json)
+        for item in outline:
+            item["title"] = accepted[item["id"]]["blocks"]["title"]["text"]
+            item["key_message"] = accepted[item["id"]]["blocks"]["body"]["text"]
+        values["outline_json"] = outline
+    return _change_project(session, project, payload.expected_revision, **values)
 
 
 @router.post("/{project_id}/build", response_model=ProjectResponse, status_code=202)
@@ -203,14 +308,16 @@ def edit_slide_block(project_id: str, slide_id: str, block_key: str, payload: Bl
     target = next((slide for slide in slides if slide["id"] == slide_id), None)
     if target is None:
         raise HTTPException(status_code=404, detail="Slide not found")
-    if target["status"] != "ready":
-        raise HTTPException(status_code=422, detail="Slide is not ready for editing")
+    if target["status"] != "ready" and not (project.phase == "drafting" and target["blocks"][block_key]["status"] == "ready"):
+        raise HTTPException(status_code=422, detail="This element is still being generated")
     if block_key == "body":
         if len(text) > 500:
             raise HTTPException(status_code=422, detail="Keep slide body text under 500 characters")
         item = next(item for item in project.outline_json if item["id"] == slide_id)
         if item["layout_type"] == "comparison" and (len(text.split("|")) != 2 or not all(part.strip() for part in text.split("|"))):
             raise HTTPException(status_code=422, detail="Comparison slides need two points separated by |")
+    if block_key == "body":
+        target["visual"] = None
     target["blocks"][block_key]["text"] = text
     target["blocks"][block_key]["status"] = "ready"
     target["blocks"][block_key]["error"] = None
@@ -233,6 +340,8 @@ def reset_slide_block(project_id: str, slide_id: str, block_key: str, payload: O
         raise HTTPException(status_code=404, detail="Slide not found")
     if target["status"] != "ready":
         raise HTTPException(status_code=422, detail="Slide is not ready")
+    if block_key == "body":
+        target["visual"] = None
     target["blocks"][block_key]["text"] = item["title" if block_key == "title" else "key_message"]
     target["blocks"][block_key]["status"] = "ready"
     target["blocks"][block_key]["error"] = None

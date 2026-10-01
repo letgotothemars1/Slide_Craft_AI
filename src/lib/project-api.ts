@@ -17,7 +17,7 @@ const blockSchema = z.object({
 export const projectSchema = z.object({
   id: z.string(),
   language: z.literal("en"),
-  phase: z.enum(["intake", "outline_draft", "outline_approved", "building", "ready", "error"]),
+  phase: z.enum(["intake", "drafting", "outline_draft", "outline_approved", "building", "ready", "error"]),
   revision: z.number().int().nonnegative(),
   assignment_text: z.string(),
   context_pack_text: z.string(),
@@ -32,12 +32,14 @@ export const projectSchema = z.object({
     title: z.string(),
     key_message: z.string(),
     evidence_refs: z.array(sourceRefSchema),
+    suggested_refs: z.array(sourceRefSchema).default([]),
     layout_type: z.enum(["title", "content", "comparison"]),
   })),
   slides: z.array(z.object({
     id: z.string(),
     status: z.enum(["queued", "generating", "ready", "error"]),
     revision: z.number().int().nonnegative(),
+    visual: z.object({kind: z.enum(["none","process","bars"]), labels: z.array(z.string()), values: z.array(z.number()), unit: z.string()}).nullable().optional(),
     blocks: z.object({ title: blockSchema, body: blockSchema, source_label: blockSchema }),
   })),
 });
@@ -182,4 +184,23 @@ export async function downloadProjectPptx(projectId: string): Promise<void> {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function startLiveDraft(project: Project, mode: "model" | "template"): Promise<Project> {
+  return projectRequest(project.id, "/draft/start", "POST", {expected_revision: project.revision, mode});
+}
+export function retryDraftSlide(project: Project, slideId: string): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/retry`, "POST", {expected_revision: project.revision});
+}
+
+export function hideSlideVisual(project: Project, slideId: string): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/visual`, "DELETE", {expected_revision: project.revision});
+}
+
+export function changeSlideComposition(project: Project, slideId: string, layout_type: OutlineItem["layout_type"]): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/composition`, "PATCH", {expected_revision: project.revision, layout_type});
+}
+
+export function confirmDraftSource(project: Project, slideId: string, source_ref: SourceRef): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/source`, "POST", {expected_revision: project.revision, source_ref});
 }

@@ -69,6 +69,8 @@ def run_regeneration(project_id: str, slide_id: str, block_key: str, started_rev
             return None
         if text is not None:
             block["text"] = text.strip()
+            if block_key == "body":
+                target["visual"] = None
         block.update(status="error" if error else "ready", error=error, revision=started_revision + 1)
         target["revision"] += 1
         return {"slides_json": slides}

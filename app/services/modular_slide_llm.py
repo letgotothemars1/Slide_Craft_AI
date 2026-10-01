@@ -43,11 +43,36 @@ _SOURCE_LABEL = re.compile(
 )
 
 
-def _model_body(system: str, user: str, comparison: bool) -> str:
+def partial_body(raw: str, comparison: bool) -> str:
+    """Decode only JSON string fields, including an unfinished final string."""
+    values = {}
+    for field in ("left", "right") if comparison else ("body",):
+        match = re.search(r'"' + field + r'"\s*:\s*"', raw)
+        if not match:
+            continue
+        fragment = raw[match.end():]
+        end = re.search(r'(?<!\\)(?:\\\\)*"', fragment)
+        fragment = fragment[:end.start()] if end else fragment
+        # Never expose incomplete JSON escapes as slide text.
+        while fragment:
+            try:
+                values[field] = json.loads('"' + fragment + '"')
+                break
+            except (ValueError, json.JSONDecodeError):
+                fragment = fragment[:-1]
+    return (values.get("left", "") + (" | " + values["right"] if "right" in values else "")) if comparison else values.get("body", "")
+
+
+def _model_body(system: str, user: str, comparison: bool, on_partial=None, on_visual=None) -> str:
     service = get_llm_service()
     schema = _COMPARISON_SCHEMA if comparison else _SLIDE_SCHEMA
+    if on_visual:
+        from app.services.draft_visual import VISUAL_SCHEMA
+        schema = {**schema, "required": [*schema["required"], "visual"],
+                  "properties": {**schema["properties"], "visual": VISUAL_SCHEMA}}
     if isinstance(service, OpenAILLMService):
         response = service.client.responses.create(
+            **({"stream": True} if on_partial else {}),
             model=service.model,
             temperature=0.1,
             input=[
@@ -57,30 +82,61 @@ def _model_body(system: str, user: str, comparison: bool) -> str:
             text={"format": {"type": "json_schema", "name": "academic_slide_body",
                              "strict": True, "schema": schema}},
         )
-        raw = service._extract_output_text(response)
+        if on_partial:
+            raw = ""
+            completed = False
+            for event in response:
+                if event.type == "response.output_text.delta":
+                    raw += event.delta
+                    on_partial(partial_body(raw, comparison))
+                elif event.type == "response.completed":
+                    completed = True
+                elif event.type in {"response.failed", "response.incomplete", "error"}:
+                    raise RuntimeError("Model stream did not complete")
+            if not completed:
+                raise RuntimeError("Model stream ended early")
+        else:
+            raw = service._extract_output_text(response)
     elif isinstance(service, AnthropicLLMService):
         response = service.client.messages.create(
+            **({"stream": True} if on_partial else {}),
             model=service.model,
             max_tokens=1200,
             system=system,
             messages=[{"role": "user", "content": user}],
             output_config={"format": {"type": "json_schema", "schema": schema}},
         )
-        if response.stop_reason in {"max_tokens", "refusal"}:
-            raise RuntimeError("Model did not complete this slide")
-        raw = next((block.text for block in response.content if block.type == "text"), "")
+        if on_partial:
+            raw = ""
+            completed = False
+            for event in response:
+                if event.type == "content_block_delta" and event.delta.type == "text_delta":
+                    raw += event.delta.text
+                    on_partial(partial_body(raw, comparison))
+                elif event.type == "message_delta" and event.delta.stop_reason in {"max_tokens", "refusal"}:
+                    raise RuntimeError("Model did not complete this slide")
+                elif event.type == "message_stop":
+                    completed = True
+            if not completed:
+                raise RuntimeError("Model stream ended early")
+        else:
+            if response.stop_reason in {"max_tokens", "refusal"}:
+                raise RuntimeError("Model did not complete this slide")
+            raw = next((block.text for block in response.content if block.type == "text"), "")
     else:
         raise RuntimeError("Unsupported model provider")
     if not raw:
         raise RuntimeError("Model returned an empty slide")
     parsed = json.loads(raw)
+    if on_visual:
+        on_visual(parsed.pop("visual", None))
     if comparison:
         points = _ComparisonDraft.model_validate(parsed)
         return f"{points.left} | {points.right}"
     return _SlideDraft.model_validate(parsed).body
 
 
-def generate_slide_body(project: Project, item: OutlineItem, accepted_context: str = "") -> str:
+def generate_slide_body(project: Project, item: OutlineItem, accepted_context: str = "", on_partial=None, on_visual=None) -> str:
     """Keep approved title and sources fixed; the model writes only the body."""
     outline = sorted((OutlineItem.model_validate(raw) for raw in project.outline_json), key=lambda row: row.order)
     previous = [row for row in outline if row.order == item.order - 1]
@@ -114,7 +170,13 @@ def generate_slide_body(project: Project, item: OutlineItem, accepted_context: s
         f"ADJACENT SLIDES:\n{neighbors}\n\nSELECTED PDF EXCERPTS:\n{evidence}"
         f"\n\nCURRENT ACCEPTED SLIDE CONTEXT:\n{accepted_context[:3000]}"
     )
-    body = _SOURCE_LABEL.sub("", _model_body(system, user, item.layout_type == "comparison")).strip()
+    if on_visual:
+        system += (" Include a simple visual when it helps: process with 2–4 short steps, or bars with 2–4 positive "
+                   "numeric values copied exactly from PDF excerpts. Use labels, values and unit. For process values is []. "
+                   "For no suitable visual use kind none, empty labels and values, empty unit. Never invent numbers. "
+                   "The body must remain understandable independently of the visual.")
+    raw_body = _model_body(system, user, item.layout_type == "comparison", on_partial=on_partial, on_visual=on_visual) if on_partial else _model_body(system, user, item.layout_type == "comparison")
+    body = _SOURCE_LABEL.sub("", raw_body).strip()
     if not body or len(body) > 500:
         raise ValueError("Slide body is empty or too long")
     parts = [part.strip() for part in body.split("|")]

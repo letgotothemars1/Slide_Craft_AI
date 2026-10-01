@@ -64,10 +64,26 @@ def render_project_pptx(project: ProjectResponse) -> bytes:
         source = saved.blocks.source_label.text
         slide = deck.slides.add_slide(blank)
         _rect(slide, 0, 0, 13.333, 7.5, background)
-        _rect(slide, 0.55, 0.6, 0.1, 0.65 if item.layout_type == "title" else 0.38, accent)
-        _text(slide, f"SLIDE {item.order} · {item.purpose.upper()}", 0.8, 0.47, 11.7, 0.4, 11, accent, bold=True)
 
-        if item.layout_type == "title":
+        if saved.visual:
+            visual = saved.visual
+            _text(slide, title, .85, 1.1, 11.7, 1.1, 32, foreground, bold=True)
+            _text(slide, body.replace("|", " / "), .85, 2.35, 11.7, 1.25, 21, muted)
+            if visual.kind == "process":
+                width = 11.65 / len(visual.labels)
+                for index, label in enumerate(visual.labels):
+                    x = .85 + index * width
+                    _rect(slide, x, 4.1, width - .3, 1.75, panel)
+                    _text(slide, str(index + 1), x + .15, 4.22, width - .6, .35, 14, accent, bold=True)
+                    _text(slide, label, x + .15, 4.72, width - .6, .9, 19, foreground)
+            elif visual.kind == "bars":
+                maximum = max(visual.values)
+                for index, (label, value) in enumerate(zip(visual.labels, visual.values)):
+                    y = 3.9 + index * .58
+                    _text(slide, label, .85, y, 3.3, .5, 17, foreground)
+                    _rect(slide, 4.3, y + .1, value / maximum * 5.5, .28, accent)
+                    _text(slide, f"{value:g}{visual.unit}", 10.1, y, 2.25, .5, 17, foreground)
+        elif item.layout_type == "title":
             _text(slide, title, 0.85, 1.55, 11.6, 2.2, 42, foreground, bold=True)
             _text(slide, body, 0.85, 4.4, 10.8, 1.4, 23, muted)
         elif item.layout_type == "comparison":

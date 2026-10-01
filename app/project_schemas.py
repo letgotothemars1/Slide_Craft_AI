@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-ProjectPhase = Literal["intake", "outline_draft", "outline_approved", "building", "ready", "error"]
+ProjectPhase = Literal["intake", "drafting", "outline_draft", "outline_approved", "building", "ready", "error"]
 SlideStatus = Literal["queued", "generating", "ready", "error"]
 BlockStatus = Literal["ready", "generating", "error"]
 Theme = Literal["clean_editorial", "dark_tech_pitch", "infographic_bright"]
@@ -35,6 +35,7 @@ class OutlineItem(BaseModel):
     title: str
     key_message: str
     evidence_refs: list[SourceRef]
+    suggested_refs: list[SourceRef] = Field(default_factory=list)
     layout_type: LayoutType
 
 
@@ -55,12 +56,21 @@ class SlideBlocks(BaseModel):
     source_label: SlideBlock
 
 
+class DraftVisual(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["none", "process", "bars"]
+    labels: list[str] = Field(max_length=4)
+    values: list[float] = Field(max_length=4)
+    unit: str = Field(max_length=20)
+
+
 class ProjectSlide(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
     status: SlideStatus
     revision: int = Field(ge=0)
+    visual: DraftVisual | None = None
     blocks: SlideBlocks
 
 
@@ -115,3 +125,9 @@ class OutlineApproveRequest(OutlineRevisionRequest):
 
 class BlockEditRequest(OutlineRevisionRequest):
     text: str = Field(min_length=1, max_length=2000)
+
+class CompositionRequest(OutlineRevisionRequest):
+    layout_type: LayoutType
+
+class ConfirmSourceRequest(OutlineRevisionRequest):
+    source_ref: SourceRef

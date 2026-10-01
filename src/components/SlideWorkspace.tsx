@@ -36,7 +36,7 @@ function SlidePreview({ project, slideId }: { project: Project; slideId: string 
   </div>;
 }
 
-function BlockEditor({ project, slideId, blockKey, onChange }: {
+export function BlockEditor({ project, slideId, blockKey, onChange }: {
   project: Project; slideId: string; blockKey: BlockKey; onChange: (project: Project) => void;
 }) {
   const slide = project.slides.find((row) => row.id === slideId)!;
@@ -86,11 +86,11 @@ function BlockEditor({ project, slideId, blockKey, onChange }: {
       <Button size="sm" variant="outline" disabled={disabled || !dirty || !valid}
         onClick={() => void run(() => editSlideBlock(project, slideId, blockKey, draft))}>Save {blockLabels[blockKey].toLowerCase()}</Button>
       {blockKey !== "source_label" && <>
-        <Button size="sm" variant="outline" disabled={disabled || dirty}
+        <Button size="sm" variant="outline" disabled={disabled || dirty || slide.status !== "ready"}
           onClick={() => void run(() => regenerateBlock(project, slideId, blockKey))}>
           {generating ? `Regenerating ${blockKey}…` : block.status === "error" ? `Retry ${blockKey} with AI` : `Regenerate ${blockKey} with AI`}
         </Button>
-        <Button size="sm" variant="ghost" disabled={disabled || dirty || block.text === (blockKey === "title" ? outline.title : outline.key_message)}
+        <Button size="sm" variant="ghost" disabled={disabled || dirty || slide.status !== "ready" || block.text === (blockKey === "title" ? outline.title : outline.key_message)}
           onClick={() => void run(() => resetBlockFromOutline(project, slideId, blockKey))}>Reset from outline</Button>
       </>}
       {dirty && <Button size="sm" variant="ghost" disabled={disabled} onClick={() => { setDraft(block.text); setError(""); }}>Discard unsaved {blockKey === "source_label" ? "source label" : blockKey}</Button>}
