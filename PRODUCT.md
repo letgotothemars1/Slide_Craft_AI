@@ -10,3 +10,6 @@ Review visible, editable content while generation proceeds; approve content befo
 Five English slides, one shared PDF, three themes, native text and shapes. Source suggestions require human checking. Local secrets must never be read or committed. Existing one-shot generation stays available.
 ## Approved workflow
 Materials → live grayscale draft → approve and apply style. Slide thumbnails, central content canvas, separate inspector. No second full-deck model call after approval.
+
+## Intake continuity
+Inputs are saved automatically in browser localStorage, including theme and an already-uploaded PDF reference. Choose AI or key-free generation on the intake form; creation and draft start happen before opening the editor.

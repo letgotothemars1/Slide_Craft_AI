@@ -1,0 +1,6 @@
+# T23 — Persistent intake and direct generation
+Status: implemented and verified
+User request: preserve entered parameters across accidental reloads with localStorage; replace Save project with generation choice on the form, skipping the separate method-choice screen.
+Acceptance: assignment, Context Pack, theme and already-uploaded PDF reference survive reload; direct model/template buttons create and start a draft then open the editor; a failed start retains the inputs and can retry without another project in the same form session; inaccessible/corrupt browser storage does not break the form.
+
+Evidence (2026-10-01): 4 new intake tests (7 frontend tests total), TypeScript check and production build pass. Browser reload restored exact assignment and Context Pack, Dark tech selection and uploaded PDF reference. Both direct buttons were exercised in-browser: template project 781ae9b0-dfb9-48d3-b00c-1efba78f81e8 and model project b0e64e89-db6f-458c-a018-4886368f259e reached five ready draft slides with the restored theme/source. No method-choice screen or Save project button. Mocked provider failure stays on the form and alternate-mode retry creates no second project. Malformed saved data falls back safely. Browser storage contains input strings and server PDF reference only; the PDF binary remains on the server. Detector found no issues.

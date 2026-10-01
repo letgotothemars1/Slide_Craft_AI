@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ThemePicker from "@/components/ThemePicker";
 import { useLanguage } from "@/context/LanguageContext";
@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadDocument } from "@/lib/api";
-import { createProject, getDemoMaterials, getDemoPdf, type ProjectCreate } from "@/lib/project-api";
+import { createProject, startLiveDraft, getProject, getDemoMaterials, getDemoPdf, type ProjectCreate, type Project } from "@/lib/project-api";
+
+import { restoreIntakeDraft, storeIntakeDraft } from "@/lib/intake-draft";
 
 const contextInstruction = `You are helping me prepare an academic presentation. Based only on our conversation and the materials already available to you, return a structured Context Pack in English with these headings:
 Purpose and audience
@@ -20,18 +22,27 @@ Distinguish verified information from assumptions. Do not invent sources or page
 
 export default function NewProjectPage() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
-  const [assignment, setAssignment] = useState("");
-  const [contextPack, setContextPack] = useState("");
-  const [theme, setTheme] = useState<ProjectCreate["theme"]>("clean_editorial");
-  const [sourceId, setSourceId] = useState<string | null>(null);
-  const [filename, setFilename] = useState<string | null>(null);
+  const { t, language } = useLanguage();
+  const tr = (en: string, ru: string) => language === "ru" ? ru : en;
+  const [initialDraft] = useState(restoreIntakeDraft);
+  const [assignment, setAssignment] = useState(initialDraft.assignment);
+  const [contextPack, setContextPack] = useState(initialDraft.contextPack);
+  const [theme, setTheme] = useState<ProjectCreate["theme"]>(initialDraft.theme);
+  const [sourceId, setSourceId] = useState<string | null>(initialDraft.sourceId);
+  const [filename, setFilename] = useState<string | null>(initialDraft.filename);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [demoError, setDemoError] = useState("");
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+
+  const [locallySaved, setLocallySaved] = useState<boolean | null>(null);
+  const requestedMode = useRef<"model" | "template">("model");
+  const createdProject = useRef<{ signature: string; project: Project } | null>(null);
+  useEffect(() => {
+    setLocallySaved(storeIntakeDraft({assignment, contextPack, theme, sourceId, filename}));
+  }, [assignment, contextPack, theme, sourceId, filename]);
 
   const copyInstruction = async () => {
     try {
@@ -46,8 +57,6 @@ export default function NewProjectPage() {
   const attachPdf = async (file?: File): Promise<boolean> => {
     if (!file) return false;
     setError("");
-    setSourceId(null);
-    setFilename(null);
     if (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf") {
       setError("Choose a PDF file.");
       return false;
@@ -77,7 +86,7 @@ export default function NewProjectPage() {
       setAssignment(materials.assignment_text);
       setContextPack(materials.context_pack_text);
       const attached = await attachPdf(new File([pdf], materials.source_filename, { type: "application/pdf" }));
-      if (attached) setNotice("Synthetic example loaded with its two-page PDF. Review the inputs, then save the project.");
+      if (attached) setNotice("Synthetic example loaded with its two-page PDF. Review the inputs, then choose how to generate your draft.");
     } catch (reason) {
       setDemoError(reason instanceof TypeError ? t("project.demo.unavailable") : reason instanceof Error ? reason.message : t("project.demo.unavailable"));
     } finally {
@@ -85,26 +94,39 @@ export default function NewProjectPage() {
     }
   };
 
-  const save = async (event: FormEvent) => {
+  const generate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const mode = requestedMode.current;
+    requestedMode.current = "model";
     setError("");
     if (!assignment.trim() || !contextPack.trim()) {
-      setError("Add both the assignment and Context Pack before saving.");
+      setError("Add both the assignment and Context Pack before generating.");
       return;
     }
-    if (uploading) return;
+    if (saving || uploading || loadingDemo) return;
     setSaving(true);
     try {
-      const project = await createProject({
+      const input: ProjectCreate = {
         assignment_text: assignment,
         context_pack_text: contextPack,
         source_document_id: sourceId,
         theme,
         language: "en",
-      });
+      };
+      const signature = JSON.stringify(input);
+      let project: Project;
+      if (createdProject.current?.signature === signature) {
+        project = await getProject(createdProject.current.project.id);
+      } else {
+        project = await createProject(input);
+        createdProject.current = {signature, project};
+      }
+      if (project.phase === "intake" || (project.phase === "error" && !project.outline.length)) {
+        await startLiveDraft(project, mode);
+      }
       navigate(`/projects/${project.id}`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Project could not be saved.");
+      setError(reason instanceof Error ? reason.message : tr("Generation could not be started. Your inputs are kept; try again or use the key-free draft.", "Не удалось запустить генерацию. Данные сохранены; повторите или выберите черновик без API."));
     } finally {
       setSaving(false);
     }
@@ -115,9 +137,8 @@ export default function NewProjectPage() {
       <AppHeader />
       <main className="container max-w-3xl py-10 sm:py-14">
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Home</Link>
-        <p className="mt-8 text-xs font-semibold uppercase tracking-widest text-primary">Academic MVP · Step 1</p>
-        <h1 className="mt-2 font-display text-3xl font-bold">Create a presentation project</h1>
-        <p className="mt-3 text-muted-foreground">Bring in your assignment and the thinking you have already done. Review the inputs, approve an outline, and build editable slides.</p>
+        <h1 className="mt-8 font-display text-3xl font-bold">Create a presentation project</h1>
+        <p className="mt-3 text-muted-foreground">Bring in your assignment and the thinking you have already done. Review the inputs and choose how to generate your live draft.</p>
 
         <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-5">
           <p className="font-semibold">Try the full workflow without API keys</p>
@@ -127,7 +148,10 @@ export default function NewProjectPage() {
           {demoError && <p role="alert" className="mt-3 text-sm text-destructive">{demoError}</p>}
         </div>
 
-        <form onSubmit={save} className="mt-8 space-y-7">
+        <form onSubmit={generate} className="mt-8">
+          <fieldset disabled={saving} className="space-y-7">
+          <legend className="sr-only">{tr('Presentation inputs', 'Материалы презентации')}</legend>
+          <p role={locallySaved === false ? 'status' : undefined} className="text-sm text-muted-foreground">{locallySaved === true ? tr('Inputs are saved automatically in this browser, including your theme and uploaded PDF reference.', 'Введённые данные, тема и ссылка на загруженный PDF автоматически сохраняются в этом браузере.') : locallySaved === false ? tr('Browser storage is unavailable. Keep this page open to retain your inputs.', 'Хранилище браузера недоступно. Не закрывайте страницу, чтобы сохранить введённые данные.') : ''}</p>
           <section className="rounded-xl border bg-card p-5 sm:p-6">
             <h2 className="text-lg font-semibold">1. Assignment</h2>
             <p className="mt-1 text-sm text-muted-foreground">Paste the brief and any requirements that slides must follow. This is a constraint, not evidence.</p>
@@ -149,8 +173,9 @@ export default function NewProjectPage() {
             <p className="mt-1 text-sm text-muted-foreground">{t("project.pdf.help")}</p>
             <p className="mt-2 text-sm text-muted-foreground">{t("project.pdf.example")}</p>
             <label htmlFor="source-pdf" className="mt-4 block text-sm font-medium">{t("project.pdf.attach")}</label>
-            <Input id="source-pdf" type="file" accept=".pdf,application/pdf" className="mt-2" disabled={uploading} onChange={(event) => void attachPdf(event.target.files?.[0])} />
+            <Input key={sourceId ?? "empty"} id="source-pdf" type="file" accept=".pdf,application/pdf" className="mt-2" disabled={uploading} onChange={(event) => void attachPdf(event.target.files?.[0])} />
             <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">{uploading ? t("project.pdf.indexing") : filename ? t("project.pdf.attached", { filename }) : t("project.pdf.empty")}</p>
+            {sourceId && <Button type="button" size="sm" variant="ghost" className="mt-2" disabled={uploading} onClick={() => {setSourceId(null); setFilename(null);}}>{tr('Remove PDF', 'Убрать PDF')}</Button>}
           </section>
 
           <section className="rounded-xl border bg-card p-5 sm:p-6">
@@ -161,7 +186,14 @@ export default function NewProjectPage() {
 
           {notice && <p role="status" className="text-sm text-success-strong">{notice}</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" size="lg" disabled={saving || uploading || loadingDemo}>{saving ? "Saving project…" : "Save project"}</Button>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{tr('AI writes slide content progressively. The key-free draft uses your existing inputs without a model call.', 'AI постепенно создаёт содержание слайдов. Черновик без API использует введённые материалы без вызова модели.')}</p>
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" name="mode" value="model" onClick={() => {requestedMode.current = "model";}} size="lg" disabled={saving || uploading || loadingDemo}>{saving ? tr('Starting generation…', 'Запускаем генерацию…') : tr('Generate with AI', 'Создать с AI')}</Button>
+              <Button type="submit" name="mode" value="template" onClick={() => {requestedMode.current = "template";}} variant="outline" size="lg" disabled={saving || uploading || loadingDemo}>{tr('Generate without API', 'Создать без API')}</Button>
+            </div>
+          </div>
+          </fieldset>
         </form>
       </main>
     </div>

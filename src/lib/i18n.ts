@@ -35,7 +35,7 @@ const dictionary = {
   "project.pdf.help": { ru: "Прикрепи статью, отчёт или исследование, из которого нужно взять факты для презентации. При проверке плана ты выберешь подходящие фрагменты; на слайдах появятся название файла и номер страницы.", en: "Attach an article, report or study containing facts for your presentation. When reviewing the outline, you choose supporting excerpts; slides show the filename and page number." },
   "project.pdf.example": { ru: "Например: отчёт с результатами исследования. Требования преподавателя вставь в Assignment, а свои идеи из чата — в Context Pack.", en: "For example: a report with study results. Paste the teacher’s requirements into Assignment and your ideas from the chat into Context Pack." },
   "project.pdf.attach": { ru: "Прикрепить один PDF", en: "Attach one PDF" },
-  "project.pdf.empty": { ru: "Можно продолжить без PDF и указать источники вручную. В этом MVP прикрепить PDF после сохранения проекта нельзя.", en: "You can continue without a PDF and enter source labels manually. This MVP cannot attach a PDF after saving the project." },
+  "project.pdf.empty": { ru: "Можно продолжить без PDF и указать источники вручную. Прикрепите PDF до начала генерации.", en: "You can continue without a PDF and enter source labels manually. Attach the PDF before starting generation." },
   "project.pdf.indexing": { ru: "Читаем PDF и сохраняем номера страниц…", en: "Reading PDF and preserving page numbers…" },
   "project.pdf.attached": { ru: "Прикреплён: {filename}", en: "Attached: {filename}" },
   // ── header / nav ──

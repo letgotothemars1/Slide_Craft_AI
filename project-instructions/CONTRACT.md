@@ -75,3 +75,6 @@ Accepted titles are limited to 200 characters, outline key messages and slide bo
 
 ## T22 approved live draft extension
 `drafting` is a new phase. POST `/draft/start` returns immediately and generates an outline then streamed bodies. GET polling exposes actual model text; unvalidated partial text is marked generating. Suggested PDF references are separate from confirmed evidence. All five ready slides can be approved directly into `ready`, applying the theme without generating again. Old outline/build routes remain supported. Draft completion and retry update target blocks with revision protection.
+
+## T23 intake continuity
+The client retains assignment, Context Pack, theme, uploaded PDF ID and filename in versioned browser storage scoped to the API origin. PDF bytes remain on the server. Intake buttons choose model or template, create the project and call `/draft/start` before navigation. Start errors remain on the form with the local draft retained; retry in the same form session reuses the created project if inputs are unchanged.
