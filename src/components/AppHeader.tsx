@@ -1,7 +1,8 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LanguageToggle from "@/components/LanguageToggle";
+import UserAvatarButton from "@/components/UserAvatarButton";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -21,24 +22,23 @@ interface Props {
  * exactly one of them.
  */
 export default function AppHeader({ minimal, onCtaClick }: Props) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { t } = useLanguage();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate("/", { replace: true });
-  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-card/70 backdrop-blur-md">
       <div className="container flex h-14 items-center justify-between">
         <Link
           to="/"
+          aria-label="SlideCraft AI"
           className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded font-display text-base font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-lg"
         >
           <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
-          SlideCraft AI
+          {/* Wordmark drops below sm. On a 375px phone the row also carries the
+              language switch, the create button and the avatar; shrinking any
+              of those would put a touch target under 44px, and the mark alone
+              still identifies the product. */}
+          <span className="hidden xs:inline">SlideCraft AI</span>
         </Link>
 
         {/* Touch targets stay ≥44px on phones, compact from sm upward. */}
@@ -47,21 +47,25 @@ export default function AppHeader({ minimal, onCtaClick }: Props) {
 
           {minimal ? null : user ? (
             <>
-              <Link
-                to="/history"
-                className="hidden items-center rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:inline-flex"
+              {/* Icon-only on phones. With the language switch and the avatar
+                  also in the row, a labelled button pushed the header past
+                  375px and the whole page scrolled sideways. */}
+              <Button
+                size="sm"
+                asChild
+                className="h-11 w-11 rounded-full p-0 sm:h-9 sm:w-auto sm:rounded-md sm:px-3"
               >
-                {t("footer.history")}
-              </Link>
-              <Button size="sm" asChild className="h-11 sm:h-9">
-                <Link to="/generate" onClick={() => onCtaClick?.("header")}>
-                  <span className="sm:hidden">{t("nav.createShort")}</span>
+                <Link
+                  to="/generate"
+                  onClick={() => onCtaClick?.("header")}
+                  aria-label={t("nav.create")}
+                >
+                  <Plus className="h-5 w-5 sm:hidden" aria-hidden="true" />
                   <span className="hidden sm:inline">{t("nav.create")}</span>
                 </Link>
               </Button>
-              <Button size="sm" variant="outline" onClick={handleLogout} className="h-11 sm:h-9">
-                {t("nav.logout")}
-              </Button>
+              {/* Account, not log out: history and sign-out both live inside. */}
+              <UserAvatarButton />
             </>
           ) : (
             <>

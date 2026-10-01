@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -55,11 +56,75 @@ class AuthCredentialsRequest(BaseModel):
         return cleaned
 
 
+USERNAME_PATTERN = r"^[a-zA-Z0-9._-]{3,64}$"
+
+
+def _clean_optional(value: str | None) -> str | None:
+    """Trim, and treat a blank field as "not set" rather than an empty string."""
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Partial profile update. Every field is optional; omitted ones stay put."""
+
+    username: str | None = Field(default=None, max_length=64)
+    first_name: str | None = Field(default=None, max_length=80)
+    last_name: str | None = Field(default=None, max_length=80)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str | None) -> str | None:
+        cleaned = _clean_optional(value)
+        if cleaned is None:
+            return None
+        cleaned = cleaned.lower()
+        if not re.match(USERNAME_PATTERN, cleaned):
+            raise ValueError(
+                "username must be 3-64 characters: letters, digits, dot, underscore or hyphen"
+            )
+        return cleaned
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def clean_name(cls, value: str | None) -> str | None:
+        return _clean_optional(value)
+
+
+class SignupRequest(AuthCredentialsRequest):
+    """Credentials plus the optional profile collected on the sign-up form."""
+
+    username: str | None = Field(default=None, max_length=64)
+    first_name: str | None = Field(default=None, max_length=80)
+    last_name: str | None = Field(default=None, max_length=80)
+
+    _validate_username = field_validator("username")(
+        ProfileUpdateRequest.validate_username.__func__
+    )
+    _clean_names = field_validator("first_name", "last_name")(
+        ProfileUpdateRequest.clean_name.__func__
+    )
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=8, max_length=256)
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class AuthResponse(BaseModel):
     id: str
     email: str
     created_at: str
     is_admin: bool = False
+    username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     # JWT access token. Frontend stores it in localStorage and sends as
     # `Authorization: Bearer <token>` on protected requests.
     token: str

@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -11,7 +11,7 @@ import AdminRoute from "@/components/auth/AdminRoute";
 import LandingPage from "./pages/LandingPage";
 import GeneratePage from "./pages/GeneratePage";
 import JobPage from "./pages/JobPage";
-import HistoryPage from "./pages/HistoryPage";
+import AccountPage from "./pages/AccountPage";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -63,13 +63,15 @@ const App = () => (
                 }
               />
               <Route
-                path="/history"
+                path="/account"
                 element={
                   <ProtectedRoute>
-                    <HistoryPage />
+                    <AccountPage />
                   </ProtectedRoute>
                 }
               />
+              {/* History moved into the account page; old links still resolve. */}
+              <Route path="/history" element={<Navigate to="/account" replace />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

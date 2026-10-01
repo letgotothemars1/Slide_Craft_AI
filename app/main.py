@@ -27,6 +27,9 @@ from app.schemas import (
     GenerateResponse,
     HealthResponse,
     JobStatusResponse,
+    PasswordChangeRequest,
+    ProfileUpdateRequest,
+    SignupRequest,
 )
 from app.routers import analytics as analytics_router
 from app.routers import infra as infra_router
@@ -162,20 +165,29 @@ def _build_auth_response(user) -> AuthResponse:
         email=user.email,
         created_at=user.created_at.astimezone(timezone.utc).isoformat(),
         is_admin=user.is_admin,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
         token=token,
     )
 
 
 @app.post("/auth/signup", response_model=AuthResponse, status_code=201)
-def signup(payload: AuthCredentialsRequest, session: Session = Depends(get_session)) -> AuthResponse:
+def signup(payload: SignupRequest, session: Session = Depends(get_session)) -> AuthResponse:
     existing_user = repository.get_user_by_email(session, payload.email)
     if existing_user:
         raise HTTPException(status_code=409, detail="User with this email already exists")
+
+    if payload.username and repository.get_user_by_username(session, payload.username):
+        raise HTTPException(status_code=409, detail="This username is already taken")
 
     user = repository.create_user(
         session,
         email=payload.email,
         password_hash=hash_password(payload.password),
+        username=payload.username,
+        first_name=payload.first_name,
+        last_name=payload.last_name,
     )
     # Even on signup we may want to auto-grant admin (covers the case where the
     # admin signs up for the first time on a fresh deployment).
@@ -211,6 +223,69 @@ def me(
     user = repository.get_user_by_id(session, current.user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User no longer exists")
+    return _build_auth_response(user)
+
+
+@app.patch("/auth/me", response_model=AuthResponse)
+def update_profile(
+    payload: ProfileUpdateRequest,
+    session: Session = Depends(get_session),
+    current: CurrentUser = Depends(get_current_user),
+) -> AuthResponse:
+    """
+    Partial profile update for the signed-in user.
+
+    Only the fields present in the body are touched, so the frontend can send
+    just what changed. Email and admin flag are deliberately not editable here.
+    """
+    user = repository.get_user_by_id(session, current.user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User no longer exists")
+
+    fields = payload.model_dump(exclude_unset=True)
+
+    if "username" in fields and fields["username"]:
+        taken = repository.get_user_by_username(session, fields["username"])
+        if taken and taken.id != user.id:
+            raise HTTPException(status_code=409, detail="This username is already taken")
+
+    # `exclude_unset` separates "not supplied" from "supplied as blank". A blank
+    # one is forwarded as "" — the repository reads that as an explicit clear,
+    # while None means leave the column alone.
+    repository.update_user_profile(
+        session,
+        user,
+        username=(fields["username"] or "") if "username" in fields else None,
+        first_name=(fields["first_name"] or "") if "first_name" in fields else None,
+        last_name=(fields["last_name"] or "") if "last_name" in fields else None,
+    )
+    return _build_auth_response(user)
+
+
+@app.post("/auth/change-password", response_model=AuthResponse)
+def change_password(
+    payload: PasswordChangeRequest,
+    session: Session = Depends(get_session),
+    current: CurrentUser = Depends(get_current_user),
+) -> AuthResponse:
+    """
+    Change the signed-in user's password.
+
+    The current password is verified even though the caller already holds a
+    valid token: a stolen token should not be enough to lock the owner out.
+    """
+    user = repository.get_user_by_id(session, current.user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User no longer exists")
+
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=403, detail="Current password is incorrect")
+
+    if verify_password(payload.new_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="New password matches the current one")
+
+    repository.update_user_password(session, user, password_hash=hash_password(payload.new_password))
+    # A fresh token is returned so the client keeps a consistent session object.
     return _build_auth_response(user)
 
 

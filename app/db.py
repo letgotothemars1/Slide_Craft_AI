@@ -24,6 +24,11 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    # Profile fields — all nullable on purpose: accounts created before this
+    # iteration have none, and login still happens by email, not username.
+    username: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
+    first_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     # Admin flag — gates access to /metrics/* endpoints and dashboard routes.
     # Flipped automatically on login when email matches settings.ADMIN_EMAIL,
     # or can be set manually via SQL.
@@ -267,6 +272,15 @@ def _run_startup_migrations() -> None:
                 conn.execute(
                     text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE")
                 )
+                # Profile fields — added in the account iteration.
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(64)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(80)"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(80)"))
+                # Postgres allows many NULLs under a unique index, so existing
+                # accounts without a username do not collide with each other.
+                conn.execute(
+                    text("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username)")
+                )
             elif dialect == "sqlite":
                 rows = conn.execute(text("PRAGMA table_info(jobs)")).fetchall()
                 existing_columns = {row[1] for row in rows}
@@ -277,6 +291,16 @@ def _run_startup_migrations() -> None:
                 user_columns = {row[1] for row in user_rows}
                 if "is_admin" not in user_columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0"))
+                for column, ddl in (
+                    ("username", "ALTER TABLE users ADD COLUMN username VARCHAR(64)"),
+                    ("first_name", "ALTER TABLE users ADD COLUMN first_name VARCHAR(80)"),
+                    ("last_name", "ALTER TABLE users ADD COLUMN last_name VARCHAR(80)"),
+                ):
+                    if column not in user_columns:
+                        conn.execute(text(ddl))
+                conn.execute(
+                    text("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username)")
+                )
         except Exception:
             logger.exception("db.migration.failed migration=startup")
 

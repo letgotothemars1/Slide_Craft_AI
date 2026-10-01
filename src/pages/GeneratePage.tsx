@@ -6,12 +6,16 @@ import PromptForm from "@/components/PromptForm";
 import { type GenerateRequest, generatePresentation, uploadDocument } from "@/lib/api";
 import { addToHistory } from "@/lib/history";
 import { track } from "@/lib/analytics";
+import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { greetingName } from "@/lib/user";
 import { toast } from "sonner";
 
 export default function GeneratePage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const greeting = greetingName(user);
   const [loading, setLoading] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [attachedDocumentId, setAttachedDocumentId] = useState<string | null>(null);
@@ -86,14 +90,31 @@ export default function GeneratePage() {
 
       <main className="flex-1 px-4 py-14 sm:py-20">
         <div className="container max-w-3xl">
-          <Reveal className="mb-10 space-y-3 text-center">
-            <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
-              {t("gen.title")}
-            </h1>
-            <p className="mx-auto max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              {t("gen.subtitle")}
-            </p>
-          </Reveal>
+          {/* Greeting only when we actually know who this is — "Привет, !" reads
+              worse than no greeting at all. */}
+          {greeting ? (
+            <Reveal className="mb-10 space-y-1.5 text-center">
+              <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl">
+                {t("gen.greetingPrefix")}{" "}
+                <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  {greeting}
+                </span>
+                {t("gen.greetingSuffix")}
+              </h1>
+              <p className="text-lg text-muted-foreground sm:text-xl">
+                {t("gen.greetingQuestion")}
+              </p>
+            </Reveal>
+          ) : (
+            <Reveal className="mb-10 space-y-3 text-center">
+              <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+                {t("gen.title")}
+              </h1>
+              <p className="mx-auto max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                {t("gen.subtitle")}
+              </p>
+            </Reveal>
+          )}
 
           <Reveal delay={100}>
             <PromptForm

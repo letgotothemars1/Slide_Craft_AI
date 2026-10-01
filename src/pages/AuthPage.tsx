@@ -20,6 +20,9 @@ export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +37,13 @@ export default function AuthPage() {
       if (isLogin) {
         await login(email, password);
       } else {
-        await signup(email, password);
+        // Blank optional fields are sent as null so the backend stores nothing
+        // rather than an empty string.
+        await signup(email, password, {
+          username: username.trim() || null,
+          first_name: firstName.trim() || null,
+          last_name: lastName.trim() || null,
+        });
       }
       navigate(from, { replace: true });
     } catch (err: any) {
@@ -88,6 +97,48 @@ export default function AuthPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Profile fields only on sign-up, and all optional: the account
+                  page can fill them in later, so registration stays short. */}
+              {!isLogin && (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="first-name">{t("account.firstName")}</Label>
+                      <Input
+                        id="first-name"
+                        autoComplete="given-name"
+                        value={firstName}
+                        onChange={(event) => setFirstName(event.target.value)}
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last-name">{t("account.lastName")}</Label>
+                      <Input
+                        id="last-name"
+                        autoComplete="family-name"
+                        value={lastName}
+                        onChange={(event) => setLastName(event.target.value)}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="username">{t("account.username")}</Label>
+                    <Input
+                      id="username"
+                      autoComplete="username"
+                      spellCheck={false}
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      className="h-11"
+                    />
+                    <p className="text-xs text-muted-foreground">{t("account.usernameHint")}</p>
+                  </div>
+                </>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">{t("auth.email")}</Label>
                 <Input

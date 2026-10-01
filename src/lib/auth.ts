@@ -4,6 +4,16 @@ export interface AuthUser {
   id: string;
   email: string;
   isAdmin: boolean;
+  username: string | null;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+/** Fields a user may set on sign-up or later edit in their account. */
+export interface ProfileFields {
+  username?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 export interface AuthSession {
@@ -56,49 +66,99 @@ interface BackendAuthResponse {
   email: string;
   created_at: string;
   is_admin: boolean;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
   token: string;
 }
 
 function sessionFromResponse(data: BackendAuthResponse): AuthSession {
   return {
     token: data.token,
-    user: { id: data.id, email: data.email, isAdmin: data.is_admin },
+    user: {
+      id: data.id,
+      email: data.email,
+      isAdmin: data.is_admin,
+      username: data.username ?? null,
+      firstName: data.first_name ?? null,
+      lastName: data.last_name ?? null,
+    },
     createdAt: data.created_at,
   };
 }
 
-async function apiAuth(
-  path: string,
-  email: string,
-  password: string,
-): Promise<AuthSession> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "ngrok-skip-browser-warning": "true",
-    },
-    body: JSON.stringify({ email, password }),
-  });
+const JSON_HEADERS = {
+  "Content-Type": "application/json",
+  "ngrok-skip-browser-warning": "true",
+};
 
+/** Throws with the backend's `detail` message when present — those are the
+ *  precise ones ("This username is already taken"), unlike a bare status. */
+async function readOrThrow(res: Response): Promise<BackendAuthResponse> {
   const data = await res.json().catch(() => ({}));
-
   if (!res.ok) {
     const detail = (data as { detail?: string }).detail;
     throw new Error(detail ?? `Auth error ${res.status}`);
   }
+  return data as BackendAuthResponse;
+}
 
-  const session = sessionFromResponse(data as BackendAuthResponse);
+function authHeaders(): Record<string, string> {
+  const token = getStoredSession()?.token;
+  return token ? { ...JSON_HEADERS, Authorization: `Bearer ${token}` } : JSON_HEADERS;
+}
+
+export async function signup(
+  email: string,
+  password: string,
+  profile: ProfileFields = {},
+): Promise<AuthSession> {
+  const res = await fetch(`${API_BASE}/auth/signup`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ email, password, ...profile }),
+  });
+  const session = sessionFromResponse(await readOrThrow(res));
   persistSession(session);
   return session;
 }
 
-export async function signup(email: string, password: string): Promise<AuthSession> {
-  return apiAuth("/auth/signup", email, password);
+export async function login(email: string, password: string): Promise<AuthSession> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ email, password }),
+  });
+  const session = sessionFromResponse(await readOrThrow(res));
+  persistSession(session);
+  return session;
 }
 
-export async function login(email: string, password: string): Promise<AuthSession> {
-  return apiAuth("/auth/login", email, password);
+/** Partial profile update — only the supplied keys are sent, and therefore
+ *  only those are touched server-side. */
+export async function updateProfile(profile: ProfileFields): Promise<AuthSession> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(profile),
+  });
+  const session = sessionFromResponse(await readOrThrow(res));
+  persistSession(session);
+  return session;
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<AuthSession> {
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  const session = sessionFromResponse(await readOrThrow(res));
+  persistSession(session);
+  return session;
 }
 
 export async function logout(): Promise<void> {

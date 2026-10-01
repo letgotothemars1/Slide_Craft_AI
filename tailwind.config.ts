@@ -13,6 +13,12 @@ export default {
       },
     },
     extend: {
+      screens: {
+        // Between the narrowest phones (375px) and Tailwind's `sm` (640px)
+        // there is nothing, but the header needs a decision exactly there:
+        // below this the wordmark is dropped so four touch targets still fit.
+        xs: "420px",
+      },
       fontFamily: {
         display: ["'Plus Jakarta Sans'", "sans-serif"],
         body: ["'Inter'", "sans-serif"],
