@@ -224,7 +224,7 @@
 .draft-reorder button:hover:not(:disabled) { background: hsl(var(--muted)); }
 .draft-reorder button:disabled { opacity: .4; cursor: not-allowed; }
 .draft-reorder button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
-.draft-editable { cursor: text; outline: 2px solid transparent; outline-offset: 3px; }
+.draft-editable { cursor: pointer; outline: 2px solid transparent; outline-offset: 3px; }
 .draft-editable:hover, .draft-editable:focus-visible { outline-color: hsl(var(--primary)); }
 .draft-source-excerpt { max-height: 320px; overflow-y: auto; white-space: pre-wrap; }
 @media (hover: none) { .draft-reorder { opacity: 1; pointer-events: auto; } .draft-reorder button { width: 40px; height: 40px; } }
@@ -235,3 +235,5 @@
 .draft-title:has(.dense-body) h3 { margin-top: 0; }
 .draft-body.with-visual { max-height: 48%; }
 .draft-title:has(.with-visual) h3, .draft-title .draft-body.with-visual { margin-top: 0; }
+
+.draft-thumbnail, .draft-reorder button:not(:disabled) { cursor: pointer; }

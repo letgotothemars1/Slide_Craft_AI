@@ -204,3 +204,6 @@ Central canvas title, body, comparison columns and source label select/focus the
 
 ### Guided revision and optional evidence footer (T25)
 A labelled instruction field and explicit AI action sit below the selected canvas. They revise the selected title/text/visual while preserving other slides, and respect unsaved text edits. Sources live in the inspector; a per-slide checkbox opts into showing the footer, with the same setting in PPTX. Hidden source labels remain available in PowerPoint notes. Visual cover layouts use the available height for body and diagrams instead of cover margins.
+
+### Loading and current completion controls (T26)
+Clickable canvas elements use pointer cursors. Planning shows a reduced-motion-aware skeleton of the editor. Approve & style opens a finish panel without toggling it closed on repeated clicks; its prominent top-right Finish presentation action becomes full-width on mobile. The selected theme is retained. The current backend applies a palette; a substantive AI design pass is a separate required follow-up from the user.

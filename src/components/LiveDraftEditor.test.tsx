@@ -3,10 +3,10 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import LiveDraftEditor from './LiveDraftEditor';
 import {LanguageProvider} from '@/context/LanguageContext';
 import {LANGUAGE_STORAGE_KEY} from '@/lib/i18n';
-import {projectSchema, saveOutline, regenerateWholeSlide, setSlideSourceVisibility} from '@/lib/project-api';
+import {projectSchema, saveOutline, regenerateWholeSlide, setSlideSourceVisibility, approveOutline} from '@/lib/project-api';
 import fixture from '../../project-instructions/fixtures/demo-project.json';
 
-vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn(), regenerateWholeSlide: vi.fn(), setSlideSourceVisibility: vi.fn()}));
+vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn(), regenerateWholeSlide: vi.fn(), setSlideSourceVisibility: vi.fn(), approveOutline: vi.fn()}));
 const makeProject = () => {
   const project = projectSchema.parse(structuredClone(fixture));
   project.phase = 'outline_draft';
@@ -83,6 +83,32 @@ describe('Canvas editing and slide order', () => {
     fireEvent.click(screen.getByRole('button',{name:'Sources'}));
     fireEvent.click(screen.getByRole('checkbox',{name:'Show source label on this slide'}));
     await waitFor(()=>expect(setSlideSourceVisibility).toHaveBeenCalledWith(project,project.outline[0].id,true));
+  });
+
+  it('shows an accessible skeleton until the first outline arrives', () => {
+    const project = makeProject(); project.phase='drafting'; project.outline=[]; project.slides=[];
+    const view=render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    expect(screen.getByRole('status',{name:'Preparing your slides'})).toHaveAttribute('aria-busy','true');
+    expect(screen.queryByText(/No content has arrived/)).not.toBeInTheDocument();
+    view.rerender(<LanguageProvider><LiveDraftEditor project={makeProject()} onChange={vi.fn()}/></LanguageProvider>);
+    expect(screen.queryByRole('status',{name:'Preparing your slides'})).not.toBeInTheDocument();
+    expect(screen.getByRole('button',{name:'Edit title'})).toBeInTheDocument();
+  });
+  it('keeps approval visible and finishes with the selected theme without collapsing on another click', async () => {
+    const project=makeProject(); const finished={...project,phase:'ready' as const,theme:'dark_tech_pitch' as const};
+    vi.mocked(approveOutline).mockResolvedValue(finished);
+    const onChange=vi.fn();
+    const view=render(<LanguageProvider><LiveDraftEditor project={project} onChange={onChange}/></LanguageProvider>);
+    const approve=screen.getByRole('button',{name:'Approve & style'});
+    fireEvent.click(approve); fireEvent.click(approve);
+    expect(approve).toHaveAttribute('aria-expanded','true');
+    fireEvent.click(screen.getByRole('radio',{name:'Dark tech'}));
+    fireEvent.click(screen.getByRole('button',{name:'Finish presentation'}));
+    await waitFor(()=>expect(onChange).toHaveBeenCalledWith(finished));
+    expect(approveOutline).toHaveBeenCalledWith(project,'dark_tech_pitch');
+    view.rerender(<LanguageProvider><LiveDraftEditor project={finished} onChange={onChange}/></LanguageProvider>);
+    expect(screen.getByRole('button',{name:'Download PowerPoint'})).toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'Finish presentation'})).not.toBeInTheDocument();
   });
 
 });
