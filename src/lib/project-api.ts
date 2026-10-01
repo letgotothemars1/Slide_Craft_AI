@@ -39,6 +39,8 @@ export const projectSchema = z.object({
     id: z.string(),
     status: z.enum(["queued", "generating", "ready", "error"]),
     revision: z.number().int().nonnegative(),
+    show_source: z.boolean().optional(),
+    revision_instruction: z.string().optional(),
     visual: z.object({kind: z.enum(["none","process","bars"]), labels: z.array(z.string()), values: z.array(z.number()), unit: z.string()}).nullable().optional(),
     blocks: z.object({ title: blockSchema, body: blockSchema, source_label: blockSchema }),
   })),
@@ -203,4 +205,11 @@ export function changeSlideComposition(project: Project, slideId: string, layout
 
 export function confirmDraftSource(project: Project, slideId: string, source_ref: SourceRef): Promise<Project> {
   return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/source`, "POST", {expected_revision: project.revision, source_ref});
+}
+
+export function setSlideSourceVisibility(project: Project, slideId: string, show_source: boolean): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/source-visibility`, 'PATCH', {expected_revision: project.revision, show_source});
+}
+export function regenerateWholeSlide(project: Project, slideId: string, instruction: string): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/regenerate`, 'POST', {expected_revision: project.revision, instruction});
 }

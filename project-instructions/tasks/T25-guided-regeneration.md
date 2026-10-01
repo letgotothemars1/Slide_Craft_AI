@@ -1,0 +1,9 @@
+# T25 — Guided slide regeneration and optional PDF footer
+Status: implemented and verified
+Owner: frontend/backend
+Dependencies: T22 and T24
+User request: stop repeating the PDF label on every slide; let the student give each slide an additional instruction and regenerate it.
+
+Implementation: PDF footer is opt-in per slide through Sources, persisted with revision protection and shared by preview/native PowerPoint. Hidden source labels are retained in PowerPoint speaker notes and the inspector. The instruction below the selected canvas rewrites its title/body/visual with one streamed provider call, preserving composition, other slides and source labels. Last submitted instruction persists on the slide. Title/body are locked during generation; unsaved edits disable the whole-slide action. Revision guards preserve intervening edits. Failure restores previous content and gives a retry message.
+
+Evidence (2026-10-01): 12 frontend and 21 backend tests pass. New coverage checks dirty-draft protection, selected-slide payload, footer visibility/PPTX notes, streaming, duplicate rejection, failure restoration and superseding title edits. TypeScript check and production build pass. Actual browser AI call on synthetic project b0e64e89-db6f-458c-a018-4886368f259e, slide s5, produced the requested title “Next steps for the pilot”, concise text and three-step process. Instruction and footer flag survived reload; footer was switched on, verified, then off again. Desktop and 375px mobile visually inspected; no document horizontal overflow; tested visual body scrollHeight equals clientHeight (144px). Screenshots /tmp/slidecraft-guided-revision.jpg and /tmp/slidecraft-guided-revision-mobile.jpg. Detector findings were only incumbent legacy preview font sizes. API keys file was not inspected. API restarted on localhost:8001, frontend remains localhost:8081.

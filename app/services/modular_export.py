@@ -100,8 +100,11 @@ def render_project_pptx(project: ProjectResponse) -> bytes:
             _rect(slide, 0.85, 2.35, 11.65, 3.55, panel)
             _text(slide, body, 1.15, 2.65, 10.95, 2.95, 25, foreground)
 
-        _rect(slide, 0.85, 6.55, 11.65, 0.02, accent)
-        _text(slide, source, 0.85, 6.7, 11.5, 0.45, 12, muted)
+        if saved.show_source:
+            _rect(slide, 0.85, 6.55, 11.65, 0.02, accent)
+            _text(slide, source, 0.85, 6.7, 11.5, 0.45, 12, muted)
+        else:
+            slide.notes_slide.notes_text_frame.text = f"Source: {source}"
 
     output = BytesIO()
     deck.save(output)

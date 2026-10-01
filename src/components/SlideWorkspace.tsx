@@ -31,13 +31,13 @@ function SlidePreview({ project, slideId }: { project: Project; slideId: string 
         <h3 className={`mt-1 font-display font-bold leading-tight sm:mt-3 ${item.layout_type === "title" ? "text-sm sm:text-4xl" : "text-xs sm:text-3xl"}`}>{title}</h3>
       </div>
       {item.layout_type === "comparison" ? <div className="grid grid-cols-2 gap-1 text-[7px] sm:gap-3 sm:text-base"><div className="min-h-10 rounded p-1 sm:min-h-16 sm:rounded-lg sm:p-3" style={{ backgroundColor: palette.panel }}>{left || "First point needed"}</div><div className="min-h-10 rounded p-1 sm:min-h-16 sm:rounded-lg sm:p-3" style={{ backgroundColor: palette.panel }}>{right || "Second point needed"}</div></div> : <p className={`mb-auto max-w-[85%] leading-snug ${bodySize}`} style={{ color: palette.muted }}>{body}</p>}
-      <p className="mt-1 border-t pt-1 text-[6px] sm:mt-4 sm:pt-2 sm:text-xs" style={{ borderColor: palette.accent, color: palette.muted }}>{source}</p>
+      {slide.show_source && <p className="mt-1 border-t pt-1 text-[6px] sm:mt-4 sm:pt-2 sm:text-xs" style={{ borderColor: palette.accent, color: palette.muted }}>{source}</p>}
     </div>
   </div>;
 }
 
-export function BlockEditor({ project, slideId, blockKey, onChange, roomy = false }: {
-  project: Project; slideId: string; blockKey: BlockKey; roomy?: boolean; onChange: (project: Project) => void;
+export function BlockEditor({ project, slideId, blockKey, onChange, roomy = false, onDirtyChange }: {
+  project: Project; slideId: string; blockKey: BlockKey; roomy?: boolean; onDirtyChange?: (slideId: string, key: BlockKey, dirty: boolean) => void; onChange: (project: Project) => void;
 }) {
   const slide = project.slides.find((row) => row.id === slideId)!;
   const outline = project.outline.find((row) => row.id === slideId)!;
@@ -53,6 +53,8 @@ export function BlockEditor({ project, slideId, blockKey, onChange, roomy = fals
   const parts = draft.split("|");
   const valid = Boolean(draft.trim()) && (!comparison || (parts.length === 2 && parts.every((part) => part.trim())));
   const label = comparison ? "Comparison points" : blockLabels[blockKey];
+
+  useEffect(() => {onDirtyChange?.(slideId,blockKey,dirty);}, [onDirtyChange,slideId,blockKey,dirty]);
 
   useEffect(() => {
     const previous = savedText.current;

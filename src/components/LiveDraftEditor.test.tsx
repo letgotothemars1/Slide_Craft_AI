@@ -3,15 +3,15 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import LiveDraftEditor from './LiveDraftEditor';
 import {LanguageProvider} from '@/context/LanguageContext';
 import {LANGUAGE_STORAGE_KEY} from '@/lib/i18n';
-import {projectSchema, saveOutline} from '@/lib/project-api';
+import {projectSchema, saveOutline, regenerateWholeSlide, setSlideSourceVisibility} from '@/lib/project-api';
 import fixture from '../../project-instructions/fixtures/demo-project.json';
 
-vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn()}));
+vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn(), regenerateWholeSlide: vi.fn(), setSlideSourceVisibility: vi.fn()}));
 const makeProject = () => {
   const project = projectSchema.parse(structuredClone(fixture));
   project.phase = 'outline_draft';
   project.outline[0].layout_type = 'content';
-  project.slides = project.outline.map(item => ({id:item.id, status:'ready' as const, revision:1, blocks:{
+  project.slides = project.outline.map(item => ({id:item.id, status:'ready' as const, revision:1, show_source:true, blocks:{
     title:{text:item.title,status:'ready' as const,revision:1},
     body:{text:item.key_message,status:'ready' as const,revision:1},
     source_label:{text:'Source needed',status:'ready' as const,revision:1},
@@ -61,4 +61,28 @@ describe('Canvas editing and slide order', () => {
     view.rerender(<LanguageProvider><LiveDraftEditor project={updated} onChange={onChange}/></LanguageProvider>);
     expect(screen.getByRole('button',{name:`Slide 1: ${project.outline[0].title}`})).toHaveAttribute('aria-pressed','true');
   });
+  it('requires an instruction and protects unsaved text before whole-slide regeneration', async () => {
+    const project = makeProject();
+    vi.mocked(regenerateWholeSlide).mockResolvedValue(project);
+    render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    const regenerate = screen.getByRole('button',{name:'Regenerate this slide with AI'});
+    expect(regenerate).toBeDisabled();
+    fireEvent.change(screen.getByRole('textbox',{name:'What should change on this slide?'}),{target:{value:'Focus on limitations'}});
+    expect(regenerate).toBeEnabled();
+    fireEvent.change(screen.getByRole('textbox',{name:'Body'}),{target:{value:'Unsaved edit'}});
+    expect(regenerate).toBeDisabled();
+    fireEvent.click(screen.getByRole('button',{name:'Discard unsaved body'}));
+    fireEvent.click(regenerate);
+    await waitFor(()=>expect(regenerateWholeSlide).toHaveBeenCalledWith(project,project.outline[0].id,'Focus on limitations'));
+  });
+  it('hides default footers and changes visibility for only the selected slide', async () => {
+    const project = makeProject(); project.slides.forEach(row=>row.show_source=false);
+    vi.mocked(setSlideSourceVisibility).mockResolvedValue(project);
+    render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    expect(screen.queryByRole('button',{name:'Edit source label'})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Sources'}));
+    fireEvent.click(screen.getByRole('checkbox',{name:'Show source label on this slide'}));
+    await waitFor(()=>expect(setSlideSourceVisibility).toHaveBeenCalledWith(project,project.outline[0].id,true));
+  });
+
 });

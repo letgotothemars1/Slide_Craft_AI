@@ -71,6 +71,8 @@ class ProjectSlide(BaseModel):
     status: SlideStatus
     revision: int = Field(ge=0)
     visual: DraftVisual | None = None
+    show_source: bool = False
+    revision_instruction: str = Field(default="", max_length=1000)
     blocks: SlideBlocks
 
 
@@ -131,3 +133,11 @@ class CompositionRequest(OutlineRevisionRequest):
 
 class ConfirmSourceRequest(OutlineRevisionRequest):
     source_ref: SourceRef
+
+
+class SourceVisibilityRequest(OutlineRevisionRequest):
+    show_source: bool
+
+
+class SlideRegenerateRequest(OutlineRevisionRequest):
+    instruction: str = Field(min_length=1, max_length=1000)

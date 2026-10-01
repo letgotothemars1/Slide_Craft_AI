@@ -201,3 +201,6 @@ The canvas renders title, body, comparison panels, process steps, bars, and sour
 
 ### Canvas selection and inspector space (T24)
 Central canvas title, body, comparison columns and source label select/focus the corresponding inspector field; Enter/Space provide the same action. Hover/focus outlines mark editable elements without adding controls to the exported artifact. Thumbnail reorder arrows are sibling controls, visible on hover/focus and persistently visible for touch input, within the existing draft review phase. The desktop inspector is 340px, body fields use 12 rows, comparison fields stack, and source excerpts allow 320px of reading height. Unsaved block drafts survive switching inspector tabs for the selected slide.
+
+### Guided revision and optional evidence footer (T25)
+A labelled instruction field and explicit AI action sit below the selected canvas. They revise the selected title/text/visual while preserving other slides, and respect unsaved text edits. Sources live in the inspector; a per-slide checkbox opts into showing the footer, with the same setting in PPTX. Hidden source labels remain available in PowerPoint notes. Visual cover layouts use the available height for body and diagrams instead of cover margins.

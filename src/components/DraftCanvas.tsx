@@ -17,7 +17,7 @@ export default function DraftCanvas({project, slideId, grayscale = true, onSelec
   const title = slide?.blocks.title.text || item.title;
   const body = slide?.blocks.body.text ?? '';
   const parts = body.split('|');
-  const visual = slide?.visual;
+  const visual = slide?.blocks.body.status === 'generating' ? undefined : slide?.visual;
   return <div className="draft-canvas" style={{background: palette.background, color: palette.foreground}} aria-label={`Slide ${item.order} preview`}>
     <div className={`draft-canvas-content draft-${item.layout_type}`}>
       <h3 {...editable('title')}>{title}</h3>
@@ -25,7 +25,7 @@ export default function DraftCanvas({project, slideId, grayscale = true, onSelec
       : <p {...editable('body')} className={`draft-body ${visual ? "with-visual" : body.length > 250 ? "dense-body" : ""} ${onSelectBlock ? "draft-editable" : ""}`} style={{color: palette.muted}}>{(visual ? body.replace(/\|/g, ' / ') : body) || (slide?.status === 'error' ? 'Generation interrupted' : '…')}</p>}
       {visual?.kind === 'process' && <div className="draft-process">{visual.labels.map((label,index)=><div key={index} style={{background: palette.panel}}><span>{index + 1}</span><p>{label}</p></div>)}</div>}
       {visual?.kind === 'bars' && <div className="draft-bars">{visual.labels.map((label,index)=><div key={index}><span>{label}</span><div><i style={{width: `${visual.values[index] / Math.max(...visual.values) * 75}%`,background: palette.accent}}/><b>{visual.values[index]}{visual.unit}</b></div></div>)}</div>}
-      <p {...editable('source_label')} className={`draft-source ${onSelectBlock ? "draft-editable" : ""}`} style={{color: palette.muted, borderColor: palette.accent}}>{slide?.blocks.source_label.text || 'Source needed'}</p>
+      {slide?.show_source && <p {...editable('source_label')} className={`draft-source ${onSelectBlock ? "draft-editable" : ""}`} style={{color: palette.muted, borderColor: palette.accent}}>{slide?.blocks.source_label.text || 'Source needed'}</p>}
     </div>
   </div>;
 }

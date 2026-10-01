@@ -233,3 +233,5 @@
 .draft-title .draft-body.dense-body { margin-top: 0; }
 
 .draft-title:has(.dense-body) h3 { margin-top: 0; }
+.draft-body.with-visual { max-height: 48%; }
+.draft-title:has(.with-visual) h3, .draft-title .draft-body.with-visual { margin-top: 0; }

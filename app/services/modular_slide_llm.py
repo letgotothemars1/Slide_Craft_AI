@@ -63,13 +63,16 @@ def partial_body(raw: str, comparison: bool) -> str:
     return (values.get("left", "") + (" | " + values["right"] if "right" in values else "")) if comparison else values.get("body", "")
 
 
-def _model_body(system: str, user: str, comparison: bool, on_partial=None, on_visual=None) -> str:
+def _model_body(system: str, user: str, comparison: bool, on_partial=None, on_visual=None, on_title=None) -> str:
     service = get_llm_service()
     schema = _COMPARISON_SCHEMA if comparison else _SLIDE_SCHEMA
     if on_visual:
         from app.services.draft_visual import VISUAL_SCHEMA
         schema = {**schema, "required": [*schema["required"], "visual"],
                   "properties": {**schema["properties"], "visual": VISUAL_SCHEMA}}
+    if on_title:
+        schema = {**schema, "required": [*schema["required"], "title"],
+                  "properties": {**schema["properties"], "title": {"type": "string"}}}
     if isinstance(service, OpenAILLMService):
         response = service.client.responses.create(
             **({"stream": True} if on_partial else {}),
@@ -128,6 +131,11 @@ def _model_body(system: str, user: str, comparison: bool, on_partial=None, on_vi
     if not raw:
         raise RuntimeError("Model returned an empty slide")
     parsed = json.loads(raw)
+    if on_title:
+        title = parsed.pop("title", "").strip()
+        if not title or len(title) > 200 or "\n" in title or "|" in title:
+            raise ValueError("Invalid slide title")
+        on_title(title)
     if on_visual:
         on_visual(parsed.pop("visual", None))
     if comparison:
@@ -136,7 +144,7 @@ def _model_body(system: str, user: str, comparison: bool, on_partial=None, on_vi
     return _SlideDraft.model_validate(parsed).body
 
 
-def generate_slide_body(project: Project, item: OutlineItem, accepted_context: str = "", on_partial=None, on_visual=None) -> str:
+def generate_slide_body(project: Project, item: OutlineItem, accepted_context: str = "", on_partial=None, on_visual=None, instruction: str = "", on_title=None) -> str:
     """Keep approved title and sources fixed; the model writes only the body."""
     outline = sorted((OutlineItem.model_validate(raw) for raw in project.outline_json), key=lambda row: row.order)
     previous = [row for row in outline if row.order == item.order - 1]
@@ -175,7 +183,13 @@ def generate_slide_body(project: Project, item: OutlineItem, accepted_context: s
                    "numeric values copied exactly from PDF excerpts. Use labels, values and unit. For process values is []. "
                    "For no suitable visual use kind none, empty labels and values, empty unit. Never invent numbers. "
                    "The body must remain understandable independently of the visual.")
-    raw_body = _model_body(system, user, item.layout_type == "comparison", on_partial=on_partial, on_visual=on_visual) if on_partial else _model_body(system, user, item.layout_type == "comparison")
+    if instruction:
+        system += (" The student's revision request below is an instruction for this slide and may change its "
+                   "emphasis or key message. Follow it while keeping assignment constraints and avoiding fabricated facts. "
+                   "Rewrite both the title JSON field and the slide text, plus the visual if requested. "
+                   "Use a concise title under 100 characters. The composition is fixed for this revision.")
+        user += f"\n\nSTUDENT REVISION REQUEST:\n{instruction}"
+    raw_body = _model_body(system, user, item.layout_type == "comparison", on_partial=on_partial, on_visual=on_visual, **({"on_title": on_title} if on_title else {})) if on_partial else _model_body(system, user, item.layout_type == "comparison")
     body = _SOURCE_LABEL.sub("", raw_body).strip()
     if not body or len(body) > 500:
         raise ValueError("Slide body is empty or too long")

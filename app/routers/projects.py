@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app import repository
 from app.db import Project, get_session
 from app.project_schemas import (
-    ConfirmSourceRequest, CompositionRequest, BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
+    SlideRegenerateRequest, SourceVisibilityRequest, ConfirmSourceRequest, CompositionRequest, BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
     ProjectCreateRequest, ProjectResponse, SourceRef,
 )
 from app.services.outline_service import starter_outline
@@ -22,6 +22,7 @@ from app.services.modular_export import render_project_pptx
 from app.services.llm_service import get_llm_service
 from app.services.modular_regenerate import run_regeneration
 from app.services.live_draft import run_live_draft
+from app.services.slide_revision import run_slide_revision
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -195,6 +196,50 @@ def hide_visual(project_id: str, slide_id: str, payload: OutlineRevisionRequest,
     target["visual"] = None
     target["revision"] += 1
     return _change_project(session, project, payload.expected_revision, slides_json=slides)
+
+
+@router.patch("/{project_id}/draft/slides/{slide_id}/source-visibility", response_model=ProjectResponse)
+def source_visibility(project_id: str, slide_id: str, payload: SourceVisibilityRequest,
+                      session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    slides = deepcopy(project.slides_json)
+    target = next((row for row in slides if row["id"] == slide_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    target["show_source"] = payload.show_source
+    target["revision"] += 1
+    return _change_project(session, project, payload.expected_revision, slides_json=slides)
+
+
+@router.post("/{project_id}/draft/slides/{slide_id}/regenerate", response_model=ProjectResponse, status_code=202)
+def revise_slide(project_id: str, slide_id: str, payload: SlideRegenerateRequest, background: BackgroundTasks,
+                 session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    slides = deepcopy(project.slides_json)
+    target = next((row for row in slides if row["id"] == slide_id), None)
+    if project.phase not in {"outline_draft", "ready"} or not target or target["status"] != "ready":
+        raise HTTPException(status_code=422, detail="Wait for this slide before revising it")
+    if any(block["status"] == "generating" for block in target["blocks"].values()):
+        raise HTTPException(status_code=409, detail="This slide is already regenerating")
+    instruction = payload.instruction.strip()
+    if not instruction:
+        raise HTTPException(status_code=422, detail="Describe what should change on this slide")
+    try:
+        get_llm_service()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="AI provider is not configured for regeneration") from exc
+    target["revision_instruction"] = instruction
+    tokens = {}
+    for key in ("title", "body"):
+        block = target["blocks"][key]
+        block.update(status="generating", error=None, revision=block["revision"] + 1)
+        tokens[key] = block["revision"]
+    target["revision"] += 1
+    updated = _change_project(session, project, payload.expected_revision, slides_json=slides)
+    background.add_task(run_slide_revision, project_id, slide_id, tokens)
+    return updated
 
 
 @router.post("/{project_id}/draft/slides/{slide_id}/retry", response_model=ProjectResponse, status_code=202)
