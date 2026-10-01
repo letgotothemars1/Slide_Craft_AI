@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  approveOutline, createStarterOutline, getSourceCandidates, saveOutline,
+  approveOutline, createModelOutline, createStarterOutline, getSourceCandidates, saveOutline,
   type OutlineItem, type Project, type SourceRef,
 } from "@/lib/project-api";
 
@@ -74,8 +74,8 @@ export default function OutlineEditor({ project, onChange }: { project: Project;
     <section className="space-y-5" aria-label="Slide outline">
       <div className="rounded-xl border bg-white p-5 text-slate-900">
         <h2 className="text-xl font-semibold">Five-slide outline</h2>
-        <p className="mt-2 text-sm text-slate-600">The starter outline is a template, not an AI-generated argument. Check it against the assignment and Context Pack. Only excerpts you select from the attached PDF appear as source references.</p>
-        {project.phase === "intake" && <Button className="mt-4" disabled={busy} onClick={() => void run(() => createStarterOutline(project), "Starter outline created. Review every slide before approval.")}>Create starter outline</Button>}
+        <p className="mt-2 text-sm text-slate-600">Create an AI draft with your configured provider, or use the key-free template. Check either draft against the assignment and Context Pack. Only PDF excerpts you select appear as source references.</p>
+        {project.phase === "intake" && <div className="mt-4 flex flex-wrap gap-2"><Button disabled={busy} onClick={() => void run(() => createModelOutline(project), "AI outline created. Check every claim and select PDF evidence before approval.")}>Generate AI outline</Button><Button variant="outline" disabled={busy} onClick={() => void run(() => createStarterOutline(project), "Template outline created. Review every slide before approval.")}>Use key-free template</Button></div>}
       </div>
 
       {outline.map((item, index) => <article key={item.id} className="rounded-xl border border-slate-300 bg-white p-5 text-slate-900 shadow-sm">

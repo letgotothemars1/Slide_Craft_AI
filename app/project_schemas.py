@@ -94,6 +94,10 @@ class OutlineRevisionRequest(BaseModel):
     expected_revision: int = Field(ge=0)
 
 
+class OutlineGenerateRequest(OutlineRevisionRequest):
+    mode: Literal["template", "model"] = "template"
+
+
 class OutlineSaveRequest(OutlineRevisionRequest):
     outline: list[OutlineItem] = Field(min_length=5, max_length=5)
 
