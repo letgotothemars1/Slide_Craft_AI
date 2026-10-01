@@ -36,8 +36,8 @@ function SlidePreview({ project, slideId }: { project: Project; slideId: string 
   </div>;
 }
 
-export function BlockEditor({ project, slideId, blockKey, onChange }: {
-  project: Project; slideId: string; blockKey: BlockKey; onChange: (project: Project) => void;
+export function BlockEditor({ project, slideId, blockKey, onChange, roomy = false }: {
+  project: Project; slideId: string; blockKey: BlockKey; roomy?: boolean; onChange: (project: Project) => void;
 }) {
   const slide = project.slides.find((row) => row.id === slideId)!;
   const outline = project.outline.find((row) => row.id === slideId)!;
@@ -75,12 +75,12 @@ export function BlockEditor({ project, slideId, blockKey, onChange }: {
 
   return <fieldset className="space-y-2" aria-busy={generating}>
     <legend className="text-sm font-medium">{label}</legend>
-    {comparison ? <div className="grid gap-3 sm:grid-cols-2">{([0, 1] as const).map((index) =>
+    {comparison ? <div className={roomy ? "grid gap-4" : "grid gap-3 sm:grid-cols-2"}>{([0, 1] as const).map((index) =>
       <div key={index}><label className="text-xs text-muted-foreground" htmlFor={`comparison-${index}`}>{index === 0 ? "First point" : "Second point"}</label>
-        <Textarea id={`comparison-${index}`} rows={3} maxLength={240} value={parts[index]?.trim() ?? ""} disabled={disabled}
+        <Textarea id={`comparison-${index}`} rows={roomy ? 6 : 3} maxLength={240} value={parts[index]?.trim() ?? ""} disabled={disabled}
           onChange={(event) => { const updated = [...parts]; updated[index] = event.target.value; setDraft(`${updated[0] ?? ""} | ${updated[1] ?? ""}`); }} />
       </div>)}</div>
-      : blockKey === "body" ? <Textarea aria-label={label} id={`block-${blockKey}`} rows={4} value={draft} maxLength={500} disabled={disabled} onChange={(event) => setDraft(event.target.value)} />
+      : blockKey === "body" ? <Textarea aria-label={label} id={`block-${blockKey}`} rows={roomy ? 12 : 4} value={draft} maxLength={500} disabled={disabled} onChange={(event) => setDraft(event.target.value)} />
       : <Input aria-label={label} id={`block-${blockKey}`} value={draft} maxLength={200} disabled={disabled} onChange={(event) => setDraft(event.target.value)} />}
     <div className="flex flex-wrap gap-2">
       <Button size="sm" variant="outline" disabled={disabled || !dirty || !valid}

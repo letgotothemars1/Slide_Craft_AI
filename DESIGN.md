@@ -198,3 +198,6 @@ The canvas renders title, body, comparison panels, process steps, bars, and sour
 - Don't place editor controls inside the slide artifact.
 - Don't treat a suggested excerpt or copied chart numbers as verified evidence.
 - Don't apply a new identity to the existing application shell.
+
+### Canvas selection and inspector space (T24)
+Central canvas title, body, comparison columns and source label select/focus the corresponding inspector field; Enter/Space provide the same action. Hover/focus outlines mark editable elements without adding controls to the exported artifact. Thumbnail reorder arrows are sibling controls, visible on hover/focus and persistently visible for touch input, within the existing draft review phase. The desktop inspector is 340px, body fields use 12 rows, comparison fields stack, and source excerpts allow 320px of reading height. Unsaved block drafts survive switching inspector tabs for the selected slide.
