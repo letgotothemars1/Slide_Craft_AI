@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import ThemePicker from "@/components/ThemePicker";
+import { useLanguage } from "@/context/LanguageContext";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,14 +18,9 @@ Assignment constraints and exact wording to preserve
 Unresolved questions
 Distinguish verified information from assumptions. Do not invent sources or page numbers. Keep the answer concise so I can paste and edit it in SlideCraft AI.`;
 
-const themes = [
-  { value: "clean_editorial", label: "Clean editorial" },
-  { value: "dark_tech_pitch", label: "Dark tech" },
-  { value: "infographic_bright", label: "Bright infographic" },
-] as const;
-
 export default function NewProjectPage() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [assignment, setAssignment] = useState("");
   const [contextPack, setContextPack] = useState("");
   const [theme, setTheme] = useState<ProjectCreate["theme"]>("clean_editorial");
@@ -145,20 +142,18 @@ export default function NewProjectPage() {
           </section>
 
           <section className="rounded-xl border bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-semibold">3. Source PDF</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Use one public, synthetic or team-authored PDF for this course demo. Source text keeps its page numbers.</p>
-            <label htmlFor="source-pdf" className="mt-4 block text-sm font-medium">Attach one PDF</label>
+            <h2 className="text-lg font-semibold">{t("project.pdf.title")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("project.pdf.help")}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{t("project.pdf.example")}</p>
+            <label htmlFor="source-pdf" className="mt-4 block text-sm font-medium">{t("project.pdf.attach")}</label>
             <Input id="source-pdf" type="file" accept=".pdf,application/pdf" className="mt-2" disabled={uploading} onChange={(event) => void attachPdf(event.target.files?.[0])} />
-            <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">{uploading ? "Indexing PDF…" : filename ? `Attached: ${filename}` : "You can save without a PDF. Adding one later is not yet available."}</p>
+            <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">{uploading ? t("project.pdf.indexing") : filename ? t("project.pdf.attached", { filename }) : t("project.pdf.empty")}</p>
           </section>
 
           <section className="rounded-xl border bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-semibold">4. Theme</h2>
-            <p className="mt-1 text-sm text-muted-foreground">This choice is stored now and will be confirmed when you approve the outline.</p>
-            <label htmlFor="project-theme" className="mt-4 block text-sm font-medium">Visual theme</label>
-            <select id="project-theme" className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm" value={theme} onChange={(event) => setTheme(event.target.value as ProjectCreate["theme"])}>
-              {themes.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <h2 className="text-lg font-semibold">{t("project.theme.intake")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("project.theme.hint")}</p>
+            <div className="mt-4"><ThemePicker value={theme} onChange={setTheme} disabled={saving} /></div>
           </section>
 
           {notice && <p role="status" className="text-sm text-success-strong">{notice}</p>}
