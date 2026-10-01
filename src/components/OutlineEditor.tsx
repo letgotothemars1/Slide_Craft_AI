@@ -69,13 +69,13 @@ export default function OutlineEditor({ project, onChange }: { project: Project;
     replace(index, { evidence_refs: [...item.evidence_refs, candidate] });
   };
 
-  const approved = project.phase === "outline_approved";
+  const approved = !["intake", "outline_draft"].includes(project.phase);
   return (
     <section className="space-y-5" aria-label="Slide outline">
       <div className="rounded-xl border bg-white p-5 text-slate-900">
         <h2 className="text-xl font-semibold">Five-slide outline</h2>
         <p className="mt-2 text-sm text-slate-600">Create an AI draft with your configured provider, or use the key-free template. Check either draft against the assignment and Context Pack. Only PDF excerpts you select appear as source references.</p>
-        {project.phase === "intake" && <div className="mt-4 flex flex-wrap gap-2"><Button disabled={busy} onClick={() => void run(() => createModelOutline(project), "AI outline created. Check every claim and select PDF evidence before approval.")}>Generate AI outline</Button><Button variant="outline" disabled={busy} onClick={() => void run(() => createStarterOutline(project), "Template outline created. Review every slide before approval.")}>Use key-free template</Button></div>}
+        {project.phase === "intake" && <div className="mt-4 flex flex-wrap gap-2"><Button disabled={busy} onClick={() => void run(() => createModelOutline(project), "AI outline created. Check every claim and select PDF evidence before approval.")}>{busy ? "Generating outline…" : "Generate AI outline"}</Button><Button variant="outline" disabled={busy} onClick={() => void run(() => createStarterOutline(project), "Template outline created. Review every slide before approval.")}>Use key-free template</Button></div>}
       </div>
 
       {outline.map((item, index) => <article key={item.id} className="rounded-xl border border-slate-300 bg-white p-5 text-slate-900 shadow-sm">
@@ -84,9 +84,9 @@ export default function OutlineEditor({ project, onChange }: { project: Project;
           {!approved && <div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={index === 0 || busy} onClick={() => move(index, -1)} aria-label={`Move slide ${index + 1} up`}>↑</Button><Button type="button" size="sm" variant="outline" disabled={index === outline.length - 1 || busy} onClick={() => move(index, 1)} aria-label={`Move slide ${index + 1} down`}>↓</Button></div>}
         </div>
         <label className="mt-4 block text-sm font-medium" htmlFor={`title-${item.id}`}>Title</label>
-        <Input id={`title-${item.id}`} value={item.title} disabled={approved || busy} onChange={(event) => replace(index, { title: event.target.value })} className="mt-1" />
+        <Input id={`title-${item.id}`} value={item.title} maxLength={200} disabled={approved || busy} onChange={(event) => replace(index, { title: event.target.value })} className="mt-1" />
         <label className="mt-4 block text-sm font-medium" htmlFor={`message-${item.id}`}>Key message</label>
-        <Textarea id={`message-${item.id}`} value={item.key_message} disabled={approved || busy} onChange={(event) => replace(index, { key_message: event.target.value })} className="mt-1" rows={3} />
+        <Textarea id={`message-${item.id}`} value={item.key_message} maxLength={500} disabled={approved || busy} onChange={(event) => replace(index, { key_message: event.target.value })} className="mt-1" rows={3} />
         <div className="mt-4 border-t pt-3 text-sm">
           <p className="font-medium">PDF evidence</p>
           {item.evidence_refs.length === 0 && <p className="mt-1 text-amber-700">Source needed</p>}

@@ -1,6 +1,6 @@
 # MVP contract: frozen for M01 and M02 on 2026-09-28
 
-The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The local key-free path covers intake, outline editing and approval, one-slide-at-a-time build, block editing, and PPTX export. Outline generation also supports a configured model provider; model-based slide building and block regeneration remain planned. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The new modular journey lives under `/projects` and `/projects/:projectId`.
+The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The modular path covers intake, model or template outline generation, editing and approval, one-slide-at-a-time model or template build, block editing and regeneration, and PPTX export. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The modular journey lives under `/projects` and `/projects/:projectId`.
 
 ## State model
 
@@ -22,15 +22,18 @@ Every edit request carries an expected revision. If the current revision differs
 | `PUT /projects/{id}/outline` | Save text/order edits with `expected_revision`. | Updated outline and revision |
 | `POST /projects/{id}/outline/approve` | Freeze thesis/order/theme for this build. | `outline_approved` state |
 | `GET /projects/{id}/source-candidates` | List page-numbered PDF excerpts for manual selection. | `SourceRef[]` |
-| `POST /projects/{id}/build` | Start a background loop that copies each approved outline item into one editable slide, then saves it before the next. | 202 + project state |
+| `POST /projects/{id}/build` | With `expected_revision` and `mode: "model"`, generate each slide body in a separate model call; `mode: "template"` (the default) copies approved outline text. Save each slide before the next. | 202 + project state |
 | `PATCH /projects/{id}/slides/{slide_id}/blocks/{block_key}` | Edit one ready block with `expected_revision`. | Updated block and revision |
+| `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/regenerate` | Regenerate title/body using the configured provider. Return immediately; poll block status. | 202 + project state |
 | `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/reset-from-outline` | Restore only a title or body from the approved outline. | Updated project and revision |
 | `POST /projects/{id}/slides/{slide_id}/retry` | Retry one failed slide without restarting ready slides. | 202 + project state |
 | `GET /projects/{id}/export.pptx` | Render the current accepted slide state. | PPTX download |
 
 Reuse existing `POST /documents/upload` for the one PDF, but adjust page extraction before presenting source references. Polling is sufficient for the three-week MVP; server-sent events are an upgrade, not a gate. Use existing auth only if local demo requires it; do not redesign authentication.
 
-The key-free local demo uses a five-slide starter template for `/outline/generate` and copies approved title/message text into slides during build. The model mode drafts the outline from assignment, Context Pack and source candidates. In both modes, only manually selected PDF excerpts become `evidence_refs`; the student must check them before approval and export. Slide building still copies approved outline text.
+The project response persists `build_mode` (`template` or `model`). A failed slide's retry uses that mode. The approved outline title and selected PDF source label remain fixed during model slide building; the model writes only the slide body. A comparison body has two explicit fields in the model response, displayed as two editable points.
+
+Template mode copies labeled Context Pack fields into a starter outline and approved text into slides without model calls. Model outline generation drafts five items using the assignment, Context Pack and source candidates. In both modes, only manually selected PDF excerpts become `evidence_refs`; the student must check them before approval and export.
 
 ## Source rules
 
@@ -59,3 +62,13 @@ Use three layouts with tested PPTX equivalents: title, content, comparison/concl
 ```
 
 The example shows field shape, not a requirement to use those exact words or IDs. M00 should add a checked-in fixture matching the final API so both developers can work independently.
+
+## Block regeneration
+
+T15 marks only the requested title/body as `generating` and increments its revision before calling the model. A second request for that block returns 409. Other blocks stay editable. A manual edit or reset to the target supersedes its pending model result; the worker saves only if the target revision and status still match its start token. Failures retain previous text and return block `status: error` with a safe `error` message. Retry starts a new revision. Export waits for pending block generation; failed regeneration leaves the accepted text exportable.
+
+## Local recovery and export constraints
+
+Run one API process/worker for this MVP. Background tasks are in memory. Startup marks interrupted queued/generating slides retryable and interrupted block generations as errors while retaining accepted text. This recovery is not a distributed job queue and must not be used with multiple workers.
+
+Accepted titles are limited to 200 characters, outline key messages and slide bodies to 500. Comparison edits require exactly two nonempty points separated internally by `|`. Export refuses pending slides or block generations. Browser download surfaces API errors and exports the current persisted state.

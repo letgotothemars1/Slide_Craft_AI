@@ -12,13 +12,15 @@ from sqlalchemy.orm import Session
 from app import repository
 from app.db import Project, get_session
 from app.project_schemas import (
-    BlockEditRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
+    BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
     ProjectCreateRequest, ProjectResponse, SourceRef,
 )
 from app.services.outline_service import starter_outline
 from app.services.project_outline_llm import generate_model_outline
 from app.services.modular_build import queued_slide, run_build
 from app.services.modular_export import render_project_pptx
+from app.services.llm_service import get_llm_service
+from app.services.modular_regenerate import run_regeneration
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -144,6 +146,8 @@ def save_outline(project_id: str, payload: OutlineSaveRequest, session: Session 
         raise HTTPException(status_code=422, detail="Slide order must be 1 through 5")
     if any(not item.title.strip() or not item.key_message.strip() or not item.purpose.strip() for item in items):
         raise HTTPException(status_code=422, detail="Every slide needs a purpose, title and key message")
+    if any(len(item.title) > 200 or len(item.key_message) > 500 for item in items):
+        raise HTTPException(status_code=422, detail="Keep titles under 200 characters and key messages under 500")
     source = repository.get_document(session, project.source_document_id) if project.source_document_id else None
     chunks = {(chunk.page_number, chunk.chunk_text[:600]) for chunk in repository.list_document_chunks(session, source.id)} if source else set()
     for item in items:
@@ -166,18 +170,22 @@ def approve_outline(project_id: str, payload: OutlineApproveRequest, session: Se
 
 
 @router.post("/{project_id}/build", response_model=ProjectResponse, status_code=202)
-def build_project(project_id: str, payload: OutlineRevisionRequest, background: BackgroundTasks,
+def build_project(project_id: str, payload: BuildRequest, background: BackgroundTasks,
                   session: Session = Depends(get_session)) -> ProjectResponse:
     project = _editable_project(session, project_id)
     _require_revision(session, project, payload.expected_revision)
     if project.phase != "outline_approved" or len(project.outline_json) != 5:
         raise HTTPException(status_code=422, detail="Approve the five-slide outline first")
+    if payload.mode == "model":
+        try:
+            get_llm_service()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="AI provider is not configured for slide building") from exc
     slides = [queued_slide(item).model_dump() for item in repository.project_response(session, project).outline]
     updated = _change_project(session, project, payload.expected_revision,
-                              phase="building", slides_json=slides)
-    # Pace the explicit key-free demo so observers can see and edit ready slides
-    # while later slides are queued. The worker still persists real states.
-    background.add_task(run_build, project_id, pause_seconds=0.8)
+                              phase="building", slides_json=slides, build_mode=payload.mode)
+    # Pace only the key-free demo; model calls provide their own visible progress.
+    background.add_task(run_build, project_id, pause_seconds=0.8 if payload.mode == "template" else 0.0)
     return updated
 
 
@@ -197,7 +205,15 @@ def edit_slide_block(project_id: str, slide_id: str, block_key: str, payload: Bl
         raise HTTPException(status_code=404, detail="Slide not found")
     if target["status"] != "ready":
         raise HTTPException(status_code=422, detail="Slide is not ready for editing")
+    if block_key == "body":
+        if len(text) > 500:
+            raise HTTPException(status_code=422, detail="Keep slide body text under 500 characters")
+        item = next(item for item in project.outline_json if item["id"] == slide_id)
+        if item["layout_type"] == "comparison" and (len(text.split("|")) != 2 or not all(part.strip() for part in text.split("|"))):
+            raise HTTPException(status_code=422, detail="Comparison slides need two points separated by |")
     target["blocks"][block_key]["text"] = text
+    target["blocks"][block_key]["status"] = "ready"
+    target["blocks"][block_key]["error"] = None
     target["blocks"][block_key]["revision"] += 1
     target["revision"] += 1
     return _change_project(session, project, payload.expected_revision, slides_json=slides)
@@ -218,9 +234,38 @@ def reset_slide_block(project_id: str, slide_id: str, block_key: str, payload: O
     if target["status"] != "ready":
         raise HTTPException(status_code=422, detail="Slide is not ready")
     target["blocks"][block_key]["text"] = item["title" if block_key == "title" else "key_message"]
+    target["blocks"][block_key]["status"] = "ready"
+    target["blocks"][block_key]["error"] = None
     target["blocks"][block_key]["revision"] += 1
     target["revision"] += 1
     return _change_project(session, project, payload.expected_revision, slides_json=slides)
+
+
+@router.post("/{project_id}/slides/{slide_id}/blocks/{block_key}/regenerate", response_model=ProjectResponse, status_code=202)
+def regenerate_slide_block(project_id: str, slide_id: str, block_key: str, payload: OutlineRevisionRequest,
+                           background: BackgroundTasks, session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if block_key not in {"title", "body"}:
+        raise HTTPException(status_code=404, detail="Only title and body can be regenerated")
+    slides = deepcopy(project.slides_json)
+    target = next((slide for slide in slides if slide["id"] == slide_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    if target["status"] != "ready":
+        raise HTTPException(status_code=422, detail="Slide is not ready")
+    block = target["blocks"][block_key]
+    if block["status"] == "generating":
+        raise HTTPException(status_code=409, detail="This block is already regenerating. Refresh to see its progress.")
+    try:
+        get_llm_service()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="AI provider is not configured for regeneration") from exc
+    block.update(status="generating", revision=block["revision"] + 1, error=None)
+    target["revision"] += 1
+    updated = _change_project(session, project, payload.expected_revision, slides_json=slides)
+    background.add_task(run_regeneration, project_id, slide_id, block_key, block["revision"])
+    return updated
 
 
 @router.post("/{project_id}/slides/{slide_id}/retry", response_model=ProjectResponse, status_code=202)
@@ -245,6 +290,9 @@ def export_project_pptx(project_id: str, session: Session = Depends(get_session)
     response = repository.project_response(session, project)
     if response.phase != "ready":
         raise HTTPException(status_code=422, detail="All slides must be ready before export")
+    if any(block.status == "generating" for slide in response.slides
+           for block in (slide.blocks.title, slide.blocks.body, slide.blocks.source_label)):
+        raise HTTPException(status_code=422, detail="Wait for block regeneration to finish before exporting")
     try:
         data = render_project_pptx(response)
     except ValueError as exc:

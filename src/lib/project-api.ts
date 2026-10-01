@@ -11,6 +11,7 @@ const blockSchema = z.object({
   text: z.string(),
   status: z.enum(["ready", "generating", "error"]),
   revision: z.number().int().nonnegative(),
+  error: z.string().nullable().optional(),
 });
 
 export const projectSchema = z.object({
@@ -23,6 +24,7 @@ export const projectSchema = z.object({
   source_document_id: z.string().nullable(),
   source_filename: z.string().nullable(),
   theme: z.enum(["clean_editorial", "dark_tech_pitch", "infographic_bright"]),
+  build_mode: z.enum(["template", "model"]).default("template"),
   outline: z.array(z.object({
     id: z.string(),
     order: z.number().int().positive(),
@@ -126,8 +128,8 @@ export function approveOutline(project: Project, theme: Project["theme"]): Promi
   return projectRequest(project.id, "/outline/approve", "POST", { expected_revision: project.revision, theme });
 }
 
-export function buildProject(project: Project): Promise<Project> {
-  return projectRequest(project.id, "/build", "POST", { expected_revision: project.revision });
+export function buildProject(project: Project, mode: "template" | "model" = "template"): Promise<Project> {
+  return projectRequest(project.id, "/build", "POST", { expected_revision: project.revision, mode });
 }
 
 export function editSlideBlock(project: Project, slideId: string, blockKey: "title" | "body" | "source_label", text: string): Promise<Project> {
@@ -138,6 +140,12 @@ export function editSlideBlock(project: Project, slideId: string, blockKey: "tit
 
 export function resetBlockFromOutline(project: Project, slideId: string, blockKey: "title" | "body"): Promise<Project> {
   return projectRequest(project.id, `/slides/${encodeURIComponent(slideId)}/blocks/${blockKey}/reset-from-outline`, "POST", {
+    expected_revision: project.revision,
+  });
+}
+
+export function regenerateBlock(project: Project, slideId: string, blockKey: "title" | "body"): Promise<Project> {
+  return projectRequest(project.id, `/slides/${encodeURIComponent(slideId)}/blocks/${blockKey}/regenerate`, "POST", {
     expected_revision: project.revision,
   });
 }
@@ -158,4 +166,20 @@ export async function getSourceCandidates(projectId: string): Promise<SourceRef[
   const response = await fetch(`${apiBase}/projects/${encodeURIComponent(projectId)}/source-candidates`);
   if (!response.ok) throw new Error(`Source request failed: ${response.status}`);
   return z.array(sourceRefSchema).parse(await response.json());
+}
+
+export async function downloadProjectPptx(projectId: string): Promise<void> {
+  const response = await fetch(exportPptxUrl(projectId));
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(typeof data?.detail === "string" ? data.detail : "PPTX could not be downloaded. Try again.");
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `slidecraft-${projectId}.pptx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

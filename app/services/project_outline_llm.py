@@ -17,7 +17,7 @@ class _DraftItem(BaseModel):
 
     purpose: str = Field(min_length=1, max_length=160)
     title: str = Field(min_length=1, max_length=160)
-    key_message: str = Field(min_length=1, max_length=600)
+    key_message: str = Field(min_length=1, max_length=500)
     layout_type: Literal["title", "content", "comparison"]
 
 

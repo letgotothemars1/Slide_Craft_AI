@@ -1,7 +1,7 @@
 """Persist one project slide at a time from the approved outline.
 
-The local path copies approved text without claiming model generation. A model
-builder can be injected later without changing the revision-safe state loop.
+The key-free path copies approved text. Model mode writes one validated body
+per slide while keeping approved titles and selected source labels fixed.
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def _finish(project_id: str) -> None:
     _mutate(project_id, change)
 
 
-def run_build(project_id: str, builder: SlideBuilder = build_slide_from_outline,
+def run_build(project_id: str, builder: SlideBuilder | None = None,
               after_slide: Callable[[str], None] | None = None,
               only_slide_id: str | None = None, pause_seconds: float = 0.0) -> None:
     """Build eligible slides in approved order and persist each result."""
@@ -123,7 +123,14 @@ def run_build(project_id: str, builder: SlideBuilder = build_slide_from_outline,
             current = next(slide for slide in project.slides_json if slide["id"] == item.id)
             started_revision = current["revision"]
         try:
-            ready = builder(item)
+            if builder is not None:
+                ready = builder(item)
+            elif project.build_mode == "model":
+                from app.services.modular_slide_llm import generate_slide_body
+                ready = build_slide_from_outline(item)
+                ready.blocks.body.text = generate_slide_body(project, item)
+            else:
+                ready = build_slide_from_outline(item)
             if ready.id != item.id or ready.status != "ready":
                 raise ValueError("Slide builder returned an invalid slide")
             if not _set_slide(project_id, item.id, status="ready", ready=ready,

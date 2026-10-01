@@ -14,6 +14,7 @@ SlideStatus = Literal["queued", "generating", "ready", "error"]
 BlockStatus = Literal["ready", "generating", "error"]
 Theme = Literal["clean_editorial", "dark_tech_pitch", "infographic_bright"]
 LayoutType = Literal["title", "content", "comparison"]
+BuildMode = Literal["template", "model"]
 
 
 class SourceRef(BaseModel):
@@ -43,6 +44,7 @@ class SlideBlock(BaseModel):
     text: str
     status: BlockStatus
     revision: int = Field(ge=0)
+    error: str | None = None
 
 
 class SlideBlocks(BaseModel):
@@ -74,6 +76,7 @@ class ProjectResponse(BaseModel):
     source_document_id: str | None
     source_filename: str | None = None
     theme: Theme
+    build_mode: BuildMode = "template"
     outline: list[OutlineItem]
     slides: list[ProjectSlide]
 
@@ -94,8 +97,12 @@ class OutlineRevisionRequest(BaseModel):
     expected_revision: int = Field(ge=0)
 
 
+class BuildRequest(OutlineRevisionRequest):
+    mode: BuildMode = "template"
+
+
 class OutlineGenerateRequest(OutlineRevisionRequest):
-    mode: Literal["template", "model"] = "template"
+    mode: BuildMode = "template"
 
 
 class OutlineSaveRequest(OutlineRevisionRequest):

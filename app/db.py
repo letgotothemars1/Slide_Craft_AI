@@ -159,6 +159,7 @@ class Project(Base):
     context_pack_text: Mapped[str] = mapped_column(Text, nullable=False)
     source_document_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     theme: Mapped[str] = mapped_column(String(32), nullable=False)
+    build_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="template")
     outline_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     slides_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -283,6 +284,7 @@ def _run_startup_migrations() -> None:
         dialect = conn.dialect.name
         try:
             if dialect == "postgresql":
+                conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS build_mode VARCHAR(16) NOT NULL DEFAULT 'template'"))
                 conn.execute(text("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS page_number INTEGER"))
                 conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS document_id VARCHAR(64)"))
                 # Keep email uniqueness guaranteed even on old environments.
@@ -303,6 +305,9 @@ def _run_startup_migrations() -> None:
                     text("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username)")
                 )
             elif dialect == "sqlite":
+                project_rows = conn.execute(text("PRAGMA table_info(projects)")).fetchall()
+                if "build_mode" not in {row[1] for row in project_rows}:
+                    conn.execute(text("ALTER TABLE projects ADD COLUMN build_mode VARCHAR(16) NOT NULL DEFAULT 'template'"))
                 chunk_rows = conn.execute(text("PRAGMA table_info(document_chunks)")).fetchall()
                 if "page_number" not in {row[1] for row in chunk_rows}:
                     conn.execute(text("ALTER TABLE document_chunks ADD COLUMN page_number INTEGER"))

@@ -136,6 +136,8 @@ def on_startup() -> None:
     # For MVP: create tables automatically.
     # Production recommendation: switch to Alembic migrations.
     init_db()
+    from app.services.modular_recovery import recover_interrupted_work
+    recover_interrupted_work()
 
 
 def _ensure_admin_flag(session: Session, user) -> bool:
