@@ -14,6 +14,7 @@ export function isLanguage(value: unknown): value is Language {
  * silently shipping a missing translation.
  */
 const dictionary = {
+  "project.demo.unavailable": { ru: "Не удалось загрузить пример. Проверь соединение и попробуй ещё раз.", en: "The example could not be loaded. Check your connection and try again." },
   "project.theme.label": { ru: "Оформление слайдов", en: "Visual theme" },
   "project.theme.intake": { ru: "4. Оформление слайдов", en: "4. Slide theme" },
   "project.theme.hint": { ru: "Выбери оформление одним нажатием. Перед утверждением плана его можно изменить.", en: "Choose a style with one click. You can change it before approving the outline." },

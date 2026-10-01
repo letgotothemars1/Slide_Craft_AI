@@ -37,7 +37,6 @@ export default function ThemePicker({ value, onChange, disabled = false }: {
             <div className="min-w-0 sm:flex sm:flex-1 sm:flex-col">
               <p className="text-sm font-semibold">{t(option.title)}</p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t(option.description)}</p>
-              <p className={`pt-3 text-xs font-semibold sm:mt-auto ${selected ? "text-primary" : "text-muted-foreground"}`}>{selected ? t("project.theme.selected") : t("project.theme.choose")}</p>
             </div>
           </div>
         </label>;

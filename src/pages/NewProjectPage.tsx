@@ -28,6 +28,7 @@ export default function NewProjectPage() {
   const [filename, setFilename] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [demoError, setDemoError] = useState("");
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -68,6 +69,7 @@ export default function NewProjectPage() {
 
   const loadDemo = async () => {
     setLoadingDemo(true);
+    setDemoError("");
     setError("");
     setNotice("");
     try {
@@ -77,7 +79,7 @@ export default function NewProjectPage() {
       const attached = await attachPdf(new File([pdf], materials.source_filename, { type: "application/pdf" }));
       if (attached) setNotice("Synthetic example loaded with its two-page PDF. Review the inputs, then save the project.");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Demo example could not be loaded.");
+      setDemoError(reason instanceof TypeError ? t("project.demo.unavailable") : reason instanceof Error ? reason.message : t("project.demo.unavailable"));
     } finally {
       setLoadingDemo(false);
     }
@@ -122,6 +124,7 @@ export default function NewProjectPage() {
           <p className="mt-1 text-sm text-muted-foreground">Load a fictional campus case, including a two-page PDF. All figures are synthetic.</p>
           <Button type="button" variant="outline" className="mt-3" disabled={loadingDemo || uploading || saving} onClick={() => void loadDemo()}>{loadingDemo ? "Loading example…" : "Load synthetic demo example"}</Button>
           <a className="ml-4 inline-block text-sm underline" href={`${(import.meta.env.VITE_API_BASE_URL as string) || ""}/projects/demo/source.pdf`} download>Download the sample PDF</a>
+          {demoError && <p role="alert" className="mt-3 text-sm text-destructive">{demoError}</p>}
         </div>
 
         <form onSubmit={save} className="mt-8 space-y-7">
