@@ -63,17 +63,69 @@ def get_user_by_id(session: Session, user_id: str) -> User | None:
     return session.query(User).filter(User.id == user_id).one_or_none()
 
 
-def create_user(session: Session, *, email: str, password_hash: str) -> User:
-    """Create user with pre-hashed password."""
+def get_user_by_username(session: Session, username: str) -> User | None:
+    """Find user by username — used to reject duplicates before writing."""
+    return session.query(User).filter(User.username == username).one_or_none()
+
+
+def create_user(
+    session: Session,
+    *,
+    email: str,
+    password_hash: str,
+    username: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+) -> User:
+    """Create user with pre-hashed password. Profile fields are optional."""
     now = _utc_now()
     user = User(
         id=str(uuid4()),
         email=email,
         password_hash=password_hash,
+        username=username,
+        first_name=first_name,
+        last_name=last_name,
         created_at=now,
         updated_at=now,
     )
     session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def update_user_profile(
+    session: Session,
+    user: User,
+    *,
+    username: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+) -> User:
+    """
+    Apply a partial profile update.
+
+    `None` means "field not supplied, leave it alone". Clearing a field is done
+    by sending an empty string, which the request schema normalizes to None and
+    the caller translates into an explicit `""` sentinel.
+    """
+    if username is not None:
+        user.username = username or None
+    if first_name is not None:
+        user.first_name = first_name or None
+    if last_name is not None:
+        user.last_name = last_name or None
+    user.updated_at = _utc_now()
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def update_user_password(session: Session, user: User, *, password_hash: str) -> User:
+    """Replace the stored password hash."""
+    user.password_hash = password_hash
+    user.updated_at = _utc_now()
     session.commit()
     session.refresh(user)
     return user

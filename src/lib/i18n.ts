@@ -157,6 +157,11 @@ const dictionary = {
   "cta.button": { ru: "Начать бесплатно", en: "Get started" },
 
   // ── generate page / composer ──
+  // Split rather than one interpolated string, so the name itself can carry the
+  // accent gradient while the surrounding words stay plain.
+  "gen.greetingPrefix": { ru: "Привет,", en: "Hi" },
+  "gen.greetingSuffix": { ru: "!", en: "!" },
+  "gen.greetingQuestion": { ru: "Что сегодня делаем?", en: "What are we making today?" },
   "gen.title": { ru: "О чём презентация?", en: "What is the deck about?" },
   "gen.subtitle": {
     ru: "Опишите тему своими словами. Остальное подберётся само — структуру, графику и вёрстку сервис соберёт под ваш запрос.",
@@ -234,6 +239,46 @@ const dictionary = {
   "auth.submitSignup": { ru: "Создать аккаунт", en: "Create account" },
   "auth.pending": { ru: "Подождите…", en: "One moment…" },
   "auth.error": { ru: "Не удалось выполнить авторизацию", en: "Could not sign you in" },
+
+  // ── account ──
+  "account.title": { ru: "Личный кабинет", en: "Your account" },
+  "account.open": { ru: "Открыть личный кабинет", en: "Open your account" },
+  "account.memberSince": { ru: "С нами с", en: "Member since" },
+  "account.adminBadge": { ru: "Администратор", en: "Administrator" },
+  "account.profile": { ru: "Профиль", en: "Profile" },
+  "account.emailLabel": { ru: "Электронная почта", en: "Email" },
+  "account.emailHint": {
+    ru: "Используется для входа. Сменить адрес пока нельзя.",
+    en: "Used to sign in. The address cannot be changed yet.",
+  },
+  "account.security": { ru: "Безопасность", en: "Security" },
+  "account.currentPassword": { ru: "Текущий пароль", en: "Current password" },
+  "account.newPassword": { ru: "Новый пароль", en: "New password" },
+  "account.repeatPassword": { ru: "Повторите новый пароль", en: "Repeat new password" },
+  "account.changePassword": { ru: "Сменить пароль", en: "Change password" },
+  "account.passwordSaved": { ru: "Пароль обновлён", en: "Password updated" },
+  "account.username": { ru: "Юзернейм", en: "Username" },
+  "account.usernameHint": {
+    ru: "Латиница, цифры, точка, дефис или подчёркивание. От 3 символов.",
+    en: "Latin letters, digits, dot, hyphen or underscore. At least 3 characters.",
+  },
+  "account.firstName": { ru: "Имя", en: "First name" },
+  "account.lastName": { ru: "Фамилия", en: "Last name" },
+  "account.saveProfile": { ru: "Сохранить", en: "Save" },
+  "account.saving": { ru: "Сохраняем…", en: "Saving…" },
+  "account.profileSaved": { ru: "Профиль обновлён", en: "Profile updated" },
+  "account.noName": { ru: "Имя не указано", en: "No name set" },
+  "account.error.passwordShort": {
+    ru: "Новый пароль должен быть не короче 8 символов",
+    en: "The new password must be at least 8 characters",
+  },
+  "account.error.passwordMismatch": { ru: "Пароли не совпадают", en: "The passwords do not match" },
+  "account.error.passwordSame": {
+    ru: "Новый пароль совпадает с текущим",
+    en: "The new password matches the current one",
+  },
+  "account.historyCount": { ru: "Всего генераций", en: "Generations" },
+  "account.logout": { ru: "Выйти из аккаунта", en: "Log out" },
 
   // ── history ──
   "history.title": { ru: "История генераций", en: "Generation history" },
@@ -350,8 +395,18 @@ const dictionary = {
 
 export type TranslationKey = keyof typeof dictionary;
 
-export function translate(key: TranslationKey, language: Language): string {
-  return dictionary[key][language];
+export function translate(
+  key: TranslationKey,
+  language: Language,
+  vars?: Record<string, string | number>,
+): string {
+  const template = dictionary[key][language];
+  if (!vars) return template;
+  // `{name}` style placeholders. Kept deliberately dumb — anything richer
+  // belongs in the component, not in the dictionary.
+  return template.replace(/\{(\w+)\}/g, (match, name) =>
+    name in vars ? String(vars[name]) : match,
+  );
 }
 
 /**

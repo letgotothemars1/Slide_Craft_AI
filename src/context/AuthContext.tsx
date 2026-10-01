@@ -2,10 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   type AuthSession,
   type AuthUser,
+  type ProfileFields,
+  changePassword as changePasswordRequest,
   login as loginWithPassword,
   logout as logoutFromStorage,
   restoreSession,
   signup as signupWithPassword,
+  updateProfile as updateProfileRequest,
 } from "@/lib/auth";
 
 interface AuthContextValue {
@@ -15,8 +18,10 @@ interface AuthContextValue {
   isAdmin: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, profile?: ProfileFields) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (profile: ProfileFields) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -46,9 +51,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(nextSession);
   }, []);
 
-  const signup = useCallback(async (email: string, password: string) => {
-    const nextSession = await signupWithPassword(email, password);
-    setSession(nextSession);
+  const signup = useCallback(
+    async (email: string, password: string, profile: ProfileFields = {}) => {
+      const nextSession = await signupWithPassword(email, password, profile);
+      setSession(nextSession);
+    },
+    [],
+  );
+
+  // Both of these return a refreshed session, so the header avatar and the
+  // greeting update the moment the request resolves.
+  const updateProfile = useCallback(async (profile: ProfileFields) => {
+    setSession(await updateProfileRequest(profile));
+  }, []);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    setSession(await changePasswordRequest(currentPassword, newPassword));
   }, []);
 
   const logout = useCallback(async () => {
@@ -66,8 +84,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       signup,
       logout,
+      updateProfile,
+      changePassword,
     }),
-    [session, isLoading, login, signup, logout],
+    [session, isLoading, login, signup, logout, updateProfile, changePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

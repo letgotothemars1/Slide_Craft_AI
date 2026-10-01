@@ -402,14 +402,18 @@ export default function LandingPage() {
                     {t("footer.create")}
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    to="/history"
-                    className="rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    {t("footer.history")}
-                  </Link>
-                </li>
+                {/* Only for signed-in visitors: an anonymous one has no account
+                    to open, and the link would just bounce them to the login. */}
+                {user && (
+                  <li>
+                    <Link
+                      to="/account"
+                      className="rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {t("account.title")}
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <a
                     href="#how-it-works"

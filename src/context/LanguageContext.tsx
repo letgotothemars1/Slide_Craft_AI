@@ -10,8 +10,8 @@ import {
 interface LanguageContextValue {
   language: Language;
   setLanguage: (language: Language) => void;
-  /** Looks up a UI string in the active language. */
-  t: (key: TranslationKey) => string;
+  /** Looks up a UI string in the active language; `vars` fills `{placeholders}`. */
+  t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
@@ -38,7 +38,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     () => ({
       language,
       setLanguage,
-      t: (key: TranslationKey) => translate(key, language),
+      t: (key: TranslationKey, vars?: Record<string, string | number>) =>
+        translate(key, language, vars),
     }),
     [language, setLanguage],
   );
