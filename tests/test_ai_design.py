@@ -28,6 +28,8 @@ class AIDesignTest(unittest.TestCase):
         Base.metadata.create_all(self.engine); self.sessions=sessionmaker(bind=self.engine)
         self.patches=[patch.object(module,'SessionLocal',self.sessions) for module in (ai_design,modular_build,modular_recovery)]
         self.patches.append(patch('app.routers.projects.get_llm_service',return_value=object()))
+        self.patches.append(patch('app.services.design_quality.review_design',return_value={'approved':True,'issues':[],'arrangement':'columns'}))
+        self.patches.append(patch('app.services.design_quality.render_scene',return_value=(b'png',[])))
         for p in self.patches: p.start()
         with self.sessions() as session:
             project=repository.create_project(session,ProjectCreateRequest(assignment_text='Five slides',context_pack_text='Thesis: cautious'))
@@ -174,3 +176,42 @@ class AIDesignTest(unittest.TestCase):
         self.assertEqual(len({slide.scene[0].color for slide in after.slides}),1)
         deck=Presentation(BytesIO(render_project_pptx(after)))
         self.assertIn('Staff review',' '.join(shape.text for shape in deck.slides[1].shapes if shape.has_text_frame))
+
+    def test_quality_refinement_is_bounded_and_preserves_content(self):
+        before=self.state(); self.start(); calls=[]
+        def compose(project,item,slide,previous,feedback=None):
+            calls.append((item.id,feedback)); return self.plan(project,item,slide,previous)
+        reviews=[{'approved':False,'issues':['Crowded columns'],'arrangement':'rows'}]+[{'approved':True,'issues':[],'arrangement':'rows'}]*5
+        with patch.object(ai_design,'generate_design',side_effect=compose),patch('app.services.design_quality.review_design',side_effect=reviews): ai_design.run_design(self.id)
+        after=self.state()
+        self.assertEqual(after.phase,'ready'); self.assertEqual(after.slides[0].quality_attempts,2)
+        self.assertEqual(len(calls),6); self.assertEqual(calls[1][1]['issues'],['Crowded columns'])
+        self.assertEqual(after.slides[0].design.arrangement,'rows')
+        self.assertEqual([r.blocks for r in after.slides],[r.blocks for r in before.slides])
+
+    def test_quality_failure_keeps_candidate_and_blocks_export(self):
+        self.start()
+        with patch.object(ai_design,'generate_design',side_effect=lambda *args,**kwargs:self.plan(*args)),patch('app.services.design_quality.review_design',return_value={'approved':False,'issues':['Unreadable text'],'arrangement':'rows'}): ai_design.run_design(self.id)
+        after=self.state(); self.assertEqual(after.phase,'outline_draft')
+        self.assertTrue(all(r.design_status=='error' and r.quality_attempts==3 and r.design for r in after.slides))
+        with self.assertRaises(ValueError):render_project_pptx(after)
+
+    def test_section_edit_keeps_data_bindings_and_invalidates_only_its_design(self):
+        from app.project_schemas import SectionEditRequest, SlideSection
+        from app.routers.projects import edit_sections
+        from app.services.semantic_sections import validated_sections
+        sections=validated_sections([{'heading':'Staff review','text':'Staff review takes 18 minutes.'},{'heading':'Maintenance','text':'Maintenance takes two hours.'}], 'Staff review takes 18 minutes. Maintenance takes two hours.','s2')
+        with self.assertRaisesRegex(ValueError,'every accepted word'):validated_sections([{'heading':'Other','text':'Staff review takes 20 minutes.'}],'Staff review takes 18 minutes.','s2')
+        self.start()
+        with patch.object(ai_design,'generate_design',side_effect=self.plan):ai_design.run_design(self.id)
+        before=self.state()
+        with self.sessions() as session:after=edit_sections(self.id,'s2',SectionEditRequest(expected_revision=before.revision,sections=sections),session)
+        self.assertEqual(after.slides[1].sections,sections)
+        self.assertIsNone(after.slides[1].design)
+        self.assertEqual(after.slides[0].design,before.slides[0].design)
+        from app.services.design_scene import build_scene
+        from app.services.design_quality import render_scene
+        slide=after.slides[1].model_copy(update={'design':DesignPlan(layout='editorial',emphasis='quiet',rationale='Keep sections',arrangement='rows')})
+        scene=build_scene(slide,after.theme,2)
+        self.assertEqual({e.section_id for e in scene if e.section_id},{s.id for s in sections})
+        self.assertEqual([e.text for e in scene if e.section_field=='text'],[s.text for s in sections])

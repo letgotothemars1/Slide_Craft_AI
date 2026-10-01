@@ -49,7 +49,7 @@ class LiveDraftTest(unittest.TestCase):
                 with sessions() as session:
                     project = repository.create_project(session,ProjectCreateRequest(assignment_text='Five slides',context_pack_text='Thesis: cautious'))
                     queued = start_draft(project.id,BuildRequest(expected_revision=0),BackgroundTasks(),session)
-                def generate(current,item,on_partial,on_visual):
+                def generate(current,item,on_partial,on_visual,on_sections=None):
                     on_partial('First text')
                     with sessions() as session:
                         state = repository.project_response(session,repository.get_project(session,project.id))

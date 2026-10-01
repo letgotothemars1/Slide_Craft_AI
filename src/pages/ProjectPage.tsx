@@ -13,7 +13,7 @@ export default function ProjectPage() {
   const acceptProject = (fresh: Project) => setProject((current) =>
     current && fresh.id === current.id && fresh.revision < current.revision ? current : fresh
   );
-  const working = project?.phase === "designing" || project?.phase === "drafting" || project?.phase === "building" || project?.slides.some((slide) =>
+  const working = project?.phase === "designing" || project?.phase === "drafting" || project?.phase === "building" || project?.slides.some((slide) => slide.sections_status === "generating" ||
     Object.values(slide.blocks).some((block) => block.status === "generating")
   );
 

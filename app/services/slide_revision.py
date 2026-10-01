@@ -69,7 +69,7 @@ def run_slide_revision(project_id, slide_id, tokens):
             block.update(text=result.get(key, original['blocks'][key]['text']), status='error' if error else 'ready',
                          error=error, revision=token + 1)
             if not error:
-                target.update(design=None,design_status='none',design_error=None)
+                target.update(design=None,design_status='none',design_error=None,sections=[],sections_status='none',design_stage='none',quality_issues=[])
             if key == 'body' and not error:
                 target['visual'] = visuals[0].model_dump() if visuals and visuals[0] else None
             changed = True

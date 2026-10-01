@@ -3,10 +3,10 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import LiveDraftEditor from './LiveDraftEditor';
 import {LanguageProvider} from '@/context/LanguageContext';
 import {LANGUAGE_STORAGE_KEY} from '@/lib/i18n';
-import {projectSchema, saveOutline, regenerateWholeSlide, setSlideSourceVisibility, startAIDesign, retryAIDesign} from '@/lib/project-api';
+import {projectSchema, saveOutline, regenerateWholeSlide, setSlideSourceVisibility, startAIDesign, saveSlideSections, retryAIDesign} from '@/lib/project-api';
 import fixture from '../../project-instructions/fixtures/demo-project.json';
 
-vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn(), regenerateWholeSlide: vi.fn(), setSlideSourceVisibility: vi.fn(), startAIDesign: vi.fn(), retryAIDesign: vi.fn()}));
+vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn(), regenerateWholeSlide: vi.fn(), setSlideSourceVisibility: vi.fn(), startAIDesign: vi.fn(), retryAIDesign: vi.fn(), saveSlideSections: vi.fn()}));
 const makeProject = () => {
   const project = projectSchema.parse(structuredClone(fixture));
   project.phase = 'outline_draft';
@@ -132,6 +132,36 @@ describe('Canvas editing and slide order', () => {
     fireEvent.click(screen.getByRole('button',{name:`Slide 2: ${project.outline[1].title}`}));
     fireEvent.click(screen.getByRole('button',{name:'Approve & style'}));
     expect(screen.getByRole('button',{name:'Generate final slides with AI'})).toBeDisabled();
+  });
+
+  it('edits a clicked semantic section without flattening the other sections',async()=> {
+    const project=makeProject(); project.slides[0].sections=[{id:'review',heading:'Staff review',text:'18 minutes per day.'},{id:'maintenance',heading:'Maintenance',text:'Two hours per week.'},{id:'scope',heading:'Scope',text:'A narrow campus sample.'}];
+    vi.mocked(saveSlideSections).mockResolvedValue(project);
+    render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    fireEvent.click(screen.getByRole('button',{name:'Edit section 2 text'}));
+    const field=screen.getByRole('textbox',{name:'Section text and data 2'});expect(field).toHaveFocus();
+    fireEvent.change(field,{target:{value:'Three hours per week.'}});
+    fireEvent.click(screen.getByRole('button',{name:'Save sections'}));
+    await waitFor(()=>expect(saveSlideSections).toHaveBeenCalled());
+    expect(vi.mocked(saveSlideSections).mock.calls[0][2]).toEqual([{id:'review',heading:'Staff review',text:'18 minutes per day.'},{id:'maintenance',heading:'Maintenance',text:'Three hours per week.'},{id:'scope',heading:'Scope',text:'A narrow campus sample.'}]);
+  });
+
+  it('keeps critic findings private and shows only improvement progress',()=> {
+    const project=makeProject();project.phase='designing';
+    Object.assign(project.slides[0],{design_status:'generating',design_stage:'refining',quality_issues:['Internal typography critique: too small']});
+    render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    expect(screen.getByText('Improving slide design…')).toBeInTheDocument();
+    expect(screen.queryByText('Internal typography critique: too small')).not.toBeInTheDocument();
+  });
+
+  it('shows thumbnail activity while AI works and removes it when complete',()=> {
+    const project=makeProject();project.phase='designing';project.slides[0].design_status='generating';
+    const view=render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    const thumbnail=screen.getByRole('button',{name:`Slide 1: ${project.outline[0].title}`});
+    expect(thumbnail).toHaveAttribute('aria-busy','true');expect(thumbnail).toHaveTextContent('Designing…');expect(thumbnail.querySelector('.draft-thumbnail-shimmer')).not.toBeNull();
+    project.slides[0].design_status='ready';project.phase='ready';
+    view.rerender(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
+    expect(thumbnail).toHaveAttribute('aria-busy','false');expect(thumbnail.querySelector('.draft-thumbnail-shimmer')).toBeNull();
   });
 
 });

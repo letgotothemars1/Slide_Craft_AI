@@ -64,12 +64,25 @@ class DraftVisual(BaseModel):
     unit: str = Field(max_length=20)
 
 
+class SlideSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(min_length=1,max_length=80)
+    heading: str = Field(max_length=100)
+    text: str = Field(min_length=1,max_length=500)
+
+
+class SectionEditRequest(BaseModel):
+    expected_revision: int
+    sections: list[SlideSection] = Field(min_length=1,max_length=4)
+
+
 class DesignPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
     layout: Literal["hero", "editorial", "chart", "process", "comparison", "statement"]
     emphasis: Literal["quiet", "accent", "inverse"]
     visual: DraftVisual | None = None
     rationale: str = Field(max_length=300)
+    arrangement: Literal["columns", "rows"] = "columns"
 
 
 class SceneElement(BaseModel):
@@ -86,6 +99,8 @@ class SceneElement(BaseModel):
     font: Literal["Arial", "Georgia"] = "Arial"
     block_key: Literal["title", "body", "source_label"] | None = None
     column: int | None = None
+    section_id: str | None = None
+    section_field: Literal["heading", "text"] | None = None
 
 
 class ProjectSlide(BaseModel):
@@ -98,6 +113,12 @@ class ProjectSlide(BaseModel):
     design: DesignPlan | None = None
     design_status: Literal["none", "queued", "generating", "ready", "error"] = "none"
     design_error: str | None = None
+    sections: list[SlideSection] = Field(default_factory=list,max_length=4)
+    sections_status: Literal["none", "generating", "ready", "error"] = "none"
+    sections_error: str | None = None
+    design_stage: Literal["none", "composing", "checking", "refining", "complete"] = "none"
+    quality_issues: list[str] = Field(default_factory=list)
+    quality_attempts: int = 0
     scene: list[SceneElement] = Field(default_factory=list)
     show_source: bool = False
     revision_instruction: str = Field(default="", max_length=1000)

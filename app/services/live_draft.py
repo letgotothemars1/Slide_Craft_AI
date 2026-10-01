@@ -22,7 +22,7 @@ def suggest_sources(item, candidates):
     return [scored[0][1]] if scored and scored[0][0] >= 2 else []
 
 
-def write_body(project_id, slide_id, token, text, status, visual=None):
+def write_body(project_id, slide_id, token, text, status, visual=None, sections=None):
     def change(project):
         slides = deepcopy(project.slides_json)
         target = next((row for row in slides if row['id'] == slide_id), None)
@@ -35,6 +35,8 @@ def write_body(project_id, slide_id, token, text, status, visual=None):
             target['status'] = status
             if status == 'ready':
                 target['visual'] = visual.model_dump() if visual else None
+                target['sections'] = [s.model_dump() for s in sections] if sections else []
+                target['sections_status'] = 'ready' if sections else 'none'
         target['revision'] += 1
         return {'slides_json': slides}
     return _mutate(project_id, change)
@@ -96,8 +98,11 @@ def run_live_draft(project_id, only_slide_id=None):
                 prompt_item = item.model_copy(update={'evidence_refs': item.evidence_refs or item.suggested_refs})
                 from app.services.draft_visual import validated_visual
                 proposed_visual = []
-                body = generate_slide_body(project, prompt_item, on_partial=partial, on_visual=lambda raw: proposed_visual.append(validated_visual(raw, item))) if project.build_mode == 'model' else item.key_message
-                write_body(project_id, item.id, token, body, 'ready', visual=proposed_visual[0] if proposed_visual else None)
+                proposed_sections = []
+                body = generate_slide_body(project, prompt_item, on_partial=partial, on_visual=lambda raw: proposed_visual.append(validated_visual(raw, item)), on_sections=proposed_sections.append) if project.build_mode == 'model' else item.key_message
+                from app.services.semantic_sections import validated_sections
+                sections = validated_sections(proposed_sections[0],body,item.id) if proposed_sections else None
+                write_body(project_id, item.id, token, body, 'ready', visual=proposed_visual[0] if proposed_visual else None, sections=sections)
             except Exception:
                 logger.exception('live.draft.slide.failed project=%s slide=%s', project_id, item.id)
                 write_body(project_id, item.id, token, previous, 'error')

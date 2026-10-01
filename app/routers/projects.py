@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app import repository
 from app.db import Project, get_session
 from app.project_schemas import (
+    SectionEditRequest,
     SlideRegenerateRequest, SourceVisibilityRequest, ConfirmSourceRequest, CompositionRequest, BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
     ProjectCreateRequest, ProjectResponse, SourceRef,
 )
@@ -168,7 +169,11 @@ def change_composition(project_id: str, slide_id: str, payload: CompositionReque
     if project.phase not in {"outline_draft", "ready"} or not target or target["status"] != "ready" or target["blocks"]["body"]["status"] == "generating":
         raise HTTPException(status_code=422, detail="Wait for the slide before changing its composition")
     body = target["blocks"]["body"]
-    if payload.layout_type == "comparison" and "|" not in body["text"]:
+    if payload.layout_type == "comparison" and target.get("sections"):
+        if len(target["sections"]) != 2:
+            raise HTTPException(status_code=422, detail="Use two sections before choosing a comparison")
+        body["text"] = " | ".join(s["text"] for s in target["sections"])
+    elif payload.layout_type == "comparison" and "|" not in body["text"]:
         import re
         points = re.split(r"(?<=[.!?])\s+|\n", body["text"], maxsplit=1)
         if len(points) != 2 or not all(p.strip() for p in points):
@@ -268,7 +273,7 @@ def start_design(project_id: str, payload: OutlineApproveRequest, background: Ba
                  session: Session = Depends(get_session)) -> ProjectResponse:
     project = _editable_project(session, project_id)
     _require_revision(session, project, payload.expected_revision)
-    if project.phase not in {"outline_draft", "ready"} or len(project.slides_json) != 5 or any(row["status"] != "ready" or any(b["status"] == "generating" for b in row["blocks"].values()) for row in project.slides_json):
+    if project.phase not in {"outline_draft", "ready"} or len(project.slides_json) != 5 or any(row["status"] != "ready" or (row.get("sections_status")=="generating" or any(b["status"] == "generating" for b in row["blocks"].values())) for row in project.slides_json):
         raise HTTPException(status_code=422, detail="Complete all five slide texts before AI design")
     try:
         get_llm_service()
@@ -411,6 +416,7 @@ def edit_slide_block(project_id: str, slide_id: str, block_key: str, payload: Bl
         target.update(design=None, design_status="none", design_error=None)
     if block_key == "body":
         target["visual"] = None
+        target.update(sections=[],sections_status="none",sections_error=None)
     target["blocks"][block_key]["text"] = text
     target["blocks"][block_key]["status"] = "ready"
     target["blocks"][block_key]["error"] = None
@@ -437,6 +443,7 @@ def reset_slide_block(project_id: str, slide_id: str, block_key: str, payload: O
         target.update(design=None, design_status="none", design_error=None)
     if block_key == "body":
         target["visual"] = None
+        target.update(sections=[],sections_status="none",sections_error=None)
     target["blocks"][block_key]["text"] = item["title" if block_key == "title" else "key_message"]
     target["blocks"][block_key]["status"] = "ready"
     target["blocks"][block_key]["error"] = None
@@ -506,3 +513,47 @@ def export_project_pptx(project_id: str, session: Session = Depends(get_session)
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         headers={"Content-Disposition": f'attachment; filename="slidecraft-{project_id}.pptx"'},
     )
+
+
+@router.post("/{project_id}/slides/{slide_id}/sections/prepare", response_model=ProjectResponse, status_code=202)
+def prepare_sections(project_id: str, slide_id: str, payload: OutlineRevisionRequest, background: BackgroundTasks, session: Session = Depends(get_session)):
+    from app.services.semantic_sections import run_sections
+    project=_editable_project(session,project_id)
+    _require_revision(session,project,payload.expected_revision)
+    rows=deepcopy(project.slides_json); target=next((r for r in rows if r['id']==slide_id),None)
+    if project.phase not in {'outline_draft','ready'} or not target or target['status']!='ready' or target['blocks']['body']['status']!='ready' or target.get('sections_status')=='generating':
+        raise HTTPException(status_code=422,detail='Wait for the slide before grouping its content')
+    target.update(sections_status='generating',sections_error=None)
+    result=_change_project(session,project,payload.expected_revision,slides_json=rows)
+    background.add_task(run_sections,project_id,slide_id,target['blocks']['body']['revision'])
+    return result
+
+
+@router.patch("/{project_id}/slides/{slide_id}/sections", response_model=ProjectResponse)
+def edit_sections(project_id: str, slide_id: str, payload: SectionEditRequest, session: Session = Depends(get_session)):
+    project=_editable_project(session,project_id); _require_revision(session,project,payload.expected_revision)
+    rows=deepcopy(project.slides_json); target=next((r for r in rows if r['id']==slide_id),None)
+    if project.phase not in {'outline_draft','ready'} or not target or target['status']!='ready' or target['blocks']['body']['status']!='ready' or target.get('sections_status')=='generating':
+        raise HTTPException(status_code=422,detail='Wait before editing sections')
+    if next(r for r in project.outline_json if r['id']==slide_id)['layout_type']=='comparison' and len(payload.sections)!=2: raise HTTPException(status_code=422,detail='Comparison needs exactly two sections')
+    if len({s.id for s in payload.sections})!=len(payload.sections): raise HTTPException(status_code=422,detail='Section ids must be unique')
+    body=' | '.join(s.text for s in payload.sections) if next(r for r in project.outline_json if r['id']==slide_id)['layout_type']=='comparison' else '\n\n'.join(s.text for s in payload.sections)
+    if len(body)>500: raise HTTPException(status_code=422,detail='Keep total section text under 500 characters')
+    target.update(sections=[s.model_dump() for s in payload.sections],sections_status='ready',sections_error=None,design=None,design_status='none',design_stage='none',quality_issues=[])
+    target['blocks']['body'].update(text=body,revision=target['blocks']['body']['revision']+1)
+    target['revision']+=1
+    return _change_project(session,project,payload.expected_revision,slides_json=rows,phase='outline_draft')
+
+
+@router.post("/{project_id}/sections/prepare", response_model=ProjectResponse, status_code=202)
+def prepare_all_sections(project_id: str, payload: OutlineRevisionRequest, background: BackgroundTasks, session: Session = Depends(get_session)):
+    from app.services.semantic_sections import run_sections
+    project=_editable_project(session,project_id); _require_revision(session,project,payload.expected_revision)
+    if project.phase not in {'outline_draft','ready'} or any(r['status']!='ready' or r['blocks']['body']['status']!='ready' or r.get('sections_status')=='generating' for r in project.slides_json):
+        raise HTTPException(status_code=422,detail='Wait for all slide text before grouping')
+    rows=deepcopy(project.slides_json)
+    for row in rows:
+        if row.get('sections'): continue
+        row.update(sections_status='generating',sections_error=None)
+        background.add_task(run_sections,project_id,row['id'],row['blocks']['body']['revision'])
+    return _change_project(session,project,payload.expected_revision,slides_json=rows)

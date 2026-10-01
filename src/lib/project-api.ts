@@ -39,10 +39,16 @@ export const projectSchema = z.object({
     id: z.string(),
     status: z.enum(["queued", "generating", "ready", "error"]),
     revision: z.number().int().nonnegative(),
-    design: z.object({layout:z.enum(['hero','editorial','chart','process','comparison','statement']),emphasis:z.enum(['quiet','accent','inverse']),rationale:z.string(),visual:z.object({kind:z.enum(['none','process','bars']),labels:z.array(z.string()),values:z.array(z.number()),unit:z.string()}).nullable().optional()}).nullable().optional(),
+    design: z.object({layout:z.enum(['hero','editorial','chart','process','comparison','statement']),emphasis:z.enum(['quiet','accent','inverse']),rationale:z.string(),arrangement:z.enum(['columns','rows']).optional(),visual:z.object({kind:z.enum(['none','process','bars']),labels:z.array(z.string()),values:z.array(z.number()),unit:z.string()}).nullable().optional()}).nullable().optional(),
     design_status: z.enum(['none','queued','generating','ready','error']).optional(),
     design_error: z.string().nullable().optional(),
-    scene: z.array(z.object({kind:z.enum(['text','rect']),x:z.number(),y:z.number(),w:z.number(),h:z.number(),text:z.string(),color:z.string(),size:z.number(),bold:z.boolean(),font:z.enum(['Arial','Georgia']),block_key:z.enum(['title','body','source_label']).nullable(),column:z.number().nullable()})).optional(),
+    sections: z.array(z.object({id:z.string(),heading:z.string(),text:z.string()})).optional(),
+    sections_status:z.enum(['none','generating','ready','error']).optional(),
+    sections_error:z.string().nullable().optional(),
+    design_stage:z.enum(['none','composing','checking','refining','complete']).optional(),
+    quality_issues:z.array(z.string()).optional(),
+    quality_attempts:z.number().optional(),
+    scene: z.array(z.object({kind:z.enum(['text','rect']),x:z.number(),y:z.number(),w:z.number(),h:z.number(),text:z.string(),color:z.string(),size:z.number(),bold:z.boolean(),font:z.enum(['Arial','Georgia']),block_key:z.enum(['title','body','source_label']).nullable(),column:z.number().nullable(),section_id:z.string().nullable().optional(),section_field:z.enum(['heading','text']).nullable().optional()})).optional(),
     show_source: z.boolean().optional(),
     revision_instruction: z.string().optional(),
     visual: z.object({kind: z.enum(["none","process","bars"]), labels: z.array(z.string()), values: z.array(z.number()), unit: z.string()}).nullable().optional(),
@@ -223,4 +229,16 @@ export function startAIDesign(project: Project, theme: Project['theme']): Promis
 }
 export function retryAIDesign(project: Project, slideId: string): Promise<Project> {
   return projectRequest(project.id,`/design/slides/${encodeURIComponent(slideId)}/retry`,'POST',{expected_revision:project.revision});
+}
+
+
+export async function prepareSlideSections(project:Project,slideId:string):Promise<Project>{
+  return projectRequest(project.id,`/slides/${encodeURIComponent(slideId)}/sections/prepare`, 'POST', {expected_revision:project.revision});
+}
+export async function saveSlideSections(project:Project,slideId:string,sections:NonNullable<Project['slides'][number]['sections']>):Promise<Project>{
+  return projectRequest(project.id,`/slides/${encodeURIComponent(slideId)}/sections`, 'PATCH', {expected_revision:project.revision,sections});
+}
+
+export function prepareAllSections(project:Project):Promise<Project>{
+  return projectRequest(project.id,'/sections/prepare','POST',{expected_revision:project.revision});
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-01T19:30:29.904584+00:00",
+  "generatedAt": "2026-10-01T20:16:18.473402+00:00",
   "title": "Design System: SlideCraft AI",
   "extensions": {
     "shadows": [
@@ -101,7 +101,8 @@
       "Actual slide content in the canvas and thumbnails.",
       "Grayscale content draft followed by complete AI designs per slide; selected slide and actions use the existing blue.",
       "Inspector controls stay outside the slide.",
-      "Final preview and editable PowerPoint share one native text-and-rectangle scene."
+      "Final preview and editable PowerPoint share one native text-and-rectangle scene.",
+      "Independent section headings/text stay together through design and automatic rendered review."
     ],
     "rules": [],
     "dos": [
@@ -110,14 +111,17 @@
       "Do keep the selected thumbnail visible when the rail becomes horizontal.",
       "Do use success-strong and warning-strong for status text on light surfaces.",
       "Do show actual per-slide design states and preserve accepted content and completed designs during retries.",
-      "Do preserve the reviewed composition family and exact accepted visuals while keeping the selected theme background consistent."
+      "Do preserve the reviewed composition family and exact accepted visuals while keeping the selected theme background consistent.",
+      "Do preserve section heading/text bindings and accepted visuals through automatic design refinement.",
+      "Do keep measured and model critique internal; show the candidate, progress, and concise retry controls."
     ],
     "donts": [
       "Don't place editor controls inside the slide artifact.",
       "Don't treat a suggested excerpt or copied chart numbers as verified evidence.",
       "Don't apply a new identity to the existing application shell.",
       "Don't describe numeric provenance checks as factual verification or simulate final-design token streaming.",
-      "Don't treat preservation of an existing visual as independent section/data bindings or verified final presentation quality."
+      "Don't equate automatic rendered approval with factual verification, identical PowerPoint pixels, or guaranteed success for every input.",
+      "Don't mark an unresolved quality candidate ready or export it."
     ]
   }
 }

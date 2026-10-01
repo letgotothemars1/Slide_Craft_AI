@@ -31,14 +31,14 @@ def build_scene(slide, theme, order):
     def rect(x,y,w,h,color):
         out.append(SceneElement(kind='rect',x=x,y=y,w=w,h=h,color=color))
 
-    def text(value,x,y,w,h,size,color=fg,bold=False,key=None,column=None):
+    def text(value,x,y,w,h,size,color=fg,bold=False,key=None,column=None,section_id=None,section_field=None):
         # Respect explicit line breaks, estimate word wrapping, and leave room for descenders.
         while size > .95:
             columns = max(1,int(w/(size*.53)))
             lines = sum(max(1,math.ceil(len(line)/columns)) for line in value.split('\n'))
             if lines * size * 1.22 <= h-.4: break
             size -= .1
-        out.append(SceneElement(kind='text',x=x,y=y,w=w,h=h,color=color,text=value,size=round(size,2),bold=bold,font=font if key=='title' else 'Arial',block_key=key,column=column))
+        out.append(SceneElement(kind='text',x=x,y=y,w=w,h=h,color=color,text=value,size=round(size,2),bold=bold,font=font if key=='title' else 'Arial',block_key=key,column=column,section_id=section_id,section_field=section_field))
 
     title, body = slide.blocks.title.text, slide.blocks.body.text
     visual = design.visual
@@ -46,11 +46,61 @@ def build_scene(slide, theme, order):
     if layout in {'chart','process'} and not visual:
         layout = 'editorial'
     rect(0,0,100,56.25,bg)
-    if layout=='hero':
+    if slide.sections and (layout != 'hero' or len(slide.sections)>1):
+        text(title,7,5,86,9,3.8,bold=True,key='title')
+        sections=slide.sections
+        has_bars=visual and visual.kind=='bars'
+        # Semantic sections own both heading and data; their order and wording are immutable here.
+        columns=design.arrangement=='columns' and len(sections)>1 and not has_bars
+        area_width=40 if has_bars else 86
+        has_process=visual and visual.kind=='process'
+        area_height=22 if has_process else 35
+        area_top=30 if has_process else 18
+        weights=[len(s.text)+70 for s in sections]
+        total_weight=sum(weights)
+        row_offset=0
+        for index,section in enumerate(sections):
+            if columns:
+                width=area_width/len(sections); x=7+index*width; y=area_top; w=width-5; h=area_height
+                rect(x,y,w,.25,accent)
+                text(section.heading,x,y+1,w,5,2.3,bold=True,key='body',section_id=section.id,section_field='heading')
+                text(section.text,x,y+7,w,h-7,2.25,fg,key='body',section_id=section.id,section_field='text')
+            else:
+                height=area_height*weights[index]/total_weight; y=area_top+row_offset
+                row_offset+=height
+                rect(7,y,area_width,.15,accent)
+                if has_bars:
+                    text(section.heading,7,y+1,area_width,3,1.9,bold=True,key='body',section_id=section.id,section_field='heading')
+                    text(section.text,7,y+4,area_width,height-4.5,2.1,muted,key='body',section_id=section.id,section_field='text')
+                else:
+                    text(section.heading,7,y+1.5,24,height-2,2.1,bold=True,key='body',section_id=section.id,section_field='heading')
+                    text(section.text,35,y+1.5,58,height-2,2.2,fg,key='body',section_id=section.id,section_field='text')
+        if has_bars:
+            maximum=max(visual.values); width=40/len(visual.values)
+            rect(53,44,40,.15,muted)
+            for index,(label,value) in enumerate(zip(visual.labels,visual.values)):
+                x=55+index*width; height=value/maximum*23
+                rect(x,44-height,width-5,height,accent if index==len(visual.values)-1 else muted)
+                text(f'{value:g}{visual.unit}',x,38-height,width-2,5,2.5,bold=True)
+                text(label,x,46,width-2,5,1.8,muted)
+        elif visual and visual.kind=='process':
+            width=86/len(visual.labels)
+            for index,label in enumerate(visual.labels):
+                x=7+index*width
+                rect(x,18,width-2,9,panel)
+                rect(x,18,width-2,.25,accent)
+                if index<len(visual.labels)-1: rect(x+width-2,22.3,2,.2,accent)
+                text(label,x+1.5,20,width-5,6,1.9,fg,True)
+    elif layout=='hero':
         rect(83,0,17,56.25,accent)
-        text(title,7,7,69,23,5.2,bold=True,key='title')
-        rect(7,33,9,.35,accent)
-        text(body,7,37,66,13,2.3,muted,key='body')
+        text(title,7,7,69,18,5.2,bold=True,key='title')
+        rect(7,26,9,.35,accent)
+        if len(slide.sections)==1:
+            section=slide.sections[0]
+            text(section.heading,7,29,66,4,2.1,bold=True,key='body',section_id=section.id,section_field='heading')
+            text(section.text,7,35,66,17,2.3,muted,key='body',section_id=section.id,section_field='text')
+        else:
+            text(body,7,30,66,21,2.3,muted,key='body')
         text(f'{order:02d}',86,43,12,8,5,accent_ink,True)
     elif layout=='editorial':
         text(title,7,8,32,36,4.2,bold=True,key='title')
