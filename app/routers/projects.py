@@ -27,7 +27,11 @@ from app.services.slide_revision import run_slide_revision
 from app.services.ai_design import run_design
 
 
-router = APIRouter(prefix="/projects", tags=["projects"])
+# Mounted under /api so the modular journey's own pages — /projects/new and
+# /projects/<id> in the SPA router — keep their URLs. Sharing the prefix made
+# the two indistinguishable to the reverse proxy: a request for the page was
+# answered by the API, or the other way round, depending on the rule in nginx.
+router = APIRouter(prefix="/api/projects", tags=["projects"])
 _FIXTURE_PATH = Path(__file__).resolve().parents[2] / "project-instructions" / "fixtures" / "demo-project.json"
 _DEMO_DIR = _FIXTURE_PATH.parent
 

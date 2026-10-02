@@ -27,15 +27,15 @@ def main():
             result = response.read()
             return json.loads(result) if 'application/json' in response.headers.get('Content-Type', '') else result
 
-    material = request('/projects/demo/materials')
-    pdf = request('/projects/demo/source.pdf')
+    material = request('/api/projects/demo/materials')
+    pdf = request('/api/projects/demo/source.pdf')
     boundary = 'slidecraft-' + uuid4().hex
     multipart = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="synthetic-smoke.pdf"\r\nContent-Type: application/pdf\r\n\r\n'.encode()
                  + pdf + f'\r\n--{boundary}--\r\n'.encode())
     document = request('/documents/upload', 'POST', raw=multipart, content_type=f'multipart/form-data; boundary={boundary}')
-    state = request('/projects', 'POST', dict(assignment_text=material['assignment_text'], context_pack_text=material['context_pack_text'],
+    state = request('/api/projects', 'POST', dict(assignment_text=material['assignment_text'], context_pack_text=material['context_pack_text'],
                     source_document_id=document['document_id'], theme='dark_tech_pitch', language='en'))
-    base = '/projects/' + state['id']
+    base = '/api/projects/' + state['id']
     mode = 'model' if args.model else 'template'
     state = request(base + '/outline/generate', 'POST', dict(expected_revision=state['revision'], mode=mode))
     candidates = request(base + '/source-candidates')

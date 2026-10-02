@@ -76,23 +76,32 @@ const demoMaterialsSchema = z.object({
   source_filename: z.string().min(1),
 });
 
+/**
+ * API prefix for the modular journey.
+ *
+ * Deliberately different from the page routes (/projects/new, /projects/:id):
+ * when both lived on /projects the reverse proxy could not tell a page request
+ * from an API call, since GET /projects/<id> is literally both.
+ */
+const PROJECTS_API = "/api/projects";
+
 export async function getDemoMaterials(): Promise<z.infer<typeof demoMaterialsSchema>> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const response = await fetch(`${apiBase}/projects/demo/materials`);
+  const response = await fetch(`${apiBase}${PROJECTS_API}/demo/materials`);
   if (!response.ok) throw new Error(`Demo materials could not be loaded (${response.status})`);
   return demoMaterialsSchema.parse(await response.json());
 }
 
 export async function getDemoPdf(): Promise<Blob> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const response = await fetch(`${apiBase}/projects/demo/source.pdf`);
+  const response = await fetch(`${apiBase}${PROJECTS_API}/demo/source.pdf`);
   if (!response.ok) throw new Error(`Demo PDF could not be loaded (${response.status})`);
   return response.blob();
 }
 
 export async function createProject(input: ProjectCreate): Promise<Project> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const response = await fetch(`${apiBase}/projects`, {
+  const response = await fetch(`${apiBase}${PROJECTS_API}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(projectCreateSchema.parse(input)),
@@ -106,14 +115,14 @@ export async function createProject(input: ProjectCreate): Promise<Project> {
 
 export async function getProject(projectId: string): Promise<Project> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const response = await fetch(`${apiBase}/projects/${encodeURIComponent(projectId)}`);
+  const response = await fetch(`${apiBase}${PROJECTS_API}/${encodeURIComponent(projectId)}`);
   if (!response.ok) throw new Error(`Project request failed: ${response.status}`);
   return projectSchema.parse(await response.json());
 }
 
 async function projectRequest(projectId: string, path: string, method: string, body: unknown): Promise<Project> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const response = await fetch(`${apiBase}/projects/${encodeURIComponent(projectId)}${path}`, {
+  const response = await fetch(`${apiBase}${PROJECTS_API}/${encodeURIComponent(projectId)}${path}`, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -172,12 +181,12 @@ export function retrySlide(project: Project, slideId: string): Promise<Project> 
 
 export function exportPptxUrl(projectId: string): string {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  return `${apiBase}/projects/${encodeURIComponent(projectId)}/export.pptx`;
+  return `${apiBase}${PROJECTS_API}/${encodeURIComponent(projectId)}/export.pptx`;
 }
 
 export async function getSourceCandidates(projectId: string): Promise<SourceRef[]> {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  const response = await fetch(`${apiBase}/projects/${encodeURIComponent(projectId)}/source-candidates`);
+  const response = await fetch(`${apiBase}${PROJECTS_API}/${encodeURIComponent(projectId)}/source-candidates`);
   if (!response.ok) throw new Error(`Source request failed: ${response.status}`);
   return z.array(sourceRefSchema).parse(await response.json());
 }

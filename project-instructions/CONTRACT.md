@@ -1,6 +1,6 @@
 # MVP contract: frozen for M01 and M02 on 2026-09-28
 
-The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The modular path covers intake, model or template outline generation, editing and approval, one-slide-at-a-time model or template build, block editing and regeneration, and PPTX export. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The modular journey lives under `/projects` and `/projects/:projectId`.
+The response shape is validated by the checked-in `demo-project.json` fixture in Python and TypeScript. The modular path covers intake, model or template outline generation, editing and approval, one-slide-at-a-time model or template build, block editing and regeneration, and PPTX export. Keep the old `POST /generate` and `GET /status/{job_id}` intact. The modular journey's **pages** live under `/projects` and `/projects/:projectId`. Its **API** lives under `/api/projects`.
 
 ## State model
 
@@ -12,22 +12,39 @@ Allowed phases: `intake → outline_draft → outline_approved → building → 
 
 Every edit request carries an expected revision. If the current revision differs, return HTTP 409 and the latest object so the UI can offer refresh. A background result updates only the target slide or block and must be discarded if that block was edited since work began. Do not overwrite the whole project JSON with an old job snapshot. Revision protection matters especially when a student edits while another slide is generating.
 
+## Amendment, 2026-10-02: API moved to `/api/projects`
+
+The pages and the API originally shared the `/projects` prefix. In production that
+is not resolvable: `GET /projects/<id>` is simultaneously a page the SPA router
+owns and an endpoint the backend owns, and the reverse proxy has to pick one.
+Routing the prefix to the backend made `/projects/new` answer
+`{"detail":"Project not found"}`; routing it to the SPA made every API call return
+`index.html`, which the client then failed to parse as JSON.
+
+The API therefore moved to `/api/projects`. Page routes are unchanged, so the user
+journey described above still holds. nginx now needs a single permanent rule for
+`/api/`, instead of one entry per endpoint prefix.
+
+Changed: `APIRouter(prefix=...)` in `app/routers/projects.py`, the `PROJECTS_API`
+constant in `src/lib/project-api.ts`, and the call paths in
+`scripts/smoke_modular_mvp.py`. Needs sign-off from the owner of `app/`.
+
 ## Proposed endpoints
 
 | Endpoint | Purpose | Response the UI needs |
 | --- | --- | --- |
-| `POST /projects` | Save assignment, Context Pack, selected theme, one `source_document_id`, and five-slide intent. | `project_id`, `revision`, `phase` |
-| `GET /projects/{id}` | Read complete project state for refresh and 2-second polling. | All project fields, outline, slide states and blocks |
-| `POST /projects/{id}/outline/generate` | With `expected_revision` and `mode: "model"`, use one provider call to draft five items; `mode: "template"` (also the default) retains the key-free starter. | Updated project in `outline_draft` |
-| `PUT /projects/{id}/outline` | Save text/order edits with `expected_revision`. | Updated outline and revision |
-| `POST /projects/{id}/outline/approve` | Freeze thesis/order/theme for this build. | `outline_approved` state |
-| `GET /projects/{id}/source-candidates` | List page-numbered PDF excerpts for manual selection. | `SourceRef[]` |
-| `POST /projects/{id}/build` | With `expected_revision` and `mode: "model"`, generate each slide body in a separate model call; `mode: "template"` (the default) copies approved outline text. Save each slide before the next. | 202 + project state |
-| `PATCH /projects/{id}/slides/{slide_id}/blocks/{block_key}` | Edit one ready block with `expected_revision`. | Updated block and revision |
-| `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/regenerate` | Regenerate title/body using the configured provider. Return immediately; poll block status. | 202 + project state |
-| `POST /projects/{id}/slides/{slide_id}/blocks/{block_key}/reset-from-outline` | Restore only a title or body from the approved outline. | Updated project and revision |
-| `POST /projects/{id}/slides/{slide_id}/retry` | Retry one failed slide without restarting ready slides. | 202 + project state |
-| `GET /projects/{id}/export.pptx` | Render the current accepted slide state. | PPTX download |
+| `POST /api/projects` | Save assignment, Context Pack, selected theme, one `source_document_id`, and five-slide intent. | `project_id`, `revision`, `phase` |
+| `GET /api/projects/{id}` | Read complete project state for refresh and 2-second polling. | All project fields, outline, slide states and blocks |
+| `POST /api/projects/{id}/outline/generate` | With `expected_revision` and `mode: "model"`, use one provider call to draft five items; `mode: "template"` (also the default) retains the key-free starter. | Updated project in `outline_draft` |
+| `PUT /api/projects/{id}/outline` | Save text/order edits with `expected_revision`. | Updated outline and revision |
+| `POST /api/projects/{id}/outline/approve` | Freeze thesis/order/theme for this build. | `outline_approved` state |
+| `GET /api/projects/{id}/source-candidates` | List page-numbered PDF excerpts for manual selection. | `SourceRef[]` |
+| `POST /api/projects/{id}/build` | With `expected_revision` and `mode: "model"`, generate each slide body in a separate model call; `mode: "template"` (the default) copies approved outline text. Save each slide before the next. | 202 + project state |
+| `PATCH /api/projects/{id}/slides/{slide_id}/blocks/{block_key}` | Edit one ready block with `expected_revision`. | Updated block and revision |
+| `POST /api/projects/{id}/slides/{slide_id}/blocks/{block_key}/regenerate` | Regenerate title/body using the configured provider. Return immediately; poll block status. | 202 + project state |
+| `POST /api/projects/{id}/slides/{slide_id}/blocks/{block_key}/reset-from-outline` | Restore only a title or body from the approved outline. | Updated project and revision |
+| `POST /api/projects/{id}/slides/{slide_id}/retry` | Retry one failed slide without restarting ready slides. | 202 + project state |
+| `GET /api/projects/{id}/export.pptx` | Render the current accepted slide state. | PPTX download |
 
 Reuse existing `POST /documents/upload` for the one PDF, but adjust page extraction before presenting source references. Polling is sufficient for the three-week MVP; server-sent events are an upgrade, not a gate. Use existing auth only if local demo requires it; do not redesign authentication.
 
