@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-ProjectPhase = Literal["intake", "outline_draft", "outline_approved", "building", "ready", "error"]
+ProjectPhase = Literal["intake", "designing", "drafting", "outline_draft", "outline_approved", "building", "ready", "error"]
 SlideStatus = Literal["queued", "generating", "ready", "error"]
 BlockStatus = Literal["ready", "generating", "error"]
 Theme = Literal["clean_editorial", "dark_tech_pitch", "infographic_bright"]
@@ -35,6 +35,7 @@ class OutlineItem(BaseModel):
     title: str
     key_message: str
     evidence_refs: list[SourceRef]
+    suggested_refs: list[SourceRef] = Field(default_factory=list)
     layout_type: LayoutType
 
 
@@ -55,12 +56,72 @@ class SlideBlocks(BaseModel):
     source_label: SlideBlock
 
 
+class DraftVisual(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["none", "process", "bars"]
+    labels: list[str] = Field(max_length=4)
+    values: list[float] = Field(max_length=4)
+    unit: str = Field(max_length=20)
+
+
+class SlideSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(min_length=1,max_length=80)
+    heading: str = Field(max_length=100)
+    text: str = Field(min_length=1,max_length=500)
+
+
+class SectionEditRequest(BaseModel):
+    expected_revision: int
+    sections: list[SlideSection] = Field(min_length=1,max_length=4)
+
+
+class DesignPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    layout: Literal["hero", "editorial", "chart", "process", "comparison", "statement"]
+    emphasis: Literal["quiet", "accent", "inverse"]
+    visual: DraftVisual | None = None
+    rationale: str = Field(max_length=300)
+    arrangement: Literal["columns", "rows"] = "columns"
+
+
+class SceneElement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["text", "rect"]
+    x: float
+    y: float
+    w: float
+    h: float
+    text: str = ""
+    color: str
+    size: float = 2
+    bold: bool = False
+    font: Literal["Arial", "Georgia"] = "Arial"
+    block_key: Literal["title", "body", "source_label"] | None = None
+    column: int | None = None
+    section_id: str | None = None
+    section_field: Literal["heading", "text"] | None = None
+
+
 class ProjectSlide(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
     status: SlideStatus
     revision: int = Field(ge=0)
+    visual: DraftVisual | None = None
+    design: DesignPlan | None = None
+    design_status: Literal["none", "queued", "generating", "ready", "error"] = "none"
+    design_error: str | None = None
+    sections: list[SlideSection] = Field(default_factory=list,max_length=4)
+    sections_status: Literal["none", "generating", "ready", "error"] = "none"
+    sections_error: str | None = None
+    design_stage: Literal["none", "composing", "checking", "refining", "complete"] = "none"
+    quality_issues: list[str] = Field(default_factory=list)
+    quality_attempts: int = 0
+    scene: list[SceneElement] = Field(default_factory=list)
+    show_source: bool = False
+    revision_instruction: str = Field(default="", max_length=1000)
     blocks: SlideBlocks
 
 
@@ -115,3 +176,17 @@ class OutlineApproveRequest(OutlineRevisionRequest):
 
 class BlockEditRequest(OutlineRevisionRequest):
     text: str = Field(min_length=1, max_length=2000)
+
+class CompositionRequest(OutlineRevisionRequest):
+    layout_type: LayoutType
+
+class ConfirmSourceRequest(OutlineRevisionRequest):
+    source_ref: SourceRef
+
+
+class SourceVisibilityRequest(OutlineRevisionRequest):
+    show_source: bool
+
+
+class SlideRegenerateRequest(OutlineRevisionRequest):
+    instruction: str = Field(min_length=1, max_length=1000)

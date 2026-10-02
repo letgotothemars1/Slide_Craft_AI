@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-01T20:16:18.473402+00:00",
+  "title": "Design System: SlideCraft AI",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "shadow-card",
+        "value": "0 1px 3px 0 hsl(220 13% 91% / 0.5), 0 1px 2px -1px hsl(220 13% 91% / 0.5)",
+        "purpose": "Existing application card surface utility."
+      },
+      {
+        "name": "shadow-elevated",
+        "value": "0 10px 25px -5px hsl(221 83% 53% / 0.1), 0 8px 10px -6px hsl(221 83% 53% / 0.05)",
+        "purpose": "Existing application elevated surface utility."
+      }
+    ],
+    "motion": [
+      {
+        "name": "reveal",
+        "value": "500ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Existing opacity and translate reveal; removed under reduced motion."
+      },
+      {
+        "name": "bar-grow",
+        "value": "700ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Existing scaleY bar growth; final state under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "420px"
+      },
+      {
+        "name": "draft-mobile-max",
+        "value": "640px"
+      },
+      {
+        "name": "draft-two-column-max",
+        "value": "1199px"
+      },
+      {
+        "name": "draft-desktop-min",
+        "value": "1200px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "description": "Existing shared primary button variant.",
+      "html": "<button class=\"ds-button ds-button-primary\">Content</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; white-space:nowrap; border-radius:calc(var(--radius,.75rem) - 2px); font:500 14px/20px var(--font-body,Inter,sans-serif); height:40px; padding:8px 16px; transition:color 150ms,background-color 150ms,border-color 150ms; } .ds-button:focus-visible { outline:none; box-shadow:0 0 0 2px hsl(var(--background,220 20% 97%)),0 0 0 4px hsl(var(--ring,221 83% 53%)); } .ds-button:disabled { pointer-events:none; opacity:.5; } .ds-button-primary {background:hsl(var(--primary,221 83% 53%)); color:hsl(var(--primary-foreground,0 0% 100%)); border:0;} .ds-button-primary:hover {background:hsl(var(--primary,221 83% 53%)/.9);}",
+      "refersTo": "button-primary"
+    },
+    {
+      "name": "Outline button",
+      "kind": "button",
+      "description": "Existing shared outline button variant.",
+      "html": "<button class=\"ds-button ds-button-outline\">Content</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; white-space:nowrap; border-radius:calc(var(--radius,.75rem) - 2px); font:500 14px/20px var(--font-body,Inter,sans-serif); height:40px; padding:8px 16px; transition:color 150ms,background-color 150ms,border-color 150ms; } .ds-button:focus-visible { outline:none; box-shadow:0 0 0 2px hsl(var(--background,220 20% 97%)),0 0 0 4px hsl(var(--ring,221 83% 53%)); } .ds-button:disabled { pointer-events:none; opacity:.5; } .ds-button-outline {background:hsl(var(--background,220 20% 97%)); color:hsl(var(--foreground,222 47% 11%)); border:1px solid hsl(var(--input,220 13% 91%));} .ds-button-outline:hover {background:hsl(var(--accent,262 83% 58%)); color:hsl(var(--accent-foreground,0 0% 100%));}",
+      "refersTo": "button-outline"
+    },
+    {
+      "name": "Ghost button",
+      "kind": "button",
+      "description": "Existing shared ghost button variant.",
+      "html": "<button class=\"ds-button ds-button-ghost\">Content</button>",
+      "css": ".ds-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; white-space:nowrap; border-radius:calc(var(--radius,.75rem) - 2px); font:500 14px/20px var(--font-body,Inter,sans-serif); height:40px; padding:8px 16px; transition:color 150ms,background-color 150ms,border-color 150ms; } .ds-button:focus-visible { outline:none; box-shadow:0 0 0 2px hsl(var(--background,220 20% 97%)),0 0 0 4px hsl(var(--ring,221 83% 53%)); } .ds-button:disabled { pointer-events:none; opacity:.5; } .ds-button-ghost {background:transparent; color:hsl(var(--foreground,222 47% 11%)); border:0;} .ds-button-ghost:hover {background:hsl(var(--accent,262 83% 58%)); color:hsl(var(--accent-foreground,0 0% 100%));}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Shared text field; inspector overrides text to 13px.",
+      "html": "<input class=\"ds-input\" aria-label=\"Slide title\" placeholder=\"Slide title\">",
+      "css": ".ds-input { width:100%; height:40px; border:1px solid hsl(var(--input,220 13% 91%)); border-radius:calc(var(--radius,.75rem) - 2px); padding:8px 12px; background:hsl(var(--background,220 20% 97%)); color:hsl(var(--foreground,222 47% 11%)); font:400 16px/24px var(--font-body,Inter,sans-serif); } .ds-input::placeholder { color:hsl(var(--muted-foreground,220 9% 46%)); } .ds-input:focus-visible { outline:none; box-shadow:0 0 0 2px hsl(var(--background,220 20% 97%)),0 0 0 4px hsl(var(--ring,221 83% 53%)); } .ds-input:disabled { opacity:.5; cursor:not-allowed; } @media(min-width:768px) { .ds-input { font-size:14px; line-height:20px; } }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Existing shared bordered white container.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-content\">Slide settings</div></div>",
+      "css": ".ds-card { background:hsl(var(--card,0 0% 100%)); color:hsl(var(--card-foreground,222 47% 11%)); border:1px solid hsl(var(--border,220 13% 91%)); border-radius:var(--radius,.75rem); box-shadow:0 1px 2px 0 rgb(0 0 0/.05); font-family:var(--font-body,Inter,sans-serif); } .ds-card-content { padding:24px; }"
+    },
+    {
+      "name": "Selected slide thumbnail",
+      "kind": "nav",
+      "refersTo": "draft-thumbnail",
+      "description": "Selected rail button with miniature content; sample copy is illustrative.",
+      "html": "<button class=\"ds-thumbnail\" aria-pressed=\"true\"><span class=\"ds-mini\">Slide title</span><span>1. Slide title \u00b7 Ready</span></button>",
+      "css": ".ds-thumbnail { width:140px; padding:6px; text-align:left; border-radius:8px; border:1px solid hsl(var(--primary,221 83% 53%)); background:hsl(var(--primary,221 83% 53%)/.04); color:hsl(var(--foreground,222 47% 11%)); font:400 12px/16px var(--font-body,Inter,sans-serif); cursor:pointer; } .ds-mini { display:block; aspect-ratio:16/9; padding:6%; margin-bottom:8px; background:#fff; color:#18181b; border:1px solid hsl(var(--border,220 13% 91%)); font-family:var(--font-display,Plus Jakarta Sans,sans-serif); font-weight:700; } .ds-thumbnail:hover { background:hsl(var(--muted,220 14% 96%)); } .ds-thumbnail:focus-visible { outline:2px solid hsl(var(--ring,221 83% 53%)); outline-offset:3px; }"
+    }
+  ],
+  "narrative": {
+    "overview": "SlideCraft uses its existing light application shell: pale background, white surfaces, dark text, blue actions, and rounded controls. The live editor extends that system with a slide rail, central artifact, and external inspector. The approved editor structure does not establish a new brand identity.",
+    "keyCharacteristics": [
+      "Actual slide content in the canvas and thumbnails.",
+      "Grayscale content draft followed by complete AI designs per slide; selected slide and actions use the existing blue.",
+      "Inspector controls stay outside the slide.",
+      "Final preview and editable PowerPoint share one native text-and-rectangle scene.",
+      "Independent section headings/text stay together through design and automatic rendered review."
+    ],
+    "rules": [],
+    "dos": [
+      "Do reuse the existing application color and typography tokens.",
+      "Do render real slide text, process steps, bars, and source labels in both canvas and thumbnails.",
+      "Do keep the selected thumbnail visible when the rail becomes horizontal.",
+      "Do use success-strong and warning-strong for status text on light surfaces.",
+      "Do show actual per-slide design states and preserve accepted content and completed designs during retries.",
+      "Do preserve the reviewed composition family and exact accepted visuals while keeping the selected theme background consistent.",
+      "Do preserve section heading/text bindings and accepted visuals through automatic design refinement.",
+      "Do keep measured and model critique internal; show the candidate, progress, and concise retry controls."
+    ],
+    "donts": [
+      "Don't place editor controls inside the slide artifact.",
+      "Don't treat a suggested excerpt or copied chart numbers as verified evidence.",
+      "Don't apply a new identity to the existing application shell.",
+      "Don't describe numeric provenance checks as factual verification or simulate final-design token streaming.",
+      "Don't equate automatic rendered approval with factual verification, identical PowerPoint pixels, or guaranteed success for every input.",
+      "Don't mark an unresolved quality candidate ready or export it."
+    ]
+  }
+}

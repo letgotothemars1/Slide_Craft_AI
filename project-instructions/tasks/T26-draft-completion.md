@@ -1,0 +1,6 @@
+# T26 — Draft loading and clear completion controls
+Status: implemented and verified
+User request: pointer cursor on clickable slide elements, skeleton rather than “No content has arrived”, visible and plainly named completion action while keeping Approve & style available.
+Implementation: cursor pointer for canvas/thumbnail/reorder actions; accessible five-slide skeleton during initial draft planning; reduced-motion support. Approve & style opens an idempotent finish panel, with the current theme preselected and Finish presentation at the panel's top right (full-width on mobile). Approval remains visible. Completion transitions to Download PowerPoint.
+Evidence: 14 frontend tests, TypeScript and build pass. Browser template project 2f9f6a21-c230-47ea-bdb4-c6e62854ea9d showed the planning skeleton, draft, finish panel and download state. Pointer verified by computed style. Desktop and 375px mobile inspected. Screenshot /tmp/slidecraft-finish-panel.jpg. No backend change.
+Follow-up clarified by user: palette application is insufficient as the final design stage. A separate AI composition/design pass is needed after content review; this ticket improves existing controls and does not claim that second pass exists.

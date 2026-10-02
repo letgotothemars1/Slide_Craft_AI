@@ -6,14 +6,12 @@ import {
   buildProject, editSlideBlock, downloadProjectPptx, getProject, regenerateBlock, resetBlockFromOutline, retrySlide, type Project,
 } from "@/lib/project-api";
 
+import { palettes } from "@/lib/slide-themes";
+
 type BlockKey = "title" | "body" | "source_label";
 const blockLabels: Record<BlockKey, string> = { title: "Title", body: "Body", source_label: "Source label" };
 
-const palettes: Record<Project["theme"], { background: string; foreground: string; muted: string; accent: string; panel: string }> = {
-  clean_editorial: { background: "#fffcf7", foreground: "#111827", muted: "#57534e", accent: "#334155", panel: "#ffffff" },
-  dark_tech_pitch: { background: "#0b1020", foreground: "#f8fafc", muted: "#a3b2c8", accent: "#22c55e", panel: "#162238" },
-  infographic_bright: { background: "#f0f9ff", foreground: "#0f172a", muted: "#0369a1", accent: "#0ea5e9", panel: "#ffffff" },
-};
+
 
 function SlidePreview({ project, slideId }: { project: Project; slideId: string }) {
   const slide = project.slides.find((item) => item.id === slideId);
@@ -33,13 +31,13 @@ function SlidePreview({ project, slideId }: { project: Project; slideId: string 
         <h3 className={`mt-1 font-display font-bold leading-tight sm:mt-3 ${item.layout_type === "title" ? "text-sm sm:text-4xl" : "text-xs sm:text-3xl"}`}>{title}</h3>
       </div>
       {item.layout_type === "comparison" ? <div className="grid grid-cols-2 gap-1 text-[7px] sm:gap-3 sm:text-base"><div className="min-h-10 rounded p-1 sm:min-h-16 sm:rounded-lg sm:p-3" style={{ backgroundColor: palette.panel }}>{left || "First point needed"}</div><div className="min-h-10 rounded p-1 sm:min-h-16 sm:rounded-lg sm:p-3" style={{ backgroundColor: palette.panel }}>{right || "Second point needed"}</div></div> : <p className={`mb-auto max-w-[85%] leading-snug ${bodySize}`} style={{ color: palette.muted }}>{body}</p>}
-      <p className="mt-1 border-t pt-1 text-[6px] sm:mt-4 sm:pt-2 sm:text-xs" style={{ borderColor: palette.accent, color: palette.muted }}>{source}</p>
+      {slide.show_source && <p className="mt-1 border-t pt-1 text-[6px] sm:mt-4 sm:pt-2 sm:text-xs" style={{ borderColor: palette.accent, color: palette.muted }}>{source}</p>}
     </div>
   </div>;
 }
 
-function BlockEditor({ project, slideId, blockKey, onChange }: {
-  project: Project; slideId: string; blockKey: BlockKey; onChange: (project: Project) => void;
+export function BlockEditor({ project, slideId, blockKey, onChange, roomy = false, onDirtyChange }: {
+  project: Project; slideId: string; blockKey: BlockKey; roomy?: boolean; onDirtyChange?: (slideId: string, key: BlockKey, dirty: boolean) => void; onChange: (project: Project) => void;
 }) {
   const slide = project.slides.find((row) => row.id === slideId)!;
   const outline = project.outline.find((row) => row.id === slideId)!;
@@ -55,6 +53,8 @@ function BlockEditor({ project, slideId, blockKey, onChange }: {
   const parts = draft.split("|");
   const valid = Boolean(draft.trim()) && (!comparison || (parts.length === 2 && parts.every((part) => part.trim())));
   const label = comparison ? "Comparison points" : blockLabels[blockKey];
+
+  useEffect(() => {onDirtyChange?.(slideId,blockKey,dirty);}, [onDirtyChange,slideId,blockKey,dirty]);
 
   useEffect(() => {
     const previous = savedText.current;
@@ -77,22 +77,22 @@ function BlockEditor({ project, slideId, blockKey, onChange }: {
 
   return <fieldset className="space-y-2" aria-busy={generating}>
     <legend className="text-sm font-medium">{label}</legend>
-    {comparison ? <div className="grid gap-3 sm:grid-cols-2">{([0, 1] as const).map((index) =>
+    {comparison ? <div className={roomy ? "grid gap-4" : "grid gap-3 sm:grid-cols-2"}>{([0, 1] as const).map((index) =>
       <div key={index}><label className="text-xs text-muted-foreground" htmlFor={`comparison-${index}`}>{index === 0 ? "First point" : "Second point"}</label>
-        <Textarea id={`comparison-${index}`} rows={3} maxLength={240} value={parts[index]?.trim() ?? ""} disabled={disabled}
+        <Textarea id={`comparison-${index}`} rows={roomy ? 6 : 3} maxLength={240} value={parts[index]?.trim() ?? ""} disabled={disabled}
           onChange={(event) => { const updated = [...parts]; updated[index] = event.target.value; setDraft(`${updated[0] ?? ""} | ${updated[1] ?? ""}`); }} />
       </div>)}</div>
-      : blockKey === "body" ? <Textarea aria-label={label} id={`block-${blockKey}`} rows={4} value={draft} maxLength={500} disabled={disabled} onChange={(event) => setDraft(event.target.value)} />
+      : blockKey === "body" ? <Textarea aria-label={label} id={`block-${blockKey}`} rows={roomy ? 12 : 4} value={draft} maxLength={500} disabled={disabled} onChange={(event) => setDraft(event.target.value)} />
       : <Input aria-label={label} id={`block-${blockKey}`} value={draft} maxLength={200} disabled={disabled} onChange={(event) => setDraft(event.target.value)} />}
     <div className="flex flex-wrap gap-2">
       <Button size="sm" variant="outline" disabled={disabled || !dirty || !valid}
         onClick={() => void run(() => editSlideBlock(project, slideId, blockKey, draft))}>Save {blockLabels[blockKey].toLowerCase()}</Button>
       {blockKey !== "source_label" && <>
-        <Button size="sm" variant="outline" disabled={disabled || dirty}
+        <Button size="sm" variant="outline" disabled={disabled || dirty || slide.status !== "ready"}
           onClick={() => void run(() => regenerateBlock(project, slideId, blockKey))}>
           {generating ? `Regenerating ${blockKey}…` : block.status === "error" ? `Retry ${blockKey} with AI` : `Regenerate ${blockKey} with AI`}
         </Button>
-        <Button size="sm" variant="ghost" disabled={disabled || dirty || block.text === (blockKey === "title" ? outline.title : outline.key_message)}
+        <Button size="sm" variant="ghost" disabled={disabled || dirty || slide.status !== "ready" || block.text === (blockKey === "title" ? outline.title : outline.key_message)}
           onClick={() => void run(() => resetBlockFromOutline(project, slideId, blockKey))}>Reset from outline</Button>
       </>}
       {dirty && <Button size="sm" variant="ghost" disabled={disabled} onClick={() => { setDraft(block.text); setError(""); }}>Discard unsaved {blockKey === "source_label" ? "source label" : blockKey}</Button>}

@@ -1,0 +1,518 @@
+{
+  "metrics": {
+    "project_id": "89703993-c15b-4254-ba92-83e0a0cb22d3",
+    "structure_s": 2.47,
+    "partial_s": 4.1,
+    "first_slide_s": 4.71,
+    "draft_s": 11.39,
+    "accepted_edit_kept": true,
+    "theme_reuses_content": true,
+    "editable_pptx_parity": true
+  },
+  "progress": [
+    {
+      "s": 0.04,
+      "slides": []
+    },
+    {
+      "s": 2.47,
+      "slides": [
+        [
+          "generating",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 4.1,
+      "slides": [
+        [
+          "generating",
+          2
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 4.3,
+      "slides": [
+        [
+          "generating",
+          232
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 4.71,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "generating",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 5.72,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "generating",
+          1
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 5.92,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "generating",
+          193
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 6.13,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "generating",
+          294
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 6.53,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "generating",
+          0
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 7.34,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "generating",
+          9
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 7.54,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "generating",
+          150
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 7.74,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "generating",
+          177
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 7.95,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "generating",
+          266
+        ],
+        [
+          "queued",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 8.36,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "ready",
+          266
+        ],
+        [
+          "generating",
+          0
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 9.37,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "ready",
+          266
+        ],
+        [
+          "generating",
+          3
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 9.57,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "ready",
+          266
+        ],
+        [
+          "generating",
+          185
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 9.77,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "ready",
+          266
+        ],
+        [
+          "generating",
+          316
+        ],
+        [
+          "queued",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 9.97,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "ready",
+          266
+        ],
+        [
+          "ready",
+          316
+        ],
+        [
+          "generating",
+          0
+        ]
+      ]
+    },
+    {
+      "s": 10.78,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "ready",
+          266
+        ],
+        [
+          "ready",
+          316
+        ],
+        [
+          "generating",
+          3
+        ]
+      ]
+    },
+    {
+      "s": 10.99,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "ready",
+          266
+        ],
+        [
+          "ready",
+          316
+        ],
+        [
+          "generating",
+          137
+        ]
+      ]
+    },
+    {
+      "s": 11.39,
+      "slides": [
+        [
+          "ready",
+          232
+        ],
+        [
+          "ready",
+          294
+        ],
+        [
+          "ready",
+          266
+        ],
+        [
+          "ready",
+          316
+        ],
+        [
+          "ready",
+          229
+        ]
+      ]
+    }
+  ]
+}

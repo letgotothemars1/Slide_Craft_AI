@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import ThemePicker from "@/components/ThemePicker";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,13 +9,8 @@ import {
   type OutlineItem, type Project, type SourceRef,
 } from "@/lib/project-api";
 
-const themes: { value: Project["theme"]; label: string }[] = [
-  { value: "clean_editorial", label: "Clean editorial" },
-  { value: "dark_tech_pitch", label: "Dark tech" },
-  { value: "infographic_bright", label: "Bright infographic" },
-];
-
 export default function OutlineEditor({ project, onChange }: { project: Project; onChange: (project: Project) => void }) {
+  const { t } = useLanguage();
   const [outline, setOutline] = useState<OutlineItem[]>(project.outline);
   const [candidates, setCandidates] = useState<SourceRef[]>([]);
   const [theme, setTheme] = useState<Project["theme"]>(project.theme);
@@ -98,7 +95,7 @@ export default function OutlineEditor({ project, onChange }: { project: Project;
       {outline.length === 5 && !approved && <div className="rounded-xl border bg-card p-5">
         <p className="text-sm text-muted-foreground">Review assignment requirements manually before approval. PDF excerpts are candidates; confirm that each one really supports its slide.</p>
         <Button className="mt-4" disabled={busy || !dirty} onClick={() => void run(() => saveOutline(project, outline), "Outline saved.")}>Save outline edits</Button>
-        <div className="mt-5 border-t pt-4"><label htmlFor="approval-theme" className="block text-sm font-medium">Confirm visual theme</label><select id="approval-theme" className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm" value={theme} onChange={(event) => setTheme(event.target.value as Project["theme"])}>{themes.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><Button className="mt-4" variant="outline" disabled={busy || dirty} onClick={() => void run(() => approveOutline(project, theme), "Outline approved. Slide building is the next module.")}>Approve outline and theme</Button>{dirty && <p className="mt-2 text-sm text-muted-foreground">Save edits before approval.</p>}</div>
+        <div className="mt-5 border-t pt-4"><p className="text-sm font-medium">{t("project.theme.confirm")}</p><div className="mt-3"><ThemePicker value={theme} onChange={setTheme} disabled={busy} /></div><Button className="mt-4" variant="outline" disabled={busy || dirty} onClick={() => void run(() => approveOutline(project, theme), "Outline approved. Slide building is the next module.")}>Approve outline and theme</Button>{dirty && <p className="mt-2 text-sm text-muted-foreground">Save edits before approval.</p>}</div>
       </div>}
       {approved && <p className="rounded-xl border bg-card p-5 text-sm">Outline approved. The selected order and theme are saved for slide building.</p>}
       {notice && <p role="status" className="text-sm text-green-700">{notice}</p>}

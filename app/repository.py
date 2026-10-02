@@ -189,7 +189,7 @@ def get_project(session: Session, project_id: str) -> Project | None:
 
 def project_response(session: Session, project: Project) -> ProjectResponse:
     source = get_document(session, project.source_document_id) if project.source_document_id else None
-    return ProjectResponse(
+    response = ProjectResponse(
         id=project.id,
         language=project.language,
         phase=project.phase,
@@ -203,6 +203,14 @@ def project_response(session: Session, project: Project) -> ProjectResponse:
         outline=project.outline_json,
         slides=project.slides_json,
     )
+    from app.services.design_scene import build_scene
+    from app.services.design_constraints import preserve_reviewed_structure
+    for slide in response.slides:
+        item = next((row for row in response.outline if row.id == slide.id), None)
+        if slide.design and item:
+            slide.design = preserve_reviewed_structure(slide.design,item.layout_type,slide.visual)
+        slide.scene = build_scene(slide,response.theme,item.order if item else 1)
+    return response
 
 
 def update_document_status(session: Session, document_id: str, status: str) -> Document | None:

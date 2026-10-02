@@ -17,7 +17,7 @@ const blockSchema = z.object({
 export const projectSchema = z.object({
   id: z.string(),
   language: z.literal("en"),
-  phase: z.enum(["intake", "outline_draft", "outline_approved", "building", "ready", "error"]),
+  phase: z.enum(["intake", "designing", "drafting", "outline_draft", "outline_approved", "building", "ready", "error"]),
   revision: z.number().int().nonnegative(),
   assignment_text: z.string(),
   context_pack_text: z.string(),
@@ -32,12 +32,26 @@ export const projectSchema = z.object({
     title: z.string(),
     key_message: z.string(),
     evidence_refs: z.array(sourceRefSchema),
+    suggested_refs: z.array(sourceRefSchema).default([]),
     layout_type: z.enum(["title", "content", "comparison"]),
   })),
   slides: z.array(z.object({
     id: z.string(),
     status: z.enum(["queued", "generating", "ready", "error"]),
     revision: z.number().int().nonnegative(),
+    design: z.object({layout:z.enum(['hero','editorial','chart','process','comparison','statement']),emphasis:z.enum(['quiet','accent','inverse']),rationale:z.string(),arrangement:z.enum(['columns','rows']).optional(),visual:z.object({kind:z.enum(['none','process','bars']),labels:z.array(z.string()),values:z.array(z.number()),unit:z.string()}).nullable().optional()}).nullable().optional(),
+    design_status: z.enum(['none','queued','generating','ready','error']).optional(),
+    design_error: z.string().nullable().optional(),
+    sections: z.array(z.object({id:z.string(),heading:z.string(),text:z.string()})).optional(),
+    sections_status:z.enum(['none','generating','ready','error']).optional(),
+    sections_error:z.string().nullable().optional(),
+    design_stage:z.enum(['none','composing','checking','refining','complete']).optional(),
+    quality_issues:z.array(z.string()).optional(),
+    quality_attempts:z.number().optional(),
+    scene: z.array(z.object({kind:z.enum(['text','rect']),x:z.number(),y:z.number(),w:z.number(),h:z.number(),text:z.string(),color:z.string(),size:z.number(),bold:z.boolean(),font:z.enum(['Arial','Georgia']),block_key:z.enum(['title','body','source_label']).nullable(),column:z.number().nullable(),section_id:z.string().nullable().optional(),section_field:z.enum(['heading','text']).nullable().optional()})).optional(),
+    show_source: z.boolean().optional(),
+    revision_instruction: z.string().optional(),
+    visual: z.object({kind: z.enum(["none","process","bars"]), labels: z.array(z.string()), values: z.array(z.number()), unit: z.string()}).nullable().optional(),
     blocks: z.object({ title: blockSchema, body: blockSchema, source_label: blockSchema }),
   })),
 });
@@ -182,4 +196,49 @@ export async function downloadProjectPptx(projectId: string): Promise<void> {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function startLiveDraft(project: Project, mode: "model" | "template"): Promise<Project> {
+  return projectRequest(project.id, "/draft/start", "POST", {expected_revision: project.revision, mode});
+}
+export function retryDraftSlide(project: Project, slideId: string): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/retry`, "POST", {expected_revision: project.revision});
+}
+
+export function hideSlideVisual(project: Project, slideId: string): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/visual`, "DELETE", {expected_revision: project.revision});
+}
+
+export function changeSlideComposition(project: Project, slideId: string, layout_type: OutlineItem["layout_type"]): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/composition`, "PATCH", {expected_revision: project.revision, layout_type});
+}
+
+export function confirmDraftSource(project: Project, slideId: string, source_ref: SourceRef): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/source`, "POST", {expected_revision: project.revision, source_ref});
+}
+
+export function setSlideSourceVisibility(project: Project, slideId: string, show_source: boolean): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/source-visibility`, 'PATCH', {expected_revision: project.revision, show_source});
+}
+export function regenerateWholeSlide(project: Project, slideId: string, instruction: string): Promise<Project> {
+  return projectRequest(project.id, `/draft/slides/${encodeURIComponent(slideId)}/regenerate`, 'POST', {expected_revision: project.revision, instruction});
+}
+
+export function startAIDesign(project: Project, theme: Project['theme']): Promise<Project> {
+  return projectRequest(project.id,'/design/start','POST',{expected_revision:project.revision,theme});
+}
+export function retryAIDesign(project: Project, slideId: string): Promise<Project> {
+  return projectRequest(project.id,`/design/slides/${encodeURIComponent(slideId)}/retry`,'POST',{expected_revision:project.revision});
+}
+
+
+export async function prepareSlideSections(project:Project,slideId:string):Promise<Project>{
+  return projectRequest(project.id,`/slides/${encodeURIComponent(slideId)}/sections/prepare`, 'POST', {expected_revision:project.revision});
+}
+export async function saveSlideSections(project:Project,slideId:string,sections:NonNullable<Project['slides'][number]['sections']>):Promise<Project>{
+  return projectRequest(project.id,`/slides/${encodeURIComponent(slideId)}/sections`, 'PATCH', {expected_revision:project.revision,sections});
+}
+
+export function prepareAllSections(project:Project):Promise<Project>{
+  return projectRequest(project.id,'/sections/prepare','POST',{expected_revision:project.revision});
 }
