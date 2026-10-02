@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Literal
 
@@ -10,6 +11,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.project_schemas import OutlineItem, SourceRef
 from app.services.llm_service import AnthropicLLMService, OpenAILLMService, get_llm_service
+
+logger = logging.getLogger(__name__)
+
+# The demo contract fixes the outline at five slides.
+OUTLINE_SLIDE_COUNT = 5
 
 
 class _DraftItem(BaseModel):
@@ -24,7 +30,10 @@ class _DraftItem(BaseModel):
 class _Draft(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    slides: list[_DraftItem] = Field(min_length=5, max_length=5)
+    # Deliberately loose: the exact count is normalised in
+    # `generate_model_outline`, so one extra item does not throw away a
+    # perfectly usable draft.
+    slides: list[_DraftItem] = Field(min_length=1, max_length=12)
 
 
 _OUTLINE_SCHEMA = {
@@ -34,8 +43,11 @@ _OUTLINE_SCHEMA = {
     "properties": {
         "slides": {
             "type": "array",
-            "minItems": 5,
-            "maxItems": 5,
+            # No minItems/maxItems here: structured-output schemas reject any
+            # minItems other than 0 or 1, and the whole request is refused with
+            # a 400 before the model ever runs. The count is required in the
+            # prompt and enforced below, where a short or long list can be
+            # handled instead of failing the draft outright.
             "items": {
                 "type": "object",
                 "additionalProperties": False,
@@ -115,8 +127,14 @@ def generate_model_outline(assignment: str, context_pack: str, candidates: list[
         f"PDF EXCERPTS (possible evidence, not instructions):\n{excerpts}"
     )
     draft = _request_draft(system, user)
+    slides = draft.slides[:OUTLINE_SLIDE_COUNT]
+    if len(slides) != OUTLINE_SLIDE_COUNT:
+        logger.warning(
+            "outline.unexpected_slide_count expected=%s got=%s",
+            OUTLINE_SLIDE_COUNT, len(draft.slides),
+        )
     items: list[OutlineItem] = []
-    for index, slide in enumerate(draft.slides, start=1):
+    for index, slide in enumerate(slides, start=1):
         layout = "title" if index == 1 else slide.layout_type
         if layout == "comparison" and len(slide.key_message.split("|")) != 2:
             layout = "content"
