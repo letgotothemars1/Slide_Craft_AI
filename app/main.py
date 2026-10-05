@@ -383,14 +383,18 @@ def _spec_or_404(session: Session, job_id: str) -> dict:
     return saved.spec_json
 
 
-@app.get("/jobs/{job_id}/spec")
+# The review endpoints live under /api because "/jobs/{id}" is also the SPA's
+# own route for the job page. Anything the proxy sends to the backend by its
+# first path segment would swallow that page and serve JSON in its place, so
+# these cannot sit at the bare /jobs prefix.
+@app.get("/api/jobs/{job_id}/spec")
 def get_job_spec(job_id: str, session: Session = Depends(get_session)) -> dict:
     """The editable text of a deck under review."""
     _job_or_404(session, job_id)
     return _spec_or_404(session, job_id)
 
 
-@app.patch("/jobs/{job_id}/spec")
+@app.patch("/api/jobs/{job_id}/spec")
 def patch_job_spec(job_id: str, payload: SpecPatchRequest,
                    session: Session = Depends(get_session)) -> dict:
     """Save edited text. Validated against the spec model before it is stored,
@@ -406,7 +410,7 @@ def patch_job_spec(job_id: str, payload: SpecPatchRequest,
     return validated
 
 
-@app.get("/jobs/{job_id}/slides/{index}.png")
+@app.get("/api/jobs/{job_id}/slides/{index}.png")
 def get_slide_preview(
     index: int,
     job_id: str,
@@ -435,7 +439,7 @@ def get_slide_preview(
     )
 
 
-@app.post("/jobs/{job_id}/approve", response_model=JobStatusResponse)
+@app.post("/api/jobs/{job_id}/approve", response_model=JobStatusResponse)
 def approve_job(job_id: str, session: Session = Depends(get_session)) -> JobStatusResponse:
     """Finish a reviewed deck: generate images, render and upload."""
     job = _job_or_404(session, job_id)
@@ -448,7 +452,7 @@ def approve_job(job_id: str, session: Session = Depends(get_session)) -> JobStat
     return repository.to_status_response(session, repository.get_job(session, job_id))
 
 
-@app.post("/jobs/{job_id}/regenerate", response_model=JobStatusResponse)
+@app.post("/api/jobs/{job_id}/regenerate", response_model=JobStatusResponse)
 def regenerate_job(job_id: str, session: Session = Depends(get_session)) -> JobStatusResponse:
     """Write the deck again from the original prompt, discarding this draft."""
     job = _job_or_404(session, job_id)

@@ -136,28 +136,32 @@ export interface PresentationSpec {
   [key: string]: unknown;
 }
 
+/** The review endpoints sit under `/api`, not `/jobs`: `/jobs/:id` is this app's
+ *  own page route, and a proxy that routed it to the backend would serve JSON
+ *  where the job page should be. */
+const JOB_API = (jobId: string) => `/api/jobs/${encodeURIComponent(jobId)}`;
+
 export async function getJobSpec(jobId: string): Promise<PresentationSpec> {
-  return request<PresentationSpec>(`/jobs/${encodeURIComponent(jobId)}/spec`);
+  return request<PresentationSpec>(`${JOB_API(jobId)}/spec`);
 }
 
 export async function saveJobSpec(jobId: string, spec: PresentationSpec): Promise<PresentationSpec> {
-  return request<PresentationSpec>(`/jobs/${encodeURIComponent(jobId)}/spec`, {
+  return request<PresentationSpec>(`${JOB_API(jobId)}/spec`, {
     method: "PATCH",
     body: JSON.stringify({ spec }),
   });
 }
 
 export async function approveJob(jobId: string): Promise<JobStatus> {
-  const res = await request<JobStatus>(`/jobs/${encodeURIComponent(jobId)}/approve`, {
+  const res = await request<JobStatus>(`${JOB_API(jobId)}/approve`, {
     method: "POST",
   });
   return jobStatusSchema.parse(res);
 }
 
-/** Preview URL for one slide. `version` busts the browser cache after an edit —
- *  without it the old render keeps showing. */
-/** `width` requests a downscaled copy — the rail would otherwise pull the full
- *  2560px render for every thumbnail. Omit it for the full-size slide. */
+/** Preview URL for one slide. `version` busts the browser cache, which otherwise
+ *  keeps showing the previous render. `width` requests a downscaled copy — the
+ *  rail would pull the full 2560px render for every thumbnail. */
 export function slidePreviewUrl(
   jobId: string,
   index: number,
@@ -165,14 +169,14 @@ export function slidePreviewUrl(
   width?: number,
 ): string {
   const size = width ? `&w=${width}` : "";
-  return `${API_BASE}/jobs/${encodeURIComponent(jobId)}/slides/${index}.png?v=${version}${size}`;
+  return `${API_BASE}${JOB_API(jobId)}/slides/${index}.png?v=${version}${size}`;
 }
 
 /** The rail is 180 CSS px; doubled so thumbnails stay sharp on a retina screen. */
 export const THUMBNAIL_WIDTH = 360;
 
 export async function regenerateJob(jobId: string): Promise<JobStatus> {
-  const res = await request<JobStatus>(`/jobs/${encodeURIComponent(jobId)}/regenerate`, {
+  const res = await request<JobStatus>(`${JOB_API(jobId)}/regenerate`, {
     method: "POST",
   });
   return jobStatusSchema.parse(res);
