@@ -32,6 +32,7 @@ def create_job(session: Session, job_id: str, payload: GenerateRequest) -> Job:
         document_id=payload.document_id,
         brand_color=payload.brandColor,
         logo_url=payload.logoUrl,
+        review=payload.review,
         status="queued",
         progress=0,
         message=None,
@@ -381,3 +382,15 @@ def to_status_response(session: Session, job: Job) -> JobStatusResponse:
         result=result,
         created_at=_to_iso(job.created_at),
     )
+
+
+def delete_job_specs(session: Session, job_id: str) -> int:
+    """Drop every saved spec for a job.
+
+    Generation reuses a saved spec to avoid paying for the same text twice, so
+    regenerating has to clear it first — otherwise the pipeline would hand back
+    the draft the student just rejected.
+    """
+    removed = session.query(JobSpec).filter(JobSpec.job_id == job_id).delete()
+    session.commit()
+    return removed

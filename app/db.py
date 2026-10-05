@@ -63,6 +63,9 @@ class Job(Base):
     document_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     brand_color: Mapped[str | None] = mapped_column(String(64), nullable=True)
     logo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Staged generation: stop after the text and wait for the student to
+    # approve before spending time and money on images.
+    review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
     progress: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -296,6 +299,7 @@ def _run_startup_migrations() -> None:
                     text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE")
                 )
                 # Profile fields — added in the account iteration.
+                conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS review BOOLEAN NOT NULL DEFAULT FALSE"))
                 conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(64)"))
                 conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(80)"))
                 conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(80)"))
@@ -315,6 +319,8 @@ def _run_startup_migrations() -> None:
                 existing_columns = {row[1] for row in rows}
                 if "document_id" not in existing_columns:
                     conn.execute(text("ALTER TABLE jobs ADD COLUMN document_id VARCHAR(64)"))
+                if "review" not in existing_columns:
+                    conn.execute(text("ALTER TABLE jobs ADD COLUMN review BOOLEAN NOT NULL DEFAULT 0"))
                 conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email ON users (email)"))
                 user_rows = conn.execute(text("PRAGMA table_info(users)")).fetchall()
                 user_columns = {row[1] for row in user_rows}

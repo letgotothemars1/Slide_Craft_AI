@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -50,6 +51,7 @@ class JobContext:
     slides: int
     output_format: str
     document_id: str | None
+    review: bool = False
 
 
 @dataclass
@@ -126,6 +128,7 @@ def load_job_context(job_id: str) -> JobContext:
         slides=job.slides,
         output_format=job.format,
         document_id=job.document_id,
+        review=bool(getattr(job, "review", False)),
     )
 
     logger.debug(
@@ -436,6 +439,19 @@ def run_generation_pipeline(job_id: str) -> None:
             current_step = "spec.critic"
             spec_json = _run_critic(spec_json)
 
+        if job.review:
+            # Staged generation stops here. Images are the slow, paid step, and
+            # text written before review is usually rewritten — so the deck is
+            # shown for editing first and finished on approval.
+            current_step = "spec.review"
+            with SessionLocal() as session:
+                repository.update_job_state(
+                    session, job_id, status="draft", progress=50,
+                    message="Text is ready. Review and approve to finish.",
+                )
+            logger.debug("orchestrator.job.draft job_id=%s", job_id)
+            return
+
         image_artifacts: list[UploadedArtifact] = []
         if spec_json is not None:
             _set_running_state(job_id, 40, "Generating slide visuals...")
@@ -466,6 +482,53 @@ def run_generation_pipeline(job_id: str) -> None:
     except LookupError:
         # Job record does not exist, nothing to finalize.
         logger.warning("orchestrator.job.failed job_id=%s step=%s reason=job_not_found", job_id, current_step)
+    except Exception as exc:  # noqa: BLE001
+        fail_job(job_id, exc, current_step)
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def run_finalize_pipeline(job_id: str) -> None:
+    """Second half of staged generation: images, render, upload.
+
+    Reads the spec from the database rather than taking it as an argument, so
+    whatever the student last saved is exactly what gets rendered.
+    """
+    temp_dir = Path(tempfile.mkdtemp(prefix=f"slidecraft-{job_id}-"))
+    current_step = "job.load"
+
+    try:
+        job = load_job_context(job_id)
+        spec_json = _load_saved_spec(job)
+        if spec_json is None:
+            raise ValueError("No saved spec to finalize")
+
+        _set_running_state(job_id, 40, "Generating slide visuals...")
+        current_step = "assets.generate"
+        spec_json, image_artifacts = generate_assets(job_id, spec_json, temp_dir)
+
+        pdf_path: Path | None = None
+        pptx_path: Path | None = None
+
+        if job.output_format in {"pdf", "both"}:
+            _set_running_state(job_id, 65, "Rendering PDF...")
+            current_step = "pdf.render"
+            pdf_path = render_pdf(spec_json, job_id, temp_dir, job.prompt)
+
+        if job.output_format in {"pptx", "both"}:
+            _set_running_state(job_id, 80, "Rendering PPTX...")
+            current_step = "pptx.render"
+            pptx_path = render_pptx(spec_json, job_id, temp_dir, job.prompt)
+
+        _set_running_state(job_id, 95, "Uploading artifacts...")
+        current_step = "artifacts.upload"
+        artifacts = image_artifacts + upload_artifacts(job_id, pdf_path, pptx_path)
+
+        current_step = "job.finalize"
+        finalize_job(job_id, artifacts)
+
+    except LookupError:
+        logger.warning("orchestrator.finalize.failed job_id=%s step=%s reason=job_not_found", job_id, current_step)
     except Exception as exc:  # noqa: BLE001
         fail_job(job_id, exc, current_step)
     finally:

@@ -28,6 +28,7 @@ from app.schemas import (
     HealthResponse,
     JobStatusResponse,
     PasswordChangeRequest,
+    SpecPatchRequest,
     ProfileUpdateRequest,
     SignupRequest,
 )
@@ -42,7 +43,9 @@ from app.services.auth_service import (
     hash_password,
     verify_password,
 )
-from app.services.generator import start_generation_job
+from app.services.generator import start_finalize_job, start_generation_job
+from app.services.slide_preview import get_slide_png
+from app.services.llm_service import PresentationSpec
 from app.services.storage_service import get_storage_service
 
 logger = logging.getLogger(__name__)
@@ -364,6 +367,85 @@ def status(job_id: str, session: Session = Depends(get_session)) -> JobStatusRes
         raise HTTPException(status_code=404, detail="Job not found")
 
     return repository.to_status_response(session, job)
+
+
+def _job_or_404(session: Session, job_id: str):
+    job = repository.get_job(session, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+def _spec_or_404(session: Session, job_id: str) -> dict:
+    saved = repository.get_latest_job_spec(session, job_id)
+    if saved is None or not saved.spec_json:
+        raise HTTPException(status_code=404, detail="No spec saved for this job")
+    return saved.spec_json
+
+
+@app.get("/jobs/{job_id}/spec")
+def get_job_spec(job_id: str, session: Session = Depends(get_session)) -> dict:
+    """The editable text of a deck under review."""
+    _job_or_404(session, job_id)
+    return _spec_or_404(session, job_id)
+
+
+@app.patch("/jobs/{job_id}/spec")
+def patch_job_spec(job_id: str, payload: SpecPatchRequest,
+                   session: Session = Depends(get_session)) -> dict:
+    """Save edited text. Validated against the spec model before it is stored,
+    so a malformed edit cannot reach the renderer."""
+    job = _job_or_404(session, job_id)
+    if job.status not in {"draft", "error"}:
+        raise HTTPException(status_code=422, detail="This deck is not open for editing")
+    try:
+        validated = PresentationSpec.model_validate(payload.spec).model_dump()
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid spec: {exc}") from exc
+    repository.save_job_spec(session, job_id=job_id, spec_json=validated)
+    return validated
+
+
+@app.get("/jobs/{job_id}/slides/{index}.png")
+def get_slide_preview(index: int, job_id: str, session: Session = Depends(get_session)) -> Response:
+    """One slide, rendered by the same renderer that produces the final PDF."""
+    _job_or_404(session, job_id)
+    spec_json = _spec_or_404(session, job_id)
+    png = get_slide_png(job_id, spec_json, index)
+    if png is None:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    return Response(
+        content=png,
+        media_type="image/png",
+        # The spec changes on every edit, so a cached preview would show stale text.
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.post("/jobs/{job_id}/approve", response_model=JobStatusResponse)
+def approve_job(job_id: str, session: Session = Depends(get_session)) -> JobStatusResponse:
+    """Finish a reviewed deck: generate images, render and upload."""
+    job = _job_or_404(session, job_id)
+    if job.status != "draft":
+        raise HTTPException(status_code=422, detail="Only a deck under review can be approved")
+    _spec_or_404(session, job_id)
+    repository.update_job_state(session, job_id, status="running", progress=40,
+                                message="Generating slide visuals...")
+    start_finalize_job(job_id)
+    return repository.to_status_response(session, repository.get_job(session, job_id))
+
+
+@app.post("/jobs/{job_id}/regenerate", response_model=JobStatusResponse)
+def regenerate_job(job_id: str, session: Session = Depends(get_session)) -> JobStatusResponse:
+    """Write the deck again from the original prompt, discarding this draft."""
+    job = _job_or_404(session, job_id)
+    if job.status not in {"draft", "error"}:
+        raise HTTPException(status_code=422, detail="Only a draft can be regenerated")
+    repository.delete_job_specs(session, job_id)
+    repository.update_job_state(session, job_id, status="running", progress=25,
+                                message="Generating presentation spec...")
+    start_generation_job(job_id)
+    return repository.to_status_response(session, repository.get_job(session, job_id))
 
 
 # Accepts both GET and HEAD — UptimeRobot's free plan uses HEAD requests

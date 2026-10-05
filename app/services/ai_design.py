@@ -128,7 +128,15 @@ def run_design(project_id,only_slide_id=None):
                         if not stage('refining',candidate,issues): raise ValueError('Content changed during design')
                         candidate=generate_design(project,item,target,previous,feedback={'issues':issues,'recommended_arrangement':review['arrangement']})
                         candidate.arrangement=review['arrangement']
-                error=None if plan else 'Design needs attention after three checks. Your text and sections are preserved.'
+                if plan:
+                    error=None
+                else:
+                    # Keep the best candidate rather than throwing away three
+                    # model calls. An unapproved design still renders, and
+                    # showing it with the open issues beats leaving the slide on
+                    # a stale design — or none — behind an error message.
+                    plan=candidate.model_dump()
+                    error='Design needs attention after three checks. Your text and sections are preserved.'
             except Exception:
                 logger.exception('design.failed project=%s slide=%s',project_id,slide_id)
                 error='Design or visual review could not complete. Your content is kept. Retry this slide.'

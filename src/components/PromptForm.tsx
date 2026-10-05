@@ -76,6 +76,9 @@ export default function PromptForm({
       format: "pdf",
       brandColor: null,
       logoUrl: null,
+      // Stop after the text so the deck can be reviewed before
+      // the slow, paid image step runs.
+      review: true,
     },
   });
 
@@ -101,17 +104,19 @@ export default function PromptForm({
       <div
         className={cn(
           "overflow-hidden rounded-2xl border bg-card shadow-elevated transition-colors",
+          "focus-within:border-primary/40",
           promptError ? "border-destructive/50" : "border-border",
         )}
       >
         {/* prompt */}
         <div className="p-4 sm:p-5">
           <Textarea
+            spellCheck={false}
             id="prompt"
             aria-label={t("gen.title")}
             placeholder={t("gen.placeholder")}
             maxLength={MAX_PROMPT}
-            className="min-h-[132px] resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
+            className="min-h-[132px] resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
             {...form.register("prompt")}
           />
 

@@ -10,7 +10,7 @@ Audience = Literal["executives", "students", "sales", "investors", "custom"]
 Style = Literal["business", "minimal", "dark", "creative"]
 Language = Literal["ru", "en"]
 OutputFormat = Literal["pptx", "pdf", "both"]
-JobStatus = Literal["queued", "running", "done", "error"]
+JobStatus = Literal["queued", "running", "draft", "done", "error"]
 
 
 class GenerateRequest(BaseModel):
@@ -25,6 +25,10 @@ class GenerateRequest(BaseModel):
     document_id: str | None = None
     brandColor: str | None = None
     logoUrl: str | None = None
+    # Stop after the text and wait for approval. Images are the slow, paid step;
+    # making them before the student has read the deck wastes money on drafts
+    # that get rewritten anyway.
+    review: bool = False
 
     model_config = ConfigDict(extra="forbid")
 
@@ -147,6 +151,19 @@ class JobStatusResponse(BaseModel):
     message: str | None
     result: JobResult | None
     created_at: str
+
+
+class SpecPatchRequest(BaseModel):
+    """Replacement spec for a job under review.
+
+    The whole document is sent rather than a field path: slides are small, and
+    a single payload keeps the saved spec, the preview and the export from
+    drifting apart mid-edit.
+    """
+
+    spec: dict
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class HealthResponse(BaseModel):

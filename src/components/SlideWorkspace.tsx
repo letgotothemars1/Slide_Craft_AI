@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  buildProject, editSlideBlock, downloadProjectPptx, getProject, regenerateBlock, resetBlockFromOutline, retrySlide, type Project,
+  buildProject, editSlideBlock, downloadProjectExport, getProject, regenerateBlock, resetBlockFromOutline, retrySlide, type Project,
 } from "@/lib/project-api";
 
 import { palettes } from "@/lib/slide-themes";
@@ -123,17 +123,20 @@ export default function SlideWorkspace({ project, onChange }: { project: Project
 
   if (project.phase === "outline_approved") return <section className="rounded-xl border bg-card p-5"><h2 className="text-xl font-semibold">Build slides</h2><p className="mt-2 text-sm text-muted-foreground">Generate slide bodies one at a time with your configured AI provider, or copy the approved outline into editable slides without a key. Approved titles and selected PDF source labels stay attached to their slides.</p><div className="mt-4 flex flex-wrap gap-2"><Button disabled={Boolean(busy)} onClick={() => void run("build", () => buildProject(project, "model"))}>Build with AI</Button><Button variant="outline" disabled={Boolean(busy)} onClick={() => void run("build", () => buildProject(project, "template"))}>Use key-free outline</Button></div>{error && <p role="alert" className="mt-3 text-destructive">{error}</p>}</section>;
 
-  const download = async () => {
-    setBusy("export");
+  const download = async (format: "pptx" | "pdf") => {
+    setBusy(`export-${format}`);
     setError("");
-    try { await downloadProjectPptx(project.id); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "PPTX could not be downloaded. Try again."); }
+    try { await downloadProjectExport(project.id, format); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : `${format.toUpperCase()} could not be downloaded. Try again.`); }
     finally { setBusy(""); }
   };
 
   const readyCount = project.slides.filter((item) => item.status === "ready").length;
   return <section className="space-y-5" aria-label="Slide workspace">
-    <div className="rounded-xl border bg-card p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">Slides</h2><p className="mt-1 text-sm text-muted-foreground" aria-live="polite">{readyCount} of {project.slides.length} ready · {project.phase === "building" ? "Building" : project.phase === "ready" ? "Ready" : "Needs attention"}</p></div>{project.phase === "ready" && (regenerating ? <Button disabled>Wait for regeneration to export</Button> : <Button disabled={busy === "export"} onClick={() => void download()}>{busy === "export" ? "Preparing PPTX…" : "Download draft PPTX"}</Button>)}</div>
+    <div className="rounded-xl border bg-card p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">Slides</h2><p className="mt-1 text-sm text-muted-foreground" aria-live="polite">{readyCount} of {project.slides.length} ready · {project.phase === "building" ? "Building" : project.phase === "ready" ? "Ready" : "Needs attention"}</p></div>{project.phase === "ready" && (regenerating ? <Button disabled>Wait for regeneration to export</Button> : <div className="flex flex-wrap gap-2">
+      <Button disabled={Boolean(busy)} onClick={() => void download("pdf")}>{busy === "export-pdf" ? "Preparing PDF…" : "Download PDF"}</Button>
+      <Button variant="outline" disabled={Boolean(busy)} onClick={() => void download("pptx")}>{busy === "export-pptx" ? "Preparing PPTX…" : "Download editable PPTX"}</Button>
+    </div>)}</div>
       <div className="mt-4 flex gap-2 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:overflow-visible sm:pb-0">{project.outline.map((item) => { const builtSlide = project.slides.find((row) => row.id === item.id); const status = builtSlide?.status ?? "queued"; const title = status === "ready" ? builtSlide?.blocks.title.text : item.title; return <button type="button" key={item.id} aria-pressed={selectedId === item.id} className={`min-w-28 flex-1 rounded-md border p-2 text-left text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:min-w-0 ${selectedId === item.id ? "border-primary ring-2 ring-primary/30" : ""}`} onClick={() => setSelectedId(item.id)}><span className="block font-semibold">{item.order}. {title}</span><span className="mt-1 block capitalize text-muted-foreground">{status}</span></button>; })}</div>
     </div>
     {slide && <><div className="rounded-xl border bg-card p-4 sm:p-5"><SlidePreview project={project} slideId={selectedId} /></div>

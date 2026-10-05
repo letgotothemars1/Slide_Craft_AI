@@ -168,6 +168,13 @@ def _mirror_blocks(blocks: list[dict]) -> list[dict]:
     return out
 
 
+# Marks a slide that is queued for an image but has not been given one yet.
+# Set during review so the preview uses the image layout and shows where the
+# picture will land — otherwise the draft is composed full-width and the final
+# deck silently reflows the text into a narrower column.
+PENDING_IMAGE = "pending:image"
+
+
 def _layout_blocks(slide: SlideSpec, layout_name: str, mirror: bool = False) -> list[dict]:
     """Pick the full-width variant when a slide has no image, else the default."""
     if not slide.image_url and layout_name in LAYOUTS_NO_IMAGE:
@@ -586,6 +593,13 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
         )
 
     if btype == "image_right":
+        if slide.image_url == PENDING_IMAGE:
+            return (
+                f'<div style="{p}border-radius:24px 0 0 24px;background:{t["panel_alt"]};'
+                f'border:1px solid {t["border"]};display:flex;align-items:center;'
+                f'justify-content:center;text-align:center;padding:32px;">'
+                f'{_pending_image_note(slide, t)}</div>'
+            )
         if not slide.image_url:
             return ""
         return (
@@ -596,6 +610,13 @@ def _render_block(b: dict, slide: SlideSpec, t: dict) -> str:  # noqa: C901
 
     if btype == "image":
         radius = b.get("radius", 22)
+        if slide.image_url == PENDING_IMAGE:
+            return (
+                f'<div style="{p}border-radius:{radius}px;background:{t["panel_alt"]};'
+                f'border:1px solid {t["border"]};display:flex;align-items:center;'
+                f'justify-content:center;text-align:center;padding:32px;">'
+                f'{_pending_image_note(slide, t)}</div>'
+            )
         if slide.image_url:
             return (
                 f'<div style="{p}border-radius:{radius}px;overflow:hidden;">'
@@ -1008,3 +1029,103 @@ def render_pdf_html(path: Path, spec_json: dict) -> None:
         asyncio.run(_render_screenshots_async(html, path))
 
     logger.debug("render_pdf_html.done slides=%s path=%s", len(spec.slides), path)
+
+
+# ── Single-slide rendering, for live preview and editing ──────────────────────
+
+async def _screenshot_slides_async(html_list: list[str]) -> list[bytes]:
+    """Screenshot each standalone slide HTML; one browser for the whole batch."""
+    from playwright.async_api import async_playwright
+
+    shots: list[bytes] = []
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        for html in html_list:
+            ctx = await browser.new_context(viewport={"width": W, "height": H}, device_scale_factor=2)
+            page = await ctx.new_page()
+            await page.set_content(html, wait_until="networkidle", timeout=30_000)
+            shots.append(await page.locator(".slide").first.screenshot())
+            await ctx.close()
+        await browser.close()
+    return shots
+
+
+def render_slide_pngs(spec_json: dict, indexes: list[int] | None = None) -> dict[int, bytes]:
+    """Render chosen slides of a spec to PNG, keyed by their index.
+
+    The preview and the exported PDF come from the same renderer and the same
+    spec, so what the student edits on screen is what lands in the file. Passing
+    `indexes` re-renders only the slides that changed, which is what an edit
+    needs — rebuilding a whole deck to repaint one slide is wasteful.
+    """
+    spec = PresentationSpec.model_validate(spec_json)
+    wanted = list(range(len(spec.slides))) if indexes is None else [
+        i for i in indexes if 0 <= i < len(spec.slides)
+    ]
+    if not wanted:
+        return {}
+
+    base_theme = dict(_resolve_theme(spec))
+    base_theme["language"] = spec.language
+    theme_key = spec.theme_variant or "clean_editorial"
+    accents = _assign_slide_accents(spec, theme_key)
+
+    # Mirroring alternates by position among image-bearing two-column slides,
+    # so it has to be counted over the whole deck — not over the subset being
+    # re-rendered, or an edited slide would flip sides.
+    mirrors: dict[int, bool] = {}
+    dest_idx = 0
+    for i, slide in enumerate(spec.slides):
+        if _resolve_layout(slide) == "content_two_column" and slide.image_url:
+            mirrors[i] = dest_idx % 2 == 1
+            dest_idx += 1
+
+    html_list = [
+        _make_standalone_slide_html_mirrored(
+            spec.slides[i], _theme_with_accent(base_theme, accents[i]),
+            spec.title, mirrors.get(i, False),
+        )
+        for i in wanted
+    ]
+    shots = asyncio.run(_screenshot_slides_async(html_list))
+    return dict(zip(wanted, shots))
+
+
+def _make_standalone_slide_html_mirrored(
+    slide: SlideSpec, theme: dict, title: str, mirror: bool
+) -> str:
+    """`_make_standalone_slide_html` with the image side preserved."""
+    slide_html = _render_slide(slide, theme, mirror=mirror)
+    return (
+        "<!DOCTYPE html>\n<html>\n<head>"
+        '<meta charset="utf-8">'
+        '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">'
+        "<style>* { margin:0; padding:0; box-sizing:border-box; } body { background:#000; line-height:1; }</style>"
+        f"</head>\n<body>{slide_html}</body>\n</html>"
+    )
+
+
+def _pending_image_note(slide: SlideSpec, t: dict) -> str:
+    """Caption inside an image placeholder: says a picture is coming, and of what.
+
+    The deck's language rides along on the theme dict — every renderer already
+    receives it, and threading a separate argument through each block renderer
+    would touch a dozen call sites for one caption.
+    """
+    label = (
+        "Здесь будет иллюстрация"
+        if t.get("language") == "ru"
+        else "An illustration will go here"
+    )
+    hint = (slide.visual_hint or slide.image_prompt or "").strip()
+    body = (
+        f'<div style="font-size:15px;color:{t["text_secondary"]};opacity:.75;'
+        f'letter-spacing:.02em;">{escape(label)}</div>'
+    )
+    if hint:
+        body += (
+            f'<div style="font-size:12px;color:{t["text_secondary"]};opacity:.45;'
+            f'margin-top:10px;line-height:1.5;">{escape(hint[:140])}</div>'
+        )
+    return f"<div>{body}</div>"

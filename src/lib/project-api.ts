@@ -180,8 +180,13 @@ export function retrySlide(project: Project, slideId: string): Promise<Project> 
 }
 
 export function exportPptxUrl(projectId: string): string {
+  return exportUrl(projectId, "pptx");
+}
+
+/** PPTX is the editable copy, PDF the fixed one; both come from the same scene. */
+function exportUrl(projectId: string, format: "pptx" | "pdf"): string {
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "";
-  return `${apiBase}${PROJECTS_API}/${encodeURIComponent(projectId)}/export.pptx`;
+  return `${apiBase}${PROJECTS_API}/${encodeURIComponent(projectId)}/export.${format}`;
 }
 
 export async function getSourceCandidates(projectId: string): Promise<SourceRef[]> {
@@ -191,20 +196,30 @@ export async function getSourceCandidates(projectId: string): Promise<SourceRef[
   return z.array(sourceRefSchema).parse(await response.json());
 }
 
-export async function downloadProjectPptx(projectId: string): Promise<void> {
-  const response = await fetch(exportPptxUrl(projectId));
+export async function downloadProjectExport(
+  projectId: string,
+  format: "pptx" | "pdf",
+): Promise<void> {
+  const response = await fetch(exportUrl(projectId, format));
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new Error(typeof data?.detail === "string" ? data.detail : "PPTX could not be downloaded. Try again.");
+    const label = format.toUpperCase();
+    throw new Error(
+      typeof data?.detail === "string" ? data.detail : `${label} could not be downloaded. Try again.`,
+    );
   }
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
   link.href = url;
-  link.download = `slidecraft-${projectId}.pptx`;
+  link.download = `slidecraft-${projectId}.${format}`;
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadProjectPptx(projectId: string): Promise<void> {
+  return downloadProjectExport(projectId, "pptx");
 }
 
 export function startLiveDraft(project: Project, mode: "model" | "template"): Promise<Project> {

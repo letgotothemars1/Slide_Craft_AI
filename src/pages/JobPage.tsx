@@ -6,6 +6,8 @@ import { track } from "@/lib/analytics";
 import AppHeader from "@/components/AppHeader";
 import Reveal from "@/components/Reveal";
 import JobStatusCard from "@/components/JobStatusCard";
+import SlideReviewWorkspace from "@/components/SlideReviewWorkspace";
+import DraftSkeleton from "@/components/DraftSkeleton";
 import PreviewGallery from "@/components/PreviewGallery";
 import DownloadButtons from "@/components/DownloadButtons";
 import ShareLink from "@/components/ShareLink";
@@ -21,6 +23,9 @@ export default function JobPage() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Ensures we fire `job_done` exactly once per page visit, even if polling races.
   const reportedRef = useRef<boolean>(false);
+  // Bumped on approval to restart polling, which stops while the deck is being
+  // edited — the status cannot change until the student approves.
+  const [pollCycle, setPollCycle] = useState(0);
 
   useEffect(() => {
     if (!jobId) return;
@@ -31,6 +36,11 @@ export default function JobPage() {
         const status = await getJobStatus(jobId);
         setJob(status);
         updateHistoryStatus(jobId, status.status);
+
+        if (status.status === "draft") {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          return;
+        }
 
         if (status.status === "done" || status.status === "error") {
           if (intervalRef.current) clearInterval(intervalRef.current);
@@ -55,7 +65,7 @@ export default function JobPage() {
     // `t` is intentionally omitted: switching language mid-poll should not
     // restart the interval, and the message is only read on failure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]);
+  }, [jobId, pollCycle]);
 
   if (!jobId) return <NotFoundState />;
 
@@ -64,7 +74,11 @@ export default function JobPage() {
       <AppHeader />
 
       <main className="flex-1 px-4 py-12 sm:py-16">
-        <div className="container max-w-3xl space-y-6">
+        <div className={`container space-y-6 ${
+            job?.status === "draft" || job?.status === "running" || job?.status === "queued"
+              ? "max-w-[1500px]"
+              : "max-w-3xl"
+          }`}>
           {error ? (
             <div className="space-y-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
               <p role="alert" className="font-medium text-destructive">
@@ -81,12 +95,27 @@ export default function JobPage() {
             </div>
           ) : (
             <>
+              {job.status === "queued" || job.status === "running" ? (
+                <DraftSkeleton message={job.message} />
+              ) : job.status === "draft" ? (
+                <SlideReviewWorkspace
+                  jobId={job.job_id}
+                  // Approval restarts the pipeline, so polling has to resume.
+                  onApproved={() => {
+                    setJob({ ...job, status: "running" });
+                    setPollCycle((cycle) => cycle + 1);
+                  }}
+                />
+              ) : (
               <Reveal>
                 <JobStatusCard job={job} />
               </Reveal>
+              )}
+              {job.status === "done" && (
               <Reveal delay={80}>
                 <ShareLink jobId={job.job_id} />
               </Reveal>
+              )}
 
               {job.status === "done" && job.result && (
                 <>

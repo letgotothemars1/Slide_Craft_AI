@@ -11,7 +11,7 @@ export const audienceValues = ["executives", "students", "sales", "investors", "
 export const styleValues = ["business", "minimal", "dark", "creative"] as const;
 export const languageValues = ["ru", "en"] as const;
 export const formatValues = ["pdf", "pptx", "both"] as const;
-export const statusValues = ["queued", "running", "done", "error"] as const;
+export const statusValues = ["queued", "running", "draft", "done", "error"] as const;
 
 export const generateRequestSchema = z.object({
   prompt: z.string().trim().min(1, "Введите промпт").max(2000, "Макс. 2000 символов"),
@@ -22,6 +22,7 @@ export const generateRequestSchema = z.object({
   format: z.enum(formatValues),
   document_id: z.string().nullable().optional(),
   brandColor: z.string().nullable(),
+  review: z.boolean().default(true),
   logoUrl: z.string().nullable(),
 });
 
@@ -99,5 +100,68 @@ export async function uploadDocument(file: File): Promise<{ document_id: string 
 
 export async function getJobStatus(jobId: string): Promise<JobStatus> {
   const res = await request<JobStatus>(`/status/${encodeURIComponent(jobId)}`);
+  return jobStatusSchema.parse(res);
+}
+
+/* ── Staged generation: review and edit before the deck is finished ── */
+
+/** One chart data point the student can correct. */
+export interface SpecChartPoint {
+  label: string;
+  value: number;
+}
+
+/** The subset of a slide the review workspace edits. Other fields pass
+ *  through untouched — the spec is saved whole, so nothing is dropped. */
+export interface SpecSlide {
+  id: string;
+  type: string;
+  layout_type?: string | null;
+  title: string;
+  subtitle?: string | null;
+  body?: string | null;
+  bullets: string[];
+  key_message?: string | null;
+  source?: string | null;
+  chart?: { chart_type: string; unit?: string | null; points: SpecChartPoint[] } | null;
+  table?: { headers: string[]; rows: string[][] } | null;
+  [key: string]: unknown;
+}
+
+export interface PresentationSpec {
+  title: string;
+  subtitle?: string | null;
+  slides: SpecSlide[];
+  [key: string]: unknown;
+}
+
+export async function getJobSpec(jobId: string): Promise<PresentationSpec> {
+  return request<PresentationSpec>(`/jobs/${encodeURIComponent(jobId)}/spec`);
+}
+
+export async function saveJobSpec(jobId: string, spec: PresentationSpec): Promise<PresentationSpec> {
+  return request<PresentationSpec>(`/jobs/${encodeURIComponent(jobId)}/spec`, {
+    method: "PATCH",
+    body: JSON.stringify({ spec }),
+  });
+}
+
+export async function approveJob(jobId: string): Promise<JobStatus> {
+  const res = await request<JobStatus>(`/jobs/${encodeURIComponent(jobId)}/approve`, {
+    method: "POST",
+  });
+  return jobStatusSchema.parse(res);
+}
+
+/** Preview URL for one slide. `version` busts the browser cache after an edit —
+ *  without it the old render keeps showing. */
+export function slidePreviewUrl(jobId: string, index: number, version: number): string {
+  return `${API_BASE}/jobs/${encodeURIComponent(jobId)}/slides/${index}.png?v=${version}`;
+}
+
+export async function regenerateJob(jobId: string): Promise<JobStatus> {
+  const res = await request<JobStatus>(`/jobs/${encodeURIComponent(jobId)}/regenerate`, {
+    method: "POST",
+  });
   return jobStatusSchema.parse(res);
 }

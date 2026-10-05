@@ -210,9 +210,6 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-wrap items-center justify-center gap-3">
-                <Button size="lg" variant="outline" asChild className="h-[52px] rounded-full px-6 text-base">
-                  <Link to="/projects/new">Try the academic MVP</Link>
-                </Button>
                 <Button size="lg" asChild className="h-[52px] rounded-full px-8 text-base shadow-elevated">
                   <Link to={ctaLink} onClick={() => handleCtaClick("hero")}>
                     <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />

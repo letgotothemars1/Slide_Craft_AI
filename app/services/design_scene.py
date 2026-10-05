@@ -1,5 +1,4 @@
 """Single native geometry for browser previews and editable PowerPoint."""
-import math
 import re
 from app.project_schemas import SceneElement
 from app.services.modular_export import PALETTES
@@ -14,10 +13,72 @@ def _contrast(first, second):
     return (b+.05)/(a+.05)
 
 
+def _wrapped_lines(value: str, width: float, size: float) -> int:
+    """Count the lines greedy word wrapping actually produces.
+
+    Dividing the character count by the line width assumes perfect packing.
+    Real wrapping breaks on word boundaries and leaves a ragged edge, so it
+    needs one more line more often than not — and that extra line is the one
+    that gets clipped, because every box here has a fixed height. The same
+    estimate caused visibly cut headlines in the one-shot renderer before it
+    was replaced with this simulation.
+    """
+    columns = max(1, int(width / (size * .53)))
+    total = 0
+    for paragraph in (value or "").split('\n'):
+        words = paragraph.split()
+        if not words:
+            total += 1
+            continue
+        lines, current = 1, 0
+        for word in words:
+            needed = len(word) if current == 0 else current + 1 + len(word)
+            if needed <= columns:
+                current = needed
+            else:
+                lines += 1
+                # A word longer than the line wraps onto further lines of its own.
+                current = len(word)
+                while current > columns:
+                    lines += 1
+                    current -= columns
+        total += lines
+    return total
+
+
+# Footer line: every layout keeps its content above it so the source label
+# never collides with the body.
+FOOTER = 51.0
+
+
+def _default_design(slide, order):
+    """A layout for slides that never went through the design pass.
+
+    Key-free drafts have no `design`, and returning nothing left them with no
+    scene at all — the PDF export had nothing to draw, and the PPTX exporter
+    kept a second, hand-written layout path just for them. Deriving a plan from
+    the content keeps one layout engine behind every surface.
+    """
+    from app.project_schemas import DesignPlan
+
+    visual = getattr(slide, 'visual', None)
+    if visual and visual.kind == 'bars':
+        layout = 'chart'
+    elif visual and visual.kind == 'process':
+        layout = 'process'
+    elif '|' in slide.blocks.body.text:
+        layout = 'comparison'
+    elif order == 1:
+        layout = 'hero'
+    else:
+        layout = 'statement'
+    return DesignPlan(layout=layout, emphasis='quiet',
+                      rationale='Derived from slide content; no design pass ran.',
+                      visual=visual)
+
+
 def build_scene(slide, theme, order):
-    if not slide.design:
-        return []
-    design = slide.design
+    design = slide.design or _default_design(slide, order)
     bg, fg, muted, accent, panel = ('#'+value for value in PALETTES[theme])
     if design.emphasis == 'inverse':
         bg, fg, muted, accent, panel = fg, bg, bg, accent, fg
@@ -31,13 +92,17 @@ def build_scene(slide, theme, order):
     def rect(x,y,w,h,color):
         out.append(SceneElement(kind='rect',x=x,y=y,w=w,h=h,color=color))
 
-    def text(value,x,y,w,h,size,color=fg,bold=False,key=None,column=None,section_id=None,section_field=None):
-        # Respect explicit line breaks, estimate word wrapping, and leave room for descenders.
+    def fit(value,w,h,size):
+        """Largest size at or below `size` whose wrapped text fits, and its height."""
         while size > .95:
-            columns = max(1,int(w/(size*.53)))
-            lines = sum(max(1,math.ceil(len(line)/columns)) for line in value.split('\n'))
-            if lines * size * 1.22 <= h-.4: break
+            used = _wrapped_lines(value, w, size) * size * 1.22
+            if used <= h-.4: return round(size,2), used
             size -= .1
+        return round(size,2), _wrapped_lines(value, w, size) * size * 1.22
+
+    def text(value,x,y,w,h,size,color=fg,bold=False,key=None,column=None,section_id=None,section_field=None):
+        # Respect explicit line breaks and shrink until the text fits its box.
+        size,_ = fit(value,w,h,size)
         out.append(SceneElement(kind='text',x=x,y=y,w=w,h=h,color=color,text=value,size=round(size,2),bold=bold,font=font if key=='title' else 'Arial',block_key=key,column=column,section_id=section_id,section_field=section_field))
 
     title, body = slide.blocks.title.text, slide.blocks.body.text
@@ -54,8 +119,12 @@ def build_scene(slide, theme, order):
         columns=design.arrangement=='columns' and len(sections)>1 and not has_bars
         area_width=40 if has_bars else 86
         has_process=visual and visual.kind=='process'
-        area_height=22 if has_process else 35
-        area_top=30 if has_process else 18
+        # The process strip is a compact band; the sections get everything left
+        # down to the footer. At the previous 22% three paragraphs could only
+        # fit by shrinking below the 18pt floor, which the render check flags —
+        # and the design loop then failed the slide outright.
+        area_height=27.5 if has_process else 35
+        area_top=22.5 if has_process else 18
         weights=[len(s.text)+70 for s in sections]
         total_weight=sum(weights)
         row_offset=0
@@ -87,32 +156,57 @@ def build_scene(slide, theme, order):
             width=86/len(visual.labels)
             for index,label in enumerate(visual.labels):
                 x=7+index*width
-                rect(x,18,width-2,9,panel)
-                rect(x,18,width-2,.25,accent)
-                if index<len(visual.labels)-1: rect(x+width-2,22.3,2,.2,accent)
-                text(label,x+1.5,20,width-5,6,1.9,fg,True)
+                rect(x,15,width-2,5.4,panel)
+                rect(x,15,width-2,.25,accent)
+                if index<len(visual.labels)-1: rect(x+width-2,17.5,2,.2,accent)
+                text(label,x+1.5,16.1,width-5,3.6,1.9,fg,True)
     elif layout=='hero':
-        rect(83,0,17,56.25,accent)
-        text(title,7,7,69,18,5.2,bold=True,key='title')
-        rect(7,26,9,.35,accent)
-        if len(slide.sections)==1:
-            section=slide.sections[0]
-            text(section.heading,7,29,66,4,2.1,bold=True,key='body',section_id=section.id,section_field='heading')
-            text(section.text,7,35,66,17,2.3,muted,key='body',section_id=section.id,section_field='text')
-        else:
-            text(body,7,30,66,21,2.3,muted,key='body')
-        text(f'{order:02d}',86,43,12,8,5,accent_ink,True)
+        # Geometry from the one-shot renderer's full-width hero: a hairline
+        # accent on the left rather than a heavy slab on the right, and the
+        # text spanning the canvas instead of stopping at two thirds.
+        rect(0,0,.4,56.25,accent)
+        single = slide.sections[0] if len(slide.sections)==1 else None
+        lead = single.text if single else body
+        title_size,title_used = fit(title,84.4,20,5.9)
+        lead_size,lead_used = fit(lead,73.4,16,2.3)
+        heading_space = 5.2 if single else 0
+        block = title_used+4.4+heading_space+lead_used
+        top = max(10,(FOOTER-block)/2)
+        text(f'{order:02d}',5.6,top-5,31.2,2.8,1.9,accent,True)
+        text(title,5.6,top,84.4,title_used+.6,title_size,bold=True,key='title')
+        rect(5.6,top+title_used+2,9,.35,accent)
+        lead_top = top+title_used+4.4
+        if single:
+            text(single.heading,5.6,lead_top,73.4,4,2.4,bold=True,key='body',section_id=single.id,section_field='heading')
+            lead_top += heading_space
+        text(lead,5.6,lead_top,73.4,lead_used+.6,lead_size,muted,key='body',
+             **({'section_id':single.id,'section_field':'text'} if single else {}))
     elif layout=='editorial':
-        text(title,7,8,32,36,4.2,bold=True,key='title')
-        rect(42,7,.25,41,accent)
-        text(body,48,10,44,36,2.6,muted,key='body')
+        # Title over body, both full width. The group is balanced vertically
+        # instead of anchored to the top: a two-sentence body cannot fill a
+        # fixed box, and anchoring dumped all the slack below the text.
+        title_size,title_used = fit(title,90,13,4.2)
+        body_size,body_used = fit(body,85,29,2.4)
+        top = max(6.9,(FOOTER-(title_used+3.6+body_used))/2)
+        rect(5,top-3.5,8,.35,accent)
+        text(title,5,top,90,title_used+.6,title_size,bold=True,key='title')
+        body_top = top+title_used+3.6
+        rect(5,body_top-.9,.25,body_used+1.8,accent)
+        text(body,8.5,body_top,85,body_used+.6,body_size,muted,key='body')
     elif layout=='comparison' and '|' in body:
-        text(title,7,5,86,11,3.8,bold=True,key='title')
-        for index,part in enumerate(body.split('|',1)):
-            x=7+46*index
-            rect(x,21,40,28,panel if index else accent)
-            ink=fg if index else accent_ink
-            text(part.strip(),x+3,25,34,20,2.7,ink,key='body',column=index)
+        text(title,5,3.8,90.6,9.4,3.8,bold=True,key='title')
+        # Panels reach the footer line, so the pair reads as the slide's content
+        # rather than as two cards floating above empty space. Both sides are
+        # set at one size — the shorter half must not look louder than the
+        # longer one — and each is centred inside its panel.
+        parts=[part.strip() for part in body.split('|',1)]
+        shared=min(fit(part,37,29,2.6)[0] for part in parts)
+        for index,part in enumerate(parts):
+            x=5+46*index
+            rect(x,14.4,43,36,panel if index else accent)
+            used=_wrapped_lines(part,37,shared)*shared*1.22
+            text(part,x+3,14.4+(36-used)/2,37,used+.6,shared,
+                 fg if index else accent_ink,key='body',column=index)
     elif layout=='chart':
         text(title,7,5,86,10,3.8,bold=True,key='title')
         text(body,7,18,31,30,2.1,muted,key='body')
@@ -140,9 +234,15 @@ def build_scene(slide, theme, order):
             rect(x+2,37,2,.35,accent)
             text(label,x+2,41,width-7,6.5,2.1,bold=True)
     else:
-        rect(7,5,10,.4,accent)
-        text(title,7,9,86,15,4.2,bold=True,key='title')
-        text(body.replace('|','\n'),7,29,82,20,3,muted,key='body')
+        # Statement and anything unrecognised: the one-shot content layout,
+        # balanced the same way as editorial.
+        plain = body.replace('|','\n')
+        title_size,title_used = fit(title,90,13,4.2)
+        body_size,body_used = fit(plain,88.8,30,2.6)
+        top = max(6.9,(FOOTER-(title_used+3.6+body_used))/2)
+        rect(5,top-3.5,8,.35,accent)
+        text(title,5,top,90,title_used+.6,title_size,bold=True,key='title')
+        text(plain,5,top+title_used+3.6,88.8,body_used+.6,body_size,muted,key='body')
     if slide.show_source:
         text(slide.blocks.source_label.text,7,53,86,2.1,1,muted,key='source_label')
     return out

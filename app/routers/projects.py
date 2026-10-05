@@ -20,6 +20,7 @@ from app.services.outline_service import starter_outline
 from app.services.project_outline_llm import generate_model_outline
 from app.services.modular_build import queued_slide, run_build
 from app.services.modular_export import render_project_pptx
+from app.services.modular_pdf import render_project_pdf
 from app.services.llm_service import get_llm_service
 from app.services.modular_regenerate import run_regeneration
 from app.services.live_draft import run_live_draft
@@ -516,6 +517,27 @@ def export_project_pptx(project_id: str, session: Session = Depends(get_session)
         content=data,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         headers={"Content-Disposition": f'attachment; filename="slidecraft-{project_id}.pptx"'},
+    )
+
+
+@router.get("/{project_id}/export.pdf")
+def export_project_pdf(project_id: str, session: Session = Depends(get_session)) -> Response:
+    """Fixed, presentable copy. PPTX stays the editable one."""
+    project = _editable_project(session, project_id)
+    response = repository.project_response(session, project)
+    if response.phase != "ready":
+        raise HTTPException(status_code=422, detail="All slides must be ready before export")
+    if any(block.status == "generating" for slide in response.slides
+           for block in (slide.blocks.title, slide.blocks.body, slide.blocks.source_label)):
+        raise HTTPException(status_code=422, detail="Wait for block regeneration to finish before exporting")
+    try:
+        data = render_project_pdf(response)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="slidecraft-{project_id}.pdf"'},
     )
 
 
