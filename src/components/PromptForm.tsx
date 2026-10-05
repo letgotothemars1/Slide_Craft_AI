@@ -35,6 +35,7 @@ const STYLE_KEYS: Record<string, TranslationKey> = {
   creative: "gen.style.creative",
 };
 const LANG_KEYS: Record<string, TranslationKey> = {
+  auto: "gen.lang.auto",
   ru: "gen.lang.ru",
   en: "gen.lang.en",
 };
@@ -71,7 +72,9 @@ export default function PromptForm({
       prompt: "",
       audience: "executives",
       style: "business",
-      language: "ru",
+      // Follows the prompt. A fixed default meant an English prompt still came
+      // back as a Russian deck unless the student noticed this control.
+      language: "auto",
       slides: 10,
       format: "pdf",
       brandColor: null,

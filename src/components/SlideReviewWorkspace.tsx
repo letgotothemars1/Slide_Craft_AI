@@ -10,6 +10,7 @@ import {
   regenerateJob,
   saveJobSpec,
   slidePreviewUrl,
+  THUMBNAIL_WIDTH,
   type PresentationSpec,
   type SpecSlide,
 } from "@/lib/api";
@@ -19,17 +20,28 @@ import { Check, Loader2, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react"
 interface Props {
   jobId: string;
   /** Called once the deck has been approved, so the page can resume polling. */
-  onApproved: () => void;
+  onApproved?: () => void;
+  /** "final" drops the editor and shows the finished deck: same slide rail,
+   *  now rendered with the generated images. */
+  mode?: "review" | "final";
+  /** Download controls, shown in the header of the finished deck. */
+  actions?: React.ReactNode;
 }
 
 /** Bumped per slide so only the edited preview is refetched. */
 type Versions = Record<number, number>;
 
-export default function SlideReviewWorkspace({ jobId, onApproved }: Props) {
+export default function SlideReviewWorkspace({ jobId, onApproved, mode = "review", actions }: Props) {
+  const final = mode === "final";
   const { t } = useLanguage();
   const [spec, setSpec] = useState<PresentationSpec | null>(null);
   const [selected, setSelected] = useState(0);
   const [versions, setVersions] = useState<Versions>({});
+  // Changes every time the spec is loaded, which is what makes the finished
+  // deck show its own slides: `Cache-Control: no-store` governs the disk cache,
+  // but a live page still reuses an image it already holds for an identical
+  // URL, so approving a draft would redisplay the draft's own renders.
+  const [loadedAt, setLoadedAt] = useState(0);
   const [saving, setSaving] = useState(false);
   // One busy flag: approving and regenerating must not run together.
   const [busy, setBusy] = useState<"approve" | "regenerate" | null>(null);
@@ -45,6 +57,7 @@ export default function SlideReviewWorkspace({ jobId, onApproved }: Props) {
       .then((loaded) => {
         setSpec(loaded);
         latest.current = loaded;
+        setLoadedAt(Date.now());
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
   }, [jobId]);
@@ -131,18 +144,23 @@ export default function SlideReviewWorkspace({ jobId, onApproved }: Props) {
   if (!spec) return <p className="text-sm text-muted-foreground">{t("dash.loading")}</p>;
 
   const slide = spec.slides[selected];
+  /** Per slide, so saving an edit refetches only the slide that changed. */
+  const token = (index: number) => `${loadedAt}-${versions[index] ?? 0}`;
 
   return (
     <div className="space-y-5">
       {/* ── header ── */}
       <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-5">
         <div className="space-y-1">
-          <h1 className="font-display text-2xl font-bold">{t("review.draftTitle")}</h1>
+          <h1 className="font-display text-2xl font-bold">
+            {final ? t("final.title") : t("review.draftTitle")}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            {t("review.subtitle")}
+            {final ? t("final.subtitle") : t("review.subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {final ? actions : <>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {saving ? (
               <>
@@ -185,13 +203,14 @@ export default function SlideReviewWorkspace({ jobId, onApproved }: Props) {
             )}
             {busy === "approve" ? t("review.approving") : t("review.approve")}
           </Button>
+          </>}
         </div>
       </header>
 
       {/* Same three-column shell as the modular draft editor: a 180px rail, a
           fluid slide, and a 340px inspector. The CSS lives in index.css and is
           shared, so the two editors cannot drift apart. */}
-      <div className="draft-editor-grid">
+      <div className={cn("draft-editor-grid", final && "is-final")}>
         {/* ── thumbnail rail ── */}
         <nav aria-label={t("review.draftTitle")} className="draft-thumbnails">
           <ul className="contents">
@@ -205,7 +224,7 @@ export default function SlideReviewWorkspace({ jobId, onApproved }: Props) {
                     index === selected && "is-selected")}
                 >
                   <img
-                    src={slidePreviewUrl(jobId, index, versions[index] ?? 0)}
+                    src={slidePreviewUrl(jobId, index, token(index), THUMBNAIL_WIDTH)}
                     alt=""
                     className="aspect-video w-full rounded bg-muted object-cover"
                     loading="lazy"
@@ -227,15 +246,15 @@ export default function SlideReviewWorkspace({ jobId, onApproved }: Props) {
           {/* The same renderer that produces the final file, so this is the
               slide itself rather than an approximation of it. */}
           <img
-            key={`${selected}-${versions[selected] ?? 0}`}
-            src={slidePreviewUrl(jobId, selected, versions[selected] ?? 0)}
+            key={`${selected}-${token(selected)}`}
+            src={slidePreviewUrl(jobId, selected, token(selected))}
             alt={`${t("review.slide")} ${selected + 1}`}
             className="aspect-video w-full rounded-xl border border-border bg-muted object-cover"
           />
         </div>
 
         {/* ── element editor ── */}
-        <aside className="draft-inspector space-y-5">
+        {!final && <aside className="draft-inspector space-y-5">
           <div className="space-y-1">
             <h2 className="text-sm font-semibold">{t("review.settings")}</h2>
             <p className="text-xs text-muted-foreground">{t("review.element")}</p>
@@ -385,7 +404,7 @@ export default function SlideReviewWorkspace({ jobId, onApproved }: Props) {
               {error}
             </p>
           )}
-        </aside>
+        </aside>}
       </div>
 
     </div>

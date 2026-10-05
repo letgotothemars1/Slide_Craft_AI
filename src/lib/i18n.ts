@@ -233,6 +233,7 @@ const dictionary = {
   "gen.style.minimal": { ru: "Минимал", en: "Minimal" },
   "gen.style.dark": { ru: "Тёмный", en: "Dark" },
   "gen.style.creative": { ru: "Креативный", en: "Creative" },
+  "gen.lang.auto": { ru: "Как в запросе", en: "Match my prompt" },
   "gen.lang.ru": { ru: "Русский", en: "Russian" },
   "gen.lang.en": { ru: "Английский", en: "English" },
 
@@ -312,6 +313,11 @@ const dictionary = {
   "history.noDescription": { ru: "Без описания", en: "No description" },
 
   // ── review workspace ──
+  "final.title": { ru: "Презентация готова", en: "Your deck is ready" },
+  "final.subtitle": {
+    ru: "Пролистайте слайды и скачайте файл.",
+    en: "Flip through the slides and download the file.",
+  },
   "review.draftTitle": { ru: "Черновик презентации", en: "Presentation draft" },
   "review.planning": { ru: "Готовим слайды…", en: "Planning slides…" },
   "review.writing": { ru: "Пишем…", en: "Writing…" },

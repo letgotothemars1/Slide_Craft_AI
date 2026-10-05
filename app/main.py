@@ -8,7 +8,7 @@ from datetime import timezone
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -407,11 +407,24 @@ def patch_job_spec(job_id: str, payload: SpecPatchRequest,
 
 
 @app.get("/jobs/{job_id}/slides/{index}.png")
-def get_slide_preview(index: int, job_id: str, session: Session = Depends(get_session)) -> Response:
+def get_slide_preview(
+    index: int,
+    job_id: str,
+    # The thumbnail rail asks for a small copy; the stage omits this and gets
+    # the full render. Bounded because the value drives an image resize.
+    w: int | None = Query(default=None, ge=120, le=640),
+) -> Response:
     """One slide, rendered by the same renderer that produces the final PDF."""
-    _job_or_404(session, job_id)
-    spec_json = _spec_or_404(session, job_id)
-    png = get_slide_png(job_id, spec_json, index)
+    # Deliberately not `Depends(get_session)`: that holds the connection open
+    # for the whole response, and a cold render takes upwards of ten seconds.
+    # The rail asks for every slide at once, so ten connections would sit idle
+    # on the pooler for the length of one render — which is where the rail's
+    # thumbnails start coming back as 500s. The read itself takes milliseconds.
+    with SessionLocal() as session:
+        _job_or_404(session, job_id)
+        spec_json = _spec_or_404(session, job_id)
+
+    png = get_slide_png(job_id, spec_json, index, width=w)
     if png is None:
         raise HTTPException(status_code=404, detail="Slide not found")
     return Response(

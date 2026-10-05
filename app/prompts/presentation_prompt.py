@@ -15,7 +15,9 @@ def _common_rules() -> str:
         "visual_hint, section, key_message, image_prompt, image_url, chart, table, columns, source, speaker_notes. "
         "MECHANICS: "
         "1) slides length MUST equal the requested count. "
-        "2) Use the requested language for all content. "
+        "2) Write ALL content in the requested language, and set the 'language' field to that language's "
+        "two-letter code. Examples given in these instructions are written in English for clarity — they show the "
+        "shape of a value, never the language to answer in. "
         "3) For empty fields return null; image_url is always null; columns is [] when unused; chart/table are null unless used. "
         "4) Never output any text before or after the JSON. "
         "5) NEVER create a quote slide: do not use layout_type=quote_focus or type=quote under any circumstances. "
@@ -24,7 +26,7 @@ def _common_rules() -> str:
         "short topic word goes in 'section'; keep bullets few, short and parallel (3-5); every slide earns its place. "
         "LAYOUT MECHANICS (how to fill each layout when you choose it): "
         "comparison_split — bullets as 'left | right' (pipe); section as 'Left Title/Right Title'; both sides compare the "
-        "same dimension; no 'Option A'/'Слева' prefixes. "
+        "same dimension; no 'Option A'/'Left side' prefixes. "
         "agenda_clean — bullets are the presentation's SECTIONS (4-6), not content items. "
         "kpi_cards — every bullet starts with a numeric metric then ':' or '—' then a short label; never use it without real numbers. "
         "chart_focus — fill 'chart' with real numbers: single series via 'points' (3-6 label+value) OR grouped via "
@@ -34,7 +36,8 @@ def _common_rules() -> str:
         "process_flow — each stage a bullet (3-6), optionally 'Label — short detail'; a left-to-right pipeline. "
         "multi_column — fill 'columns' with 3-5 {header, items} (2-5 short items each). "
         "timeline_process — chronological steps as bullets. "
-        "source — a short citation (e.g. 'Источник: …') on slides with figures or factual claims; null otherwise. "
+        "source — a short citation (shaped like 'Source: OECD, 2024', written in the deck's language) on slides "
+        "with figures or factual claims; null otherwise. "
     )
 
 
@@ -49,7 +52,8 @@ _TRAVEL = (
     "English description of that specific place; render ALL images in ONE consistent warm editorial-ILLUSTRATION "
     "style, NOT photorealistic — end every image_prompt with 'warm flat editorial illustration, cohesive style, soft "
     "warm palette'), a 'section' tag "
-    "(e.g. 'Направление 1'), an action-title, a short evocative 'subtitle', a 1-2 sentence 'body' paragraph, and 3 "
+    "(shaped like 'Destination 1', written in the deck's language), an action-title, a short evocative 'subtitle', "
+    "a 1-2 sentence 'body' paragraph, and 3 "
     "short 'bullets' of concrete highlights. Keep subtitle AND body AND bullets — do NOT null the subtitle here. "
     "Use the SAME content_two_column layout for ALL destinations — consistency beats variety for a listicle. "
     "Do NOT use kpi_cards, chart_focus or process_flow. At most ONE optional data_table or comparison_split near the "
@@ -84,6 +88,24 @@ _CATEGORY_DIRECTIVES = {
 }
 
 
+_LANGUAGE_NAMES = {"ru": "Russian", "en": "English"}
+
+
+def _language_line(language: str) -> str:
+    """What to tell the model about the deck's language.
+
+    'auto' is the default: someone who writes an English prompt expects an
+    English deck, and the prompt itself is the only reliable signal of which
+    language they want.
+    """
+    if language == "auto":
+        return (
+            "same as the user prompt above — detect the language the prompt is written in and write "
+            "every word of the deck in that language"
+        )
+    return _LANGUAGE_NAMES.get(language, language)
+
+
 def build_presentation_prompt_parts(
     *,
     prompt: str,
@@ -109,7 +131,7 @@ def build_presentation_prompt_parts(
         f"User prompt: {prompt}\n"
         f"Audience: {audience}\n"
         f"Style: {style}\n"
-        f"Language: {language}\n"
+        f"Language: {_language_line(language)}\n"
         f"Slides count: {slides}"
     )
 

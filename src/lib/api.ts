@@ -9,7 +9,8 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || "";
 
 export const audienceValues = ["executives", "students", "sales", "investors", "custom"] as const;
 export const styleValues = ["business", "minimal", "dark", "creative"] as const;
-export const languageValues = ["ru", "en"] as const;
+// "auto" first because it is the default: the deck follows the prompt's language.
+export const languageValues = ["auto", "ru", "en"] as const;
 export const formatValues = ["pdf", "pptx", "both"] as const;
 export const statusValues = ["queued", "running", "draft", "done", "error"] as const;
 
@@ -155,9 +156,20 @@ export async function approveJob(jobId: string): Promise<JobStatus> {
 
 /** Preview URL for one slide. `version` busts the browser cache after an edit —
  *  without it the old render keeps showing. */
-export function slidePreviewUrl(jobId: string, index: number, version: number): string {
-  return `${API_BASE}/jobs/${encodeURIComponent(jobId)}/slides/${index}.png?v=${version}`;
+/** `width` requests a downscaled copy — the rail would otherwise pull the full
+ *  2560px render for every thumbnail. Omit it for the full-size slide. */
+export function slidePreviewUrl(
+  jobId: string,
+  index: number,
+  version: string | number,
+  width?: number,
+): string {
+  const size = width ? `&w=${width}` : "";
+  return `${API_BASE}/jobs/${encodeURIComponent(jobId)}/slides/${index}.png?v=${version}${size}`;
 }
+
+/** The rail is 180 CSS px; doubled so thumbnails stay sharp on a retina screen. */
+export const THUMBNAIL_WIDTH = 360;
 
 export async function regenerateJob(jobId: string): Promise<JobStatus> {
   const res = await request<JobStatus>(`/jobs/${encodeURIComponent(jobId)}/regenerate`, {

@@ -166,7 +166,30 @@ def generate_spec(job: JobContext) -> dict:
     )
 
     spec = PresentationSpec.model_validate(spec_json)
+    spec.language = _written_language(spec)
     return spec.model_dump()
+
+
+_CYRILLIC = re.compile(r"[Ѐ-ӿ]")
+_LATIN = re.compile(r"[A-Za-z]")
+
+
+def _written_language(spec: PresentationSpec) -> str:
+    """The deck's language, read off the deck itself.
+
+    The model also reports a language field, but the renderer picks typography
+    from it — a deck labelled "en" that reads Russian gets laid out wrong, and
+    under "auto" the label is a guess about a guess. The text cannot lie.
+    Whichever script carries the deck wins, so a stray Latin brand name in a
+    Russian deck (or the reverse) does not flip it.
+    """
+    text = " ".join(
+        part
+        for slide in spec.slides
+        for part in (slide.title, slide.subtitle, slide.body, *slide.bullets)
+        if part
+    )
+    return "ru" if len(_CYRILLIC.findall(text)) > len(_LATIN.findall(text)) else "en"
 
 
 def save_spec(job_id: str, spec: dict) -> None:

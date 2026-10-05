@@ -8,18 +8,24 @@ rendered once per spec version and served from memory afterwards.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import logging
 import threading
 from collections import OrderedDict
 
+from PIL import Image
+
 from app.services.html_render_service import PENDING_IMAGE, render_slide_pngs
 
 logger = logging.getLogger(__name__)
 
-# Decks are a few hundred KB each; a handful is plenty for concurrent reviews.
+# Decks are a few MB each; a handful is plenty for concurrent reviews.
 _MAX_DECKS = 8
+# Full-size renders, keyed by (job id, spec fingerprint).
 _cache: OrderedDict[tuple[str, str], dict[int, bytes]] = OrderedDict()
+# Downscaled copies of those, keyed by (job id, spec fingerprint, width).
+_scaled: OrderedDict[tuple[str, str, int], dict[int, bytes]] = OrderedDict()
 _lock = threading.Lock()
 
 
@@ -60,15 +66,56 @@ def _with_pending_images(spec_json: dict) -> dict:
     return marked
 
 
-def get_slide_png(job_id: str, spec_json: dict, index: int) -> bytes | None:
-    """One slide's PNG, rendering the deck on first use for this spec version."""
+def _downscale(png: bytes, width: int) -> bytes:
+    """A slide at the size it will actually be shown.
+
+    The renderer works at 2560x1440 so a slide stays sharp when it fills the
+    stage. The thumbnail rail is 180 CSS px wide, and serving it that same file
+    costs ~1.7 MB on the wire and a 14 MB decoded bitmap per thumbnail — a
+    ten-slide deck then holds well over a hundred megabytes of image memory for
+    pictures the size of a stamp, which is where the rail starts dropping them.
+    """
+    with Image.open(io.BytesIO(png)) as image:
+        if image.width <= width:
+            return png
+        height = round(image.height * width / image.width)
+        resized = image.convert("RGB").resize((width, height), Image.LANCZOS)
+    buffer = io.BytesIO()
+    resized.save(buffer, format="PNG", optimize=True)
+    return buffer.getvalue()
+
+
+def _evict(job_id: str, key: tuple[str, str]) -> None:
+    """Drop other versions of this deck: only the current text is useful."""
+    for stale in [k for k in _cache if k[0] == job_id and k != key]:
+        _cache.pop(stale, None)
+    for stale in [k for k in _scaled if k[:2] != key and k[0] == job_id]:
+        _scaled.pop(stale, None)
+    while len(_cache) > _MAX_DECKS:
+        dropped, _ = _cache.popitem(last=False)
+        for stale in [k for k in _scaled if k[:2] == dropped]:
+            _scaled.pop(stale, None)
+
+
+def get_slide_png(job_id: str, spec_json: dict, index: int, width: int | None = None) -> bytes | None:
+    """One slide's PNG, rendering the deck on first use for this spec version.
+
+    `width` asks for a downscaled copy; without it the slide comes back at full
+    render resolution.
+    """
     key = (job_id, _spec_fingerprint(spec_json))
 
     with _lock:
-        cached = _cache.get(key)
-        if cached is not None:
-            _cache.move_to_end(key)
-            return cached.get(index)
+        if width is None:
+            cached = _cache.get(key)
+            if cached is not None:
+                _cache.move_to_end(key)
+                return cached.get(index)
+        else:
+            small = _scaled.get((*key, width))
+            if small is not None:
+                _scaled.move_to_end((*key, width))
+                return small.get(index)
 
     # Held across the render so ten parallel thumbnail requests produce one
     # browser launch rather than ten.
@@ -78,11 +125,22 @@ def get_slide_png(job_id: str, spec_json: dict, index: int) -> bytes | None:
             logger.debug("preview.render.started job_id=%s", job_id)
             cached = render_slide_pngs(_with_pending_images(spec_json))
             _cache[key] = cached
-            # Drop other versions of this deck: only the current text is useful.
-            for stale in [k for k in _cache if k[0] == job_id and k != key]:
-                _cache.pop(stale, None)
-            while len(_cache) > _MAX_DECKS:
-                _cache.popitem(last=False)
+            _evict(job_id, key)
             logger.debug("preview.render.done job_id=%s slides=%s", job_id, len(cached))
         _cache.move_to_end(key)
-        return cached.get(index)
+
+        if width is None:
+            return cached.get(index)
+
+        # Scaled in one pass: the rail asks for every thumbnail at once, so
+        # doing them together turns the other nine requests into cache hits.
+        small = _scaled.get((*key, width))
+        if small is None:
+            small = {i: _downscale(png, width) for i, png in cached.items()}
+            _scaled[(*key, width)] = small
+            # `width` comes from the query string, so one deck could otherwise
+            # accumulate a bucket per requested size.
+            while len(_scaled) > _MAX_DECKS * 2:
+                _scaled.popitem(last=False)
+        _scaled.move_to_end((*key, width))
+        return small.get(index)

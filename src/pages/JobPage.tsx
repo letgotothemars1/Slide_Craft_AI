@@ -8,7 +8,6 @@ import Reveal from "@/components/Reveal";
 import JobStatusCard from "@/components/JobStatusCard";
 import SlideReviewWorkspace from "@/components/SlideReviewWorkspace";
 import DraftSkeleton from "@/components/DraftSkeleton";
-import PreviewGallery from "@/components/PreviewGallery";
 import DownloadButtons from "@/components/DownloadButtons";
 import ShareLink from "@/components/ShareLink";
 import { useLanguage } from "@/context/LanguageContext";
@@ -69,16 +68,17 @@ export default function JobPage() {
 
   if (!jobId) return <NotFoundState />;
 
+  // The slide workspace — waiting, editing or finished — is the full-width
+  // layout. Only the states that show a single card (loading, failure) read
+  // better narrow, so the deck is never boxed into a column.
+  const boxed = !!error || !job || job.status === "error";
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <AppHeader />
 
       <main className="flex-1 px-4 py-12 sm:py-16">
-        <div className={`container space-y-6 ${
-            job?.status === "draft" || job?.status === "running" || job?.status === "queued"
-              ? "max-w-[1500px]"
-              : "max-w-3xl"
-          }`}>
+        <div className={`container space-y-6 ${boxed ? "max-w-3xl" : "max-w-[1500px]"}`}>
           {error ? (
             <div className="space-y-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
               <p role="alert" className="font-medium text-destructive">
@@ -106,28 +106,30 @@ export default function JobPage() {
                     setPollCycle((cycle) => cycle + 1);
                   }}
                 />
+              ) : job.status === "done" ? (
+                <SlideReviewWorkspace
+                  jobId={job.job_id}
+                  mode="final"
+                  actions={
+                    <DownloadButtons
+                      pptxUrl={job.result?.pptx_url ?? null}
+                      pdfUrl={job.result?.pdf_url ?? null}
+                    />
+                  }
+                />
               ) : (
               <Reveal>
                 <JobStatusCard job={job} />
               </Reveal>
               )}
               {job.status === "done" && (
-              <Reveal delay={80}>
-                <ShareLink jobId={job.job_id} />
-              </Reveal>
-              )}
-
-              {job.status === "done" && job.result && (
-                <>
-                  <Reveal delay={140}>
-                    <DownloadButtons pptxUrl={job.result.pptx_url} pdfUrl={job.result.pdf_url} />
-                  </Reveal>
-                  {job.result.preview_images && job.result.preview_images.length > 0 && (
-                    <Reveal delay={200}>
-                      <PreviewGallery images={job.result.preview_images} />
-                    </Reveal>
-                  )}
-                </>
+                <Reveal delay={80}>
+                  {/* Kept to a readable width: a link field stretched across the
+                      full deck layout reads as an input box, not as a link. */}
+                  <div className="max-w-xl">
+                    <ShareLink jobId={job.job_id} />
+                  </div>
+                </Reveal>
               )}
             </>
           )}

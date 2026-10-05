@@ -8,7 +8,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Audience = Literal["executives", "students", "sales", "investors", "custom"]
 Style = Literal["business", "minimal", "dark", "creative"]
-Language = Literal["ru", "en"]
+# "auto" writes the deck in whatever language the prompt is written in, which is
+# what someone typing an English prompt expects. The explicit codes stay for the
+# case where the two differ on purpose.
+Language = Literal["ru", "en", "auto"]
 OutputFormat = Literal["pptx", "pdf", "both"]
 JobStatus = Literal["queued", "running", "draft", "done", "error"]
 
