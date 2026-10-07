@@ -46,8 +46,8 @@ export default function AuthPage() {
         });
       }
       navigate(from, { replace: true });
-    } catch (err: any) {
-      setError(err?.message || t("auth.error"));
+    } catch (err: unknown) {
+      setError((err instanceof Error && err.message) || t("auth.error"));
     } finally {
       setLoading(false);
     }

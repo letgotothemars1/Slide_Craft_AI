@@ -45,11 +45,11 @@ class LiveDraftTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             engine = create_engine(f"sqlite:///{Path(directory)/'draft.db'}")
             Base.metadata.create_all(engine); sessions = sessionmaker(bind=engine)
-            with patch.object(live_draft,'SessionLocal',sessions), patch.object(modular_build,'SessionLocal',sessions):
+            with patch.object(live_draft,'SessionLocal',sessions), patch.object(modular_build,'SessionLocal',sessions), patch('app.services.composition_choices.ensure_composition_variants'):
                 with sessions() as session:
                     project = repository.create_project(session,ProjectCreateRequest(assignment_text='Five slides',context_pack_text='Thesis: cautious'))
                     queued = start_draft(project.id,BuildRequest(expected_revision=0),BackgroundTasks(),session)
-                def generate(current,item,on_partial,on_visual,on_sections=None):
+                def generate(current,item,on_partial,on_visual,on_sections=None,on_notes=None):
                     on_partial('First text')
                     with sessions() as session:
                         state = repository.project_response(session,repository.get_project(session,project.id))

@@ -69,9 +69,9 @@ export default function AccountPage() {
         last_name: lastName.trim() || null,
       });
       toast.success(t("account.profileSaved"));
-    } catch (err: any) {
+    } catch (err: unknown) {
       // The backend sends precise messages, e.g. a taken username.
-      setProfileError(err?.message || t("gen.error.generate"));
+      setProfileError((err instanceof Error && err.message) || t("gen.error.generate"));
     } finally {
       setSavingProfile(false);
     }
@@ -91,8 +91,8 @@ export default function AccountPage() {
       setNext("");
       setRepeat("");
       toast.success(t("account.passwordSaved"));
-    } catch (err: any) {
-      setPasswordError(err?.message || t("gen.error.generate"));
+    } catch (err: unknown) {
+      setPasswordError((err instanceof Error && err.message) || t("gen.error.generate"));
     } finally {
       setSavingPassword(false);
     }

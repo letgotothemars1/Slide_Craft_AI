@@ -78,7 +78,7 @@ def render_project_pptx(project: ProjectResponse) -> bytes:
                     for paragraph in frame.paragraphs:
                         paragraph.font.name=element.font
                         paragraph.line_spacing=1.16
-            slide.notes_slide.notes_text_frame.text = f"Source: {saved.blocks.source_label.text}"
+            slide.notes_slide.notes_text_frame.text = "\n\n".join(filter(None, [saved.speaker_notes, f"Source: {saved.blocks.source_label.text}"]))
             continue
         title = saved.blocks.title.text
         body = saved.blocks.body.text
@@ -121,11 +121,10 @@ def render_project_pptx(project: ProjectResponse) -> bytes:
             _rect(slide, 0.85, 2.35, 11.65, 3.55, panel)
             _text(slide, body, 1.15, 2.65, 10.95, 2.95, 25, foreground)
 
+        slide.notes_slide.notes_text_frame.text = "\n\n".join(filter(None, [saved.speaker_notes, f"Source: {source}"]))
         if saved.show_source:
             _rect(slide, 0.85, 6.55, 11.65, 0.02, accent)
             _text(slide, source, 0.85, 6.7, 11.5, 0.45, 12, muted)
-        else:
-            slide.notes_slide.notes_text_frame.text = f"Source: {source}"
 
     output = BytesIO()
     deck.save(output)

@@ -6,10 +6,13 @@ import {LANGUAGE_STORAGE_KEY} from '@/lib/i18n';
 import {projectSchema, saveOutline, regenerateWholeSlide, setSlideSourceVisibility, startAIDesign, saveSlideSections, retryAIDesign} from '@/lib/project-api';
 import fixture from '../../project-instructions/fixtures/demo-project.json';
 
+vi.mock('./CompositionChooser',()=>({default:()=>null}));
+vi.mock('./SpeakerNotesEditor',()=>({default:()=>null}));
 vi.mock('@/lib/project-api', async original => ({...await original<typeof import('@/lib/project-api')>(), saveOutline: vi.fn(), regenerateWholeSlide: vi.fn(), setSlideSourceVisibility: vi.fn(), startAIDesign: vi.fn(), retryAIDesign: vi.fn(), saveSlideSections: vi.fn()}));
 const makeProject = () => {
   const project = projectSchema.parse(structuredClone(fixture));
   project.phase = 'outline_draft';
+  project.build_mode = 'model';
   project.outline[0].layout_type = 'content';
   project.slides = project.outline.map(item => ({id:item.id, status:'ready' as const, revision:1, show_source:true, blocks:{
     title:{text:item.title,status:'ready' as const,revision:1},
@@ -80,7 +83,7 @@ describe('Canvas editing and slide order', () => {
     vi.mocked(setSlideSourceVisibility).mockResolvedValue(project);
     render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
     expect(screen.queryByRole('button',{name:'Edit source label'})).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button',{name:'Sources'}));
+    fireEvent.click(screen.getByRole('tab',{name:'Sources'}));
     fireEvent.click(screen.getByRole('checkbox',{name:'Show source label on this slide'}));
     await waitFor(()=>expect(setSlideSourceVisibility).toHaveBeenCalledWith(project,project.outline[0].id,true));
   });
@@ -99,7 +102,7 @@ describe('Canvas editing and slide order', () => {
     vi.mocked(startAIDesign).mockResolvedValue(finished);
     const onChange=vi.fn();
     const view=render(<LanguageProvider><LiveDraftEditor project={project} onChange={onChange}/></LanguageProvider>);
-    const approve=screen.getByRole('button',{name:'Approve & style'});
+    const approve=screen.getByRole('button',{name:'Approve content & choose design'});
     fireEvent.click(approve); fireEvent.click(approve);
     expect(approve).toHaveAttribute('aria-expanded','true');
     fireEvent.click(screen.getByRole('radio',{name:'Dark tech'}));
@@ -116,7 +119,7 @@ describe('Canvas editing and slide order', () => {
     Object.assign(project.slides[0],{design_status:'ready',design:{layout:'statement',emphasis:'quiet',visual:null,rationale:'Clear hierarchy'},scene:[{kind:'text',x:7,y:9,w:86,h:15,text:'Accepted title',color:'#111111',size:4,bold:true,font:'Georgia',block_key:'title'}]});
     Object.assign(project.slides[1],{design_status:'generating'});
     render(<LanguageProvider><LiveDraftEditor project={project} onChange={vi.fn()}/></LanguageProvider>);
-    expect(screen.getByText('AI is designing your slides · 1/5 ready')).toBeInTheDocument();
+    expect(screen.getByText('Designing your slides · 1/5 ready')).toBeInTheDocument();
     expect(screen.getByRole('button',{name:'Edit title'})).toHaveTextContent('Accepted title');
     fireEvent.click(screen.getByRole('button',{name:'Edit title'}));
     expect(screen.getByRole('textbox',{name:'Title'})).toHaveFocus();
@@ -130,8 +133,7 @@ describe('Canvas editing and slide order', () => {
     await waitFor(()=>expect(retryAIDesign).toHaveBeenCalledWith(project,project.slides[0].id));
     fireEvent.change(screen.getByRole('textbox',{name:'Body'}),{target:{value:'Unsaved wording'}});
     fireEvent.click(screen.getByRole('button',{name:`Slide 2: ${project.outline[1].title}`}));
-    fireEvent.click(screen.getByRole('button',{name:'Approve & style'}));
-    expect(screen.getByRole('button',{name:'Generate final slides with AI'})).toBeDisabled();
+    expect(screen.getByRole('button',{name:'Approve content & choose design'})).toBeDisabled();
   });
 
   it('edits a clicked semantic section without flattening the other sections',async()=> {

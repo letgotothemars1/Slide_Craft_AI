@@ -83,6 +83,10 @@ class DesignPlan(BaseModel):
     visual: DraftVisual | None = None
     rationale: str = Field(max_length=300)
     arrangement: Literal["columns", "rows"] = "columns"
+    composition: Literal["balanced", "feature", "bands", "poster"] = "balanced"
+    focal_section_id: str = Field(default="", max_length=80)
+    title_share: float | None = Field(default=None, ge=.30, le=.55)
+    support_share: float | None = Field(default=None, ge=.35, le=.70)
 
 
 class SceneElement(BaseModel):
@@ -103,6 +107,15 @@ class SceneElement(BaseModel):
     section_field: Literal["heading", "text"] | None = None
 
 
+class CompositionVariant(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: Literal["selected", "alternative", "out_of_box"]
+    label: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=300)
+    unconventional: bool = False
+    design: DesignPlan
+
+
 class ProjectSlide(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -111,6 +124,7 @@ class ProjectSlide(BaseModel):
     revision: int = Field(ge=0)
     visual: DraftVisual | None = None
     design: DesignPlan | None = None
+    preview_design: DesignPlan | None = None
     design_status: Literal["none", "queued", "generating", "ready", "error"] = "none"
     design_error: str | None = None
     sections: list[SlideSection] = Field(default_factory=list,max_length=4)
@@ -121,8 +135,39 @@ class ProjectSlide(BaseModel):
     quality_attempts: int = 0
     scene: list[SceneElement] = Field(default_factory=list)
     show_source: bool = False
+    speaker_notes: str = Field(default="", max_length=4000)
+    composition_preference: Literal["balanced", "feature", "bands", "poster"] | None = None
+    composition_variants: list[CompositionVariant] = Field(default_factory=list, max_length=3)
+    selected_variant_id: Literal["selected", "alternative", "out_of_box"] | None = None
+    variants_status: Literal["none", "generating", "ready", "error"] = "none"
+    variants_fingerprint: str | None = None
+    variants_token: str | None = None
+    variants_error: str | None = None
+    variants_origin: Literal["model", "template"] | None = None
     revision_instruction: str = Field(default="", max_length=1000)
     blocks: SlideBlocks
+
+
+class WorkflowAction(BaseModel):
+    sequence: int
+    action: str
+    status: Literal["running", "complete", "error"]
+    slide_id: str | None = None
+    detail: str = ""
+
+
+class WorkflowState(BaseModel):
+    stage: Literal["idle", "planning", "content", "review", "design_planning", "designing", "checking", "complete", "error", "budget_exhausted"] = "idle"
+    model_calls: int = 0
+    request_budget: int = Field(default=60, ge=1)
+    input_tokens: int = 0
+    output_tokens: int = 0
+    actions: list[WorkflowAction] = Field(default_factory=list)
+    coherence_review: dict | None = None
+    story_analysis: dict | None = None
+    deck_review: dict | None = None
+    deck_design: dict | None = None
+    deck_design_signature: str | None = None
 
 
 class ProjectResponse(BaseModel):
@@ -138,6 +183,7 @@ class ProjectResponse(BaseModel):
     source_filename: str | None = None
     theme: Theme
     build_mode: BuildMode = "template"
+    workflow: WorkflowState = Field(default_factory=WorkflowState)
     outline: list[OutlineItem]
     slides: list[ProjectSlide]
 
@@ -176,6 +222,10 @@ class OutlineApproveRequest(OutlineRevisionRequest):
 
 class BlockEditRequest(OutlineRevisionRequest):
     text: str = Field(min_length=1, max_length=2000)
+
+class SpeakerNotesEditRequest(OutlineRevisionRequest):
+    speaker_notes: str = Field(max_length=4000)
+
 
 class CompositionRequest(OutlineRevisionRequest):
     layout_type: LayoutType

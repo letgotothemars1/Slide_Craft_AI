@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import LiveDraftEditor from "@/components/LiveDraftEditor";
@@ -8,30 +8,38 @@ import { getProject, type Project } from "@/lib/project-api";
 
 export default function ProjectPage() {
   const { projectId } = useParams();
+  const activeProjectId=useRef(projectId);
+  activeProjectId.current=projectId;
   const [project, setProject] = useState<Project | null>(null);
   const [error, setError] = useState("");
-  const acceptProject = (fresh: Project) => setProject((current) =>
-    current && fresh.id === current.id && fresh.revision < current.revision ? current : fresh
-  );
-  const working = project?.phase === "designing" || project?.phase === "drafting" || project?.phase === "building" || project?.slides.some((slide) => slide.sections_status === "generating" ||
+  const acceptProject = (fresh: Project) => {
+    if(fresh.id!==activeProjectId.current)return;
+    setProject((current)=>current && fresh.id===current.id && fresh.revision<current.revision?current:fresh);
+  };
+  const working = project?.id===projectId && (project?.phase === "designing" || project?.phase === "drafting" || project?.phase === "building" || project?.slides.some((slide) => slide.variants_status === "generating" || slide.sections_status === "generating" ||
     Object.values(slide.blocks).some((block) => block.status === "generating")
-  );
+  ));
 
   useEffect(() => {
     if (!projectId) return;
-    getProject(projectId).then(setProject).catch((reason) => {
-      setError(reason instanceof Error ? reason.message : "Project could not be loaded.");
+    let ignore=false;
+    setProject(null);setError("");
+    getProject(projectId).then(fresh=>{if(!ignore&&fresh.id===projectId)setProject(fresh);}).catch((reason) => {
+      if(!ignore)setError(reason instanceof Error ? reason.message : "Project could not be loaded.");
     });
+    return()=>{ignore=true;};
   }, [projectId]);
 
   useEffect(() => {
     if (!projectId || !working) return;
+    let ignore=false;
     const timer = window.setInterval(() => {
-      getProject(projectId).then((fresh) => setProject((current) =>
-        current && fresh.revision <= current.revision ? current : fresh
-      )).catch(() => undefined);
+      getProject(projectId).then((fresh) => {
+        if(ignore||fresh.id!==activeProjectId.current)return;
+        setProject((current)=>current && fresh.id===current.id && fresh.revision<=current.revision?current:fresh);
+      }).catch(() => undefined);
     }, 300);
-    return () => window.clearInterval(timer);
+    return () => {ignore=true;window.clearInterval(timer);};
   }, [projectId, working]);
 
   return (
@@ -41,9 +49,9 @@ export default function ProjectPage() {
         <Link to="/projects/new" className="text-sm text-muted-foreground hover:text-foreground">← New project</Link>
         {error && <p role="alert" className="mt-6 text-destructive">{error}</p>}
         {!project && !error && <p className="mt-6">Loading project…</p>}
-        {project && <div className="mt-4 space-y-4">
+        {project && project.id===projectId && <div className="mt-4 space-y-4">
           <details className="border-b pb-4"><summary className="cursor-pointer text-sm text-muted-foreground">Assignment, Context Pack & shared PDF</summary><div className="mt-4 grid gap-5 md:grid-cols-2"><section><h2 className="font-semibold">Assignment</h2><p className="mt-2 whitespace-pre-wrap text-sm">{project.assignment_text}</p></section><section><h2 className="font-semibold">Context Pack</h2><p className="mt-2 whitespace-pre-wrap text-sm">{project.context_pack_text}</p></section></div><p className="mt-4 text-sm">{project.source_filename || "No PDF uploaded"}</p></details>
-          {(["intake", "designing", "drafting", "outline_draft", "ready"].includes(project.phase) || (project.phase === "error" && !project.outline.length)) && (project.phase !== "outline_draft" || project.slides.length > 0) ? <LiveDraftEditor project={project} onChange={acceptProject}/> : <>
+          {(["intake", "designing", "drafting", "outline_draft", "ready"].includes(project.phase) || (project.phase === "error" && !project.outline.length)) && (project.phase !== "outline_draft" || project.slides.length > 0) ? <LiveDraftEditor key={project.id} project={project} onChange={acceptProject}/> : <>
           {project.phase === "intake" || project.phase === "outline_draft"
             ? <OutlineEditor project={project} onChange={acceptProject} />
             : <details className="rounded-xl border bg-card p-5"><summary className="cursor-pointer font-semibold">Approved outline</summary><div className="mt-4"><OutlineEditor project={project} onChange={acceptProject} /></div></details>}

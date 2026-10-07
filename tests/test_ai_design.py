@@ -1,5 +1,7 @@
 import tempfile
 from copy import deepcopy
+from types import SimpleNamespace
+from app.services.deck_design import generate_deck_design
 import json
 from unittest.mock import MagicMock
 from app.services.llm_service import OpenAILLMService
@@ -14,9 +16,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app import repository
 from app.db import Base
-from app.project_schemas import DesignPlan, ProjectCreateRequest, OutlineApproveRequest, OutlineRevisionRequest, BlockEditRequest
-from app.routers.projects import start_design, retry_design, edit_slide_block, hide_visual, reset_slide_block
+from app.project_schemas import DesignPlan, ProjectCreateRequest, OutlineApproveRequest, OutlineRevisionRequest, BlockEditRequest, SpeakerNotesEditRequest
+from app.routers.projects import start_design, retry_design, edit_slide_block, hide_visual, reset_slide_block, edit_speaker_notes, export_project_pptx, export_project_pdf
+from fastapi import HTTPException
 from app.services import ai_design, modular_build, modular_recovery
+from app.services.ai_design import generate_design as generate_design_impl
 from app.services.modular_build import build_slide_from_outline
 from app.services.outline_service import starter_outline
 from app.services.modular_export import render_project_pptx
@@ -27,16 +31,23 @@ class AIDesignTest(unittest.TestCase):
         self.dir=tempfile.TemporaryDirectory(); self.engine=create_engine(f"sqlite:///{Path(self.dir.name)/'design.db'}")
         Base.metadata.create_all(self.engine); self.sessions=sessionmaker(bind=self.engine)
         self.patches=[patch.object(module,'SessionLocal',self.sessions) for module in (ai_design,modular_build,modular_recovery)]
+        self.patches.append(patch.object(ai_design,'ensure_deck_variants',create=True))
         self.patches.append(patch('app.routers.projects.get_llm_service',return_value=object()))
+        self.patches.append(patch('app.services.deck_design.generate_deck_design',side_effect=lambda project: generate_deck_design(SimpleNamespace(build_mode='template',theme=project.theme,outline_json=project.outline_json,slides_json=project.slides_json))))
         self.patches.append(patch('app.services.design_quality.review_design',return_value={'approved':True,'issues':[],'arrangement':'columns'}))
         self.patches.append(patch('app.services.design_quality.render_scene',return_value=(b'png',[])))
+        from app.services.coherence_service import coherence_fingerprint
+        self.patches.append(patch('app.services.coherence_service.review_coherence',side_effect=lambda p: {'approved':True,'summary':'Agrees','findings':[],'fingerprint':coherence_fingerprint(p),'mode':p.build_mode}))
+        self.patches.append(patch('app.services.deck_design.analyze_story',return_value={'audience_goal':'Explain','narrative':'Cautious argument','slides':[]}))
+        self.patches.append(patch('app.services.design_quality.review_deck',return_value={'approved':True,'slides':[]}))
+        self.patches.append(patch.object(ai_design,'generate_design',side_effect=lambda project,item,slide,previous,feedback=None:self.plan(project,item,slide,previous)))
         for p in self.patches: p.start()
         with self.sessions() as session:
             project=repository.create_project(session,ProjectCreateRequest(assignment_text='Five slides',context_pack_text='Thesis: cautious'))
             self.id=project.id; outline=starter_outline('Thesis: cautious')
             project.outline_json=[r.model_dump() for r in outline]
             project.slides_json=[build_slide_from_outline(r).model_dump() for r in outline]
-            project.phase='outline_draft'; session.commit()
+            project.phase='outline_draft'; project.build_mode='model'; session.commit()
     def tearDown(self):
         for p in reversed(self.patches): p.stop()
         self.engine.dispose(); self.dir.cleanup()
@@ -53,7 +64,7 @@ class AIDesignTest(unittest.TestCase):
             self.assertEqual(current.phase,'designing')
             self.assertEqual(sum(r.design_status=='generating' for r in current.slides),1)
             return self.plan(*args)
-        with patch.object(ai_design,'generate_design',side_effect=generate): ai_design.run_design(self.id)
+        with patch.object(ai_design,'initial_design',side_effect=generate): ai_design.run_design(self.id)
         after=self.state(); self.assertEqual(after.phase,'ready')
         self.assertEqual([r.blocks for r in after.slides],[r.blocks for r in before.slides])
         self.assertTrue(all(r.design_status=='ready' and r.scene for r in after.slides))
@@ -72,10 +83,10 @@ class AIDesignTest(unittest.TestCase):
         def generate(project,item,slide,previous):
             if item.order==3: raise ValueError('Deliberate failure')
             return self.plan(project,item,slide,previous)
-        with patch.object(ai_design,'generate_design',side_effect=generate),self.assertLogs(ai_design.logger,level='ERROR'): ai_design.run_design(self.id)
+        with patch.object(ai_design,'initial_design',side_effect=generate),self.assertLogs(ai_design.logger,level='ERROR'): ai_design.run_design(self.id)
         failed=self.state(); self.assertEqual(failed.phase,'outline_draft'); self.assertEqual(failed.slides[2].design_status,'error')
         with self.sessions() as session: retry_design(self.id,'s3',OutlineRevisionRequest(expected_revision=failed.revision),BackgroundTasks(),session)
-        with patch.object(ai_design,'generate_design',side_effect=self.plan) as generate: ai_design.run_design(self.id,only_slide_id='s3')
+        with patch.object(ai_design,'initial_design',side_effect=self.plan) as generate: ai_design.run_design(self.id,only_slide_id='s3')
         self.assertEqual(generate.call_count,1); after=self.state(); self.assertEqual(after.phase,'ready')
         for index in (0,1,3,4): self.assertEqual(after.slides[index],failed.slides[index])
     def test_concurrent_edit_discards_stale_design(self):
@@ -84,7 +95,7 @@ class AIDesignTest(unittest.TestCase):
             if item.order==1:
                 with self.sessions() as session: edit_slide_block(self.id,'s1','title',BlockEditRequest(expected_revision=self.state().revision,text='Accepted edit'),session)
             return self.plan(project,item,slide,previous)
-        with patch.object(ai_design,'generate_design',side_effect=generate): ai_design.run_design(self.id)
+        with patch.object(ai_design,'initial_design',side_effect=generate): ai_design.run_design(self.id)
         state=self.state(); self.assertEqual(state.slides[0].blocks.title.text,'Accepted edit'); self.assertIsNone(state.slides[0].design)
         self.assertEqual(state.slides[0].design_status,'error')
     def test_restart_makes_design_retryable_without_losing_content(self):
@@ -98,7 +109,7 @@ class AIDesignTest(unittest.TestCase):
         with self.sessions() as session:
             project=repository.get_project(session,self.id); item=starter_outline('Thesis: cautious')[1]
             with patch.object(ai_design,'get_llm_service',return_value=service):
-                plan=ai_design.generate_design(project,item,project.slides_json[1],[])
+                plan=generate_design_impl(project,item,project.slides_json[1],[])
         schema=service.client.responses.create.call_args.kwargs['text']['format']['schema']
         self.assertNotIn('chart',schema['properties']['layout']['enum'])
         self.assertNotIn('bars',schema['properties']['visual']['properties']['kind']['enum'])
@@ -111,11 +122,28 @@ class AIDesignTest(unittest.TestCase):
             project=repository.get_project(session,self.id); item=starter_outline('Thesis: cautious')[1]
             item.suggested_refs=[SourceRef(document_id='d',filename='demo.pdf',page_number=1,excerpt='Synthetic 42% and 29%.')]
             with patch.object(ai_design,'get_llm_service',return_value=service),self.assertRaisesRegex(ValueError,'accepted numbers'):
-                ai_design.generate_design(project,item,project.slides_json[1],[])
+                generate_design_impl(project,item,project.slides_json[1],[])
 
-    def test_hide_visual_preserves_final_design_and_accepted_body(self):
+    def test_refinement_preserves_selected_focal_argument_even_if_provider_ignores_schema(self):
+        service=OpenAILLMService.__new__(OpenAILLMService);service.model='test';service.client=MagicMock()
+        selected={'layout':'editorial','composition':'feature','arrangement':'columns','focal_section_id':'caveat',
+            'emphasis':'quiet','visual':{'kind':'none','labels':[],'values':[],'unit':''},'rationale':'Lead with the limitation.'}
+        with self.sessions() as session:
+            project=repository.get_project(session,self.id);item=starter_outline('Thesis: cautious')[1]
+            slide=deepcopy(project.slides_json[1]);slide.update(selected_variant_id='alternative',
+                sections=[{'id':'claim','heading':'Observation','text':'An observed change.'},{'id':'caveat','heading':'Limit','text':'Not causal evidence.'}])
+            for mutation in ({'focal_section_id':'claim'},{'composition':'balanced'}):
+                with self.subTest(mutation=mutation):
+                    service._extract_output_text=lambda _,mutation=mutation:json.dumps({**selected,**mutation})
+                    with patch.object(ai_design,'get_llm_service',return_value=service),self.assertRaisesRegex(ValueError,'selected variant'):
+                        generate_design_impl(project,item,slide,[],feedback={'current_design':selected})
+                    schema=service.client.responses.create.call_args.kwargs['text']['format']['schema']
+                    self.assertEqual(schema['properties']['focal_section_id']['enum'],['caveat'])
+                    self.assertEqual(schema['properties']['composition']['enum'],['feature'])
+
+    def test_hide_visual_invalidates_design_and_semantic_agreement_preserves_body(self):
         self.start()
-        with patch.object(ai_design,'generate_design',side_effect=self.plan): ai_design.run_design(self.id)
+        with patch.object(ai_design,'initial_design',side_effect=self.plan): ai_design.run_design(self.id)
         with self.sessions() as session:
             project=repository.get_project(session,self.id)
             slides=deepcopy(project.slides_json)
@@ -124,15 +152,48 @@ class AIDesignTest(unittest.TestCase):
             project.slides_json=slides; session.commit()
             before=self.state()
             after=hide_visual(self.id,'s1',OutlineRevisionRequest(expected_revision=before.revision),session)
-        self.assertEqual(after.phase,'ready')
-        self.assertEqual(after.slides[0].design.layout,'hero')
-        self.assertIsNone(after.slides[0].design.visual)
+        self.assertEqual(after.phase,'outline_draft')
+        self.assertIsNone(after.slides[0].design)
+        self.assertEqual(after.slides[0].design_status,'none')
+        self.assertIsNone(after.workflow.coherence_review)
         self.assertEqual(after.slides[0].blocks,before.slides[0].blocks)
-        self.assertTrue(after.slides[0].scene)
+        self.assertEqual(after.slides[1].design,before.slides[1].design)
+        with self.sessions() as session,self.assertRaises(HTTPException) as error:
+            export_project_pptx(self.id,session)
+        self.assertEqual(error.exception.status_code,422)
+
+    def test_stale_global_review_does_not_invalidate_unchanged_slide_designs(self):
+        self.start()
+        def change_notes(project,images):
+            with self.sessions() as session:
+                current=repository.get_project(session,self.id)
+                edit_speaker_notes(self.id,'s1',SpeakerNotesEditRequest(expected_revision=current.revision,speaker_notes='Updated while review was running.'),session)
+            return {'approved':True,'slides':[]}
+        with patch.object(ai_design,'initial_design',side_effect=self.plan),patch('app.services.design_quality.review_deck',side_effect=change_notes):
+            ai_design.run_design(self.id)
+        after=self.state()
+        self.assertEqual(after.phase,'outline_draft')
+        self.assertEqual(after.slides[0].design_status,'none')
+        self.assertTrue(all(s.design_status=='ready' and s.design for s in after.slides[1:]))
+        self.assertEqual(after.slides[0].speaker_notes,'Updated while review was running.')
+        self.assertIsNone(after.workflow.coherence_review)
+
+    def test_final_model_exports_require_current_approved_notes_check(self):
+        self.start()
+        with patch.object(ai_design,'initial_design',side_effect=self.plan):ai_design.run_design(self.id)
+        with self.sessions() as session:
+            project=repository.get_project(session,self.id)
+            self.assertEqual(export_project_pptx(self.id,session).status_code,200)
+            project.workflow_json={**project.workflow_json,'coherence_review':None};session.commit()
+            for exporter in (export_project_pptx,export_project_pdf):
+                with self.subTest(exporter=exporter.__name__),self.assertRaises(HTTPException) as error:
+                    exporter(self.id,session)
+                self.assertEqual(error.exception.status_code,422)
+                self.assertIn('speaker notes',error.exception.detail)
 
     def test_reset_from_outline_invalidates_final_composition(self):
         self.start()
-        with patch.object(ai_design,'generate_design',side_effect=self.plan): ai_design.run_design(self.id)
+        with patch.object(ai_design,'initial_design',side_effect=self.plan): ai_design.run_design(self.id)
         with self.sessions() as session:
             after=reset_slide_block(self.id,'s1','body',OutlineRevisionRequest(expected_revision=self.state().revision),session)
         self.assertIsNone(after.slides[0].design)
@@ -162,7 +223,7 @@ class AIDesignTest(unittest.TestCase):
         self.assertEqual(allowed_layouts('comparison',None),['comparison'])
         self.assertEqual(allowed_layouts('title',None),['hero'])
         self.start()
-        with patch.object(ai_design,'generate_design',side_effect=self.plan): ai_design.run_design(self.id)
+        with patch.object(ai_design,'initial_design',side_effect=self.plan): ai_design.run_design(self.id)
         with self.sessions() as session:
             project=repository.get_project(session,self.id); slides=deepcopy(project.slides_json)
             slides[0]['design']['emphasis']='inverse'
@@ -181,17 +242,17 @@ class AIDesignTest(unittest.TestCase):
         before=self.state(); self.start(); calls=[]
         def compose(project,item,slide,previous,feedback=None):
             calls.append((item.id,feedback)); return self.plan(project,item,slide,previous)
-        reviews=[{'approved':False,'issues':['Crowded columns'],'arrangement':'rows'}]+[{'approved':True,'issues':[],'arrangement':'rows'}]*5
-        with patch.object(ai_design,'generate_design',side_effect=compose),patch('app.services.design_quality.review_design',side_effect=reviews): ai_design.run_design(self.id)
+        reviews=[{'approved':False,'issues':['Crowded columns'],'arrangement':'rows'}]+[{'approved':True,'issues':[],'arrangement':'rows'}]*9
+        with patch.object(ai_design,'initial_design',side_effect=compose),patch.object(ai_design,'generate_design',side_effect=compose),patch('app.services.design_quality.review_design',side_effect=reviews): ai_design.run_design(self.id)
         after=self.state()
         self.assertEqual(after.phase,'ready'); self.assertEqual(after.slides[0].quality_attempts,2)
-        self.assertEqual(len(calls),6); self.assertEqual(calls[1][1]['issues'],['Crowded columns'])
+        self.assertEqual(len(calls),10); self.assertEqual(calls[1][1]['issues'],['Crowded columns'])
         self.assertEqual(after.slides[0].design.arrangement,'rows')
         self.assertEqual([r.blocks for r in after.slides],[r.blocks for r in before.slides])
 
     def test_quality_failure_keeps_candidate_and_blocks_export(self):
         self.start()
-        with patch.object(ai_design,'generate_design',side_effect=lambda *args,**kwargs:self.plan(*args)),patch('app.services.design_quality.review_design',return_value={'approved':False,'issues':['Unreadable text'],'arrangement':'rows'}): ai_design.run_design(self.id)
+        with patch.object(ai_design,'initial_design',side_effect=lambda *args,**kwargs:self.plan(*args)),patch.object(ai_design,'generate_design',side_effect=lambda *args,**kwargs:self.plan(*args)),patch('app.services.design_quality.review_design',return_value={'approved':False,'issues':['Unreadable text'],'arrangement':'rows'}): ai_design.run_design(self.id)
         after=self.state(); self.assertEqual(after.phase,'outline_draft')
         self.assertTrue(all(r.design_status=='error' and r.quality_attempts==3 and r.design for r in after.slides))
         with self.assertRaises(ValueError):render_project_pptx(after)
@@ -203,7 +264,7 @@ class AIDesignTest(unittest.TestCase):
         sections=validated_sections([{'heading':'Staff review','text':'Staff review takes 18 minutes.'},{'heading':'Maintenance','text':'Maintenance takes two hours.'}], 'Staff review takes 18 minutes. Maintenance takes two hours.','s2')
         with self.assertRaisesRegex(ValueError,'every accepted word'):validated_sections([{'heading':'Other','text':'Staff review takes 20 minutes.'}],'Staff review takes 18 minutes.','s2')
         self.start()
-        with patch.object(ai_design,'generate_design',side_effect=self.plan):ai_design.run_design(self.id)
+        with patch.object(ai_design,'initial_design',side_effect=self.plan):ai_design.run_design(self.id)
         before=self.state()
         with self.sessions() as session:after=edit_sections(self.id,'s2',SectionEditRequest(expected_revision=before.revision,sections=sections),session)
         self.assertEqual(after.slides[1].sections,sections)

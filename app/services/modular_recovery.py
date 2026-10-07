@@ -17,8 +17,20 @@ def recover_interrupted_work() -> None:
     for project_id in ids:
         def recover(project: Project) -> dict | None:
             slides = deepcopy(project.slides_json)
+            workflow=deepcopy(project.workflow_json or {})
             changed = False
+            # Every in-memory operation was lost, including edits started on a ready deck.
+            for action in workflow.get("actions",[]):
+                if action.get("status")=="running":
+                    action["status"]="error"
+                    changed=True
+            if project.phase in {"designing","drafting"}:
+                workflow["stage"]="error"
             for slide in slides:
+                if slide.get("variants_status") == "generating":
+                    slide.update(variants_status="error", variants_token=None,
+                                 variants_error="Layout alternatives were interrupted. Please retry.")
+                    changed = True
                 if slide.get("sections_status")=="generating":
                     slide.update(sections_status="error",sections_error="Grouping interrupted by a restart. Retry with current text.")
                     changed=True
@@ -40,12 +52,12 @@ def recover_interrupted_work() -> None:
                             slide["revision"] += 1
                             changed = True
             if project.phase == "designing":
-                return {"slides_json":slides,"phase":"outline_draft"}
+                return {"slides_json":slides,"phase":"outline_draft","workflow_json":workflow}
             if project.phase == "drafting":
-                return {"slides_json": slides, "phase": "outline_draft" if project.outline_json else "intake"}
+                return {"slides_json": slides, "phase": "outline_draft" if project.outline_json else "intake","workflow_json":workflow}
             if not changed:
                 return None
-            values = {"slides_json": slides}
+            values = {"slides_json": slides, "workflow_json": workflow}
             if project.phase == "building":
                 values["phase"] = "error" if any(row["status"] != "ready" for row in slides) else "ready"
             return values

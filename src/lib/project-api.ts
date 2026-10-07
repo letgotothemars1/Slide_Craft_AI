@@ -14,6 +14,10 @@ const blockSchema = z.object({
   error: z.string().nullable().optional(),
 });
 
+const designSchema = z.object({layout:z.enum(['hero','editorial','chart','process','comparison','statement']),emphasis:z.enum(['quiet','accent','inverse']),rationale:z.string(),arrangement:z.enum(['columns','rows']).optional(),composition:z.enum(['balanced','feature','bands','poster']).default('balanced'),focal_section_id:z.string().default(''),title_share:z.number().nullable().optional(),support_share:z.number().nullable().optional(),visual:z.object({kind:z.enum(['none','process','bars']),labels:z.array(z.string()),values:z.array(z.number()),unit:z.string()}).nullable().optional()}).nullable().optional();
+const sceneSchema = z.array(z.object({kind:z.enum(['text','rect']),x:z.number(),y:z.number(),w:z.number(),h:z.number(),text:z.string(),color:z.string(),size:z.number(),bold:z.boolean(),font:z.enum(['Arial','Georgia']),block_key:z.enum(['title','body','source_label']).nullable(),column:z.number().nullable(),section_id:z.string().nullable().optional(),section_field:z.enum(['heading','text']).nullable().optional()})).optional();
+const variantSchema = z.object({id:z.enum(["selected","alternative","out_of_box"]),label:z.string(),description:z.string(),unconventional:z.boolean(),design:designSchema});
+
 export const projectSchema = z.object({
   id: z.string(),
   language: z.literal("en"),
@@ -25,6 +29,16 @@ export const projectSchema = z.object({
   source_filename: z.string().nullable(),
   theme: z.enum(["clean_editorial", "dark_tech_pitch", "infographic_bright"]),
   build_mode: z.enum(["template", "model"]).default("template"),
+  workflow: z.object({
+    stage: z.enum(['idle','planning','content','review','design_planning','designing','checking','complete','error','budget_exhausted']),
+    model_calls: z.number().int().nonnegative(),
+    request_budget: z.number().int().positive().default(60),
+    input_tokens: z.number().int().nonnegative(),
+    output_tokens: z.number().int().nonnegative(),
+    actions: z.array(z.object({sequence:z.number().int(),action:z.string(),status:z.string(),slide_id:z.string().nullable().optional(),detail:z.string().default('')})),
+    deck_design: z.unknown().nullable().optional(),
+    coherence_review:z.record(z.unknown()).nullable().optional(),
+  }).optional(),
   outline: z.array(z.object({
     id: z.string(),
     order: z.number().int().positive(),
@@ -39,7 +53,16 @@ export const projectSchema = z.object({
     id: z.string(),
     status: z.enum(["queued", "generating", "ready", "error"]),
     revision: z.number().int().nonnegative(),
-    design: z.object({layout:z.enum(['hero','editorial','chart','process','comparison','statement']),emphasis:z.enum(['quiet','accent','inverse']),rationale:z.string(),arrangement:z.enum(['columns','rows']).optional(),visual:z.object({kind:z.enum(['none','process','bars']),labels:z.array(z.string()),values:z.array(z.number()),unit:z.string()}).nullable().optional()}).nullable().optional(),
+    design: designSchema,
+    preview_design: z.unknown().nullable().optional(),
+    speaker_notes: z.string().optional(),
+    composition_variants:z.array(variantSchema).optional(),
+    selected_variant_id:z.enum(["selected","alternative","out_of_box"]).nullable().optional(),
+    variants_status:z.enum(["none","generating","ready","error"]).optional(),
+    variants_error:z.string().nullable().optional(),
+    variants_origin:z.string().nullable().optional(),
+    variants_fingerprint:z.string().nullable().optional(),
+    composition_preference: z.enum(['balanced','feature','bands','poster']).nullable().optional(),
     design_status: z.enum(['none','queued','generating','ready','error']).optional(),
     design_error: z.string().nullable().optional(),
     sections: z.array(z.object({id:z.string(),heading:z.string(),text:z.string()})).optional(),
@@ -48,7 +71,7 @@ export const projectSchema = z.object({
     design_stage:z.enum(['none','composing','checking','refining','complete']).optional(),
     quality_issues:z.array(z.string()).optional(),
     quality_attempts:z.number().optional(),
-    scene: z.array(z.object({kind:z.enum(['text','rect']),x:z.number(),y:z.number(),w:z.number(),h:z.number(),text:z.string(),color:z.string(),size:z.number(),bold:z.boolean(),font:z.enum(['Arial','Georgia']),block_key:z.enum(['title','body','source_label']).nullable(),column:z.number().nullable(),section_id:z.string().nullable().optional(),section_field:z.enum(['heading','text']).nullable().optional()})).optional(),
+    scene: sceneSchema,
     show_source: z.boolean().optional(),
     revision_instruction: z.string().optional(),
     visual: z.object({kind: z.enum(["none","process","bars"]), labels: z.array(z.string()), values: z.array(z.number()), unit: z.string()}).nullable().optional(),
@@ -265,4 +288,26 @@ export async function saveSlideSections(project:Project,slideId:string,sections:
 
 export function prepareAllSections(project:Project):Promise<Project>{
   return projectRequest(project.id,'/sections/prepare','POST',{expected_revision:project.revision});
+}
+
+export const compositionChoiceSchema=z.object({
+  id:z.enum(['selected','alternative','out_of_box']),label:z.string(),description:z.string(),unconventional:z.boolean(),
+  design:projectSchema.shape.slides.element.shape.design,scene:projectSchema.shape.slides.element.shape.scene,
+});
+export type CompositionChoice=z.infer<typeof compositionChoiceSchema>;
+export async function getCompositionChoices(projectId:string,slideId:string):Promise<CompositionChoice[]> {
+  const apiBase=(import.meta.env.VITE_API_BASE_URL as string)||'';
+  const response=await fetch(`${apiBase}${PROJECTS_API}/${encodeURIComponent(projectId)}/draft/slides/${encodeURIComponent(slideId)}/compositions`);
+  if(!response.ok) throw new Error('Composition previews could not load. Try again.');
+  return z.array(compositionChoiceSchema).refine(rows=>rows.length===0||rows.length===3).parse(await response.json());
+}
+export function chooseComposition(project:Project,slideId:string,variant_id:CompositionChoice['id']):Promise<Project> {
+  return projectRequest(project.id,`/draft/slides/${encodeURIComponent(slideId)}/composition-choice`,'PATCH',{expected_revision:project.revision,variant_id});
+}
+export function saveSpeakerNotes(project:Project,slideId:string,speaker_notes:string):Promise<Project> {
+  return projectRequest(project.id,`/slides/${encodeURIComponent(slideId)}/speaker-notes`,'PATCH',{expected_revision:project.revision,speaker_notes});
+}
+
+export function generateCompositionChoices(project:Project,slideId:string):Promise<Project> {
+  return projectRequest(project.id,`/draft/slides/${encodeURIComponent(slideId)}/compositions/generate`,"POST",{expected_revision:project.revision});
 }

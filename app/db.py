@@ -163,6 +163,7 @@ class Project(Base):
     source_document_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     theme: Mapped[str] = mapped_column(String(32), nullable=False)
     build_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="template")
+    workflow_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     outline_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     slides_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -287,6 +288,7 @@ def _run_startup_migrations() -> None:
         dialect = conn.dialect.name
         try:
             if dialect == "postgresql":
+                conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS workflow_json JSON NOT NULL DEFAULT '{}'"))
                 conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS build_mode VARCHAR(16) NOT NULL DEFAULT 'template'"))
                 conn.execute(text("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS page_number INTEGER"))
                 conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS document_id VARCHAR(64)"))
@@ -310,6 +312,8 @@ def _run_startup_migrations() -> None:
                 )
             elif dialect == "sqlite":
                 project_rows = conn.execute(text("PRAGMA table_info(projects)")).fetchall()
+                if "workflow_json" not in {row[1] for row in project_rows}:
+                    conn.execute(text("ALTER TABLE projects ADD COLUMN workflow_json JSON NOT NULL DEFAULT '{}'"))
                 if "build_mode" not in {row[1] for row in project_rows}:
                     conn.execute(text("ALTER TABLE projects ADD COLUMN build_mode VARCHAR(16) NOT NULL DEFAULT 'template'"))
                 chunk_rows = conn.execute(text("PRAGMA table_info(document_chunks)")).fetchall()

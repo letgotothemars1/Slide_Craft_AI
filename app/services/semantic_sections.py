@@ -25,9 +25,13 @@ def generate_sections(body, slide_id):
     schema={'type':'object','additionalProperties':False,'required':['sections'],'properties':{'sections':SECTION_SCHEMA}}
     if isinstance(service,OpenAILLMService):
         response=service.client.responses.create(model=service.model,temperature=.1,input=[{'role':'system','content':system},{'role':'user','content':body}],text={'format':{'type':'json_schema','name':'semantic_sections','strict':True,'schema':schema}})
+        from app.services.presentation_workflow import record_usage
+        record_usage(response)
         raw=service._extract_output_text(response)
     elif isinstance(service,AnthropicLLMService):
         response=service.client.messages.create(model=service.model,max_tokens=1600,system=system,messages=[{'role':'user','content':body}],output_config={'format':{'type':'json_schema','schema':schema}})
+        from app.services.presentation_workflow import record_usage
+        record_usage(response)
         if response.stop_reason in {'max_tokens','refusal'}: raise ValueError('Incomplete sections')
         raw=next((r.text for r in response.content if r.type=='text'),'')
     else: raise ValueError('Unsupported provider')
@@ -41,8 +45,15 @@ def run_sections(project_id, slide_id, body_token):
     with SessionLocal() as session:
         project=repository.get_project(session,project_id)
         row=next(r for r in project.slides_json if r['id']==slide_id)
-        try: result=[s.model_dump() for s in generate_sections(row['blocks']['body']['text'],slide_id)]; error=None
-        except Exception: result=None; error='Could not group the text without changing it. Retry or keep the original text.'
+        try:
+            from app.services.presentation_workflow import operation
+            with operation(project_id,'group_sections',slide_id,model=True):
+                result=[s.model_dump() for s in generate_sections(row['blocks']['body']['text'],slide_id)]
+            error=None
+        except Exception as exc:
+            from app.services.presentation_workflow import BudgetExhausted
+            result=None
+            error='Request budget reached. Your previous text is kept.' if isinstance(exc,BudgetExhausted) else 'Could not group the text without changing it. Retry or keep the original text.'
     def finish(current):
         rows=deepcopy(current.slides_json); target=next(r for r in rows if r['id']==slide_id)
         if target.get('sections_status')!='generating': return None

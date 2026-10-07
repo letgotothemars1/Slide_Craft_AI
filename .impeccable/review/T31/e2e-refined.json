@@ -1,0 +1,1833 @@
+{
+  "id": "3d4eba87-51c1-4394-b8ae-619d4101f4d8",
+  "language": "en",
+  "phase": "ready",
+  "revision": 346,
+  "assignment_text": "Prepare a five-slide presentation for a master's seminar on digital systems in public services. Your audience is course examiners and classmates who have not worked on waste sorting technology. Use the fictional North Campus sorting pilot in the attached source PDF as a case study. The presentation should take no more than four minutes.\n\nExplain the sorting problem, the proposed camera-assisted workflow, the pilot observations, the operating trade-offs, and a measured conclusion. Include at least one page-numbered reference to the source PDF when discussing the pilot observations. Distinguish observations from causal claims: the synthetic pilot has no randomized control group and cannot prove that the system caused the change. Do not present the figures as real research or a real campus result.\n\nKeep the five-slide order easy to follow and use concise English. The presentation must preserve the exact qualification “promising, not proven” in the conclusion. Do not add external statistics, invented citations, or recommendations about deploying the system beyond this fictional campus. The final PPTX should remain editable so the student can correct wording before presenting.",
+  "context_pack_text": "Topic: Fictional North Campus waste sorting pilot\nPurpose: Explain a fictional camera-assisted sorting pilot to master's students and course examiners.\nAudience: Master's students and course examiners.\nProblem: Sorting errors make it harder to keep reusable materials separate on a campus.\nThesis: The fictional pilot is promising, not proven: fewer items were sorted incorrectly, but the study design cannot establish causation.\nClaim 1: In this synthetic four-week case, the observed incorrect-sorting share changed from 42% to 29% across 1,000 inspected items per week. See the demo source, page 1.\nClaim 2: The workflow flags uncertain items for staff review instead of deciding every item automatically. See the demo source, page 2.\nTrade-offs: Staff review takes 18 minutes per day and camera maintenance takes two hours per week in this synthetic case. See the demo source, page 2.\nConclusion: The results are promising, not proven; test the workflow in a controlled study before making a deployment decision.\nConstraints: Five slides, four minutes, concise English, preserve “promising, not proven”, cite PDF pages, and identify all numbers as synthetic.\nUnresolved question: Would the observed change persist on another campus without adding too much staff work?\nVerified material: Only statements directly recorded in the attached synthetic PDF are source material for this software demo.\nAssumptions: Transfer to other campuses and a causal impact are unverified.",
+  "source_document_id": null,
+  "source_filename": null,
+  "theme": "clean_editorial",
+  "build_mode": "model",
+  "workflow": {
+    "stage": "complete",
+    "model_calls": 39,
+    "request_budget": 60,
+    "input_tokens": 135336,
+    "output_tokens": 58760,
+    "actions": [
+      {
+        "sequence": 1,
+        "action": "plan_deck",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 2,
+        "action": "write_content",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 3,
+        "action": "write_content",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 4,
+        "action": "write_content",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 5,
+        "action": "write_content",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 6,
+        "action": "write_content",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 7,
+        "action": "write_content",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 8,
+        "action": "inspect_deck",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 9,
+        "action": "inspect_compositions",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 10,
+        "action": "analyze_story",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 11,
+        "action": "plan_design",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 12,
+        "action": "apply_composition",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 13,
+        "action": "render_candidates",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 14,
+        "action": "select_composition",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 15,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 16,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 17,
+        "action": "refine_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 18,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 19,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 20,
+        "action": "refine_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 21,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 22,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 23,
+        "action": "apply_composition",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 24,
+        "action": "render_candidates",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 25,
+        "action": "select_composition",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 26,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 27,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 28,
+        "action": "refine_slide",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 29,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 30,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s2",
+        "detail": ""
+      },
+      {
+        "sequence": 31,
+        "action": "apply_composition",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 32,
+        "action": "render_candidates",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 33,
+        "action": "select_composition",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 34,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 35,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 36,
+        "action": "refine_slide",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 37,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 38,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 39,
+        "action": "refine_slide",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 40,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 41,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s3",
+        "detail": ""
+      },
+      {
+        "sequence": 42,
+        "action": "apply_composition",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 43,
+        "action": "render_candidates",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 44,
+        "action": "select_composition",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 45,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 46,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 47,
+        "action": "refine_slide",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 48,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 49,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s4",
+        "detail": ""
+      },
+      {
+        "sequence": 50,
+        "action": "apply_composition",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 51,
+        "action": "render_candidates",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 52,
+        "action": "select_composition",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 53,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 54,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 55,
+        "action": "refine_slide",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 56,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 57,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s5",
+        "detail": ""
+      },
+      {
+        "sequence": 58,
+        "action": "inspect_deck",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 59,
+        "action": "inspect_compositions",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 60,
+        "action": "apply_composition",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 61,
+        "action": "render_candidates",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 62,
+        "action": "select_composition",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 63,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 64,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 65,
+        "action": "refine_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 66,
+        "action": "render_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 67,
+        "action": "review_slide",
+        "status": "complete",
+        "slide_id": "s1",
+        "detail": ""
+      },
+      {
+        "sequence": 68,
+        "action": "review_deck",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 69,
+        "action": "inspect_deck",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 70,
+        "action": "inspect_compositions",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      },
+      {
+        "sequence": 71,
+        "action": "review_deck",
+        "status": "complete",
+        "slide_id": null,
+        "detail": ""
+      }
+    ],
+    "story_analysis": {
+      "audience_goal": "Help course examiners and classmates understand a fictional North Campus sorting pilot, follow the proposed camera-assisted workflow, read the observed numbers as synthetic observations rather than proof, and leave with the cautious verdict that the case is interesting but not ready for a deployment decision.",
+      "narrative": "This is a clean five-step story for a four-minute seminar: slide 1 frames the waste-sorting problem in a synthetic campus case; slide 2 explains the camera-assisted, human-reviewed workflow; slide 3 reports the observed 42% to 29% change with a page reference while keeping the causal boundary explicit; slide 4 shows the operating trade-offs in staff time and maintenance; slide 5 closes with the required exact verdict, “promising, not proven,” and the study-limit message. The audience decision is interpretive, not operational: they should understand the pilot as a useful signal that still needs controlled testing, not as evidence for deployment.",
+      "slides": [
+        {
+          "slide_id": "s1",
+          "communication_goal": "Frame the problem and signal that this is a fictional campus case, not a real result.",
+          "visible_priority": "Title plus one short statement about why sorting errors matter; the synthetic nature of the case should be visible, not only spoken.",
+          "spoken_explanation": "Introduce North Campus as a synthetic pilot. Explain that sorting errors make it harder to keep reusable materials separate. Use this as the reason to move into the workflow; do not imply any proven effect yet.",
+          "visual_strategy": "Use a hero-style opener with one strong statement and a simple campus/waste motif. Keep it sparse and poster-like so the audience immediately knows the topic and can move on quickly.",
+          "content_gaps": [
+            "The body does not visibly say “synthetic” or “fictional,” so the first slide could be misread as a real campus report.",
+            "No visual is attached even though the layout preference implies a hero opener; the slide may feel empty at the start.",
+            "The sentence explains the problem but does not yet preview the camera-assisted system, so the transition to slide 2 relies entirely on speech."
+          ]
+        },
+        {
+          "slide_id": "s2",
+          "communication_goal": "Explain the proposed human-in-the-loop workflow in plain language.",
+          "visible_priority": "The three-step sequence and the key point that uncertain items go to staff review, not full automation.",
+          "spoken_explanation": "Walk through the process: a camera scans items, uncertain cases are flagged, and staff review those cases. Emphasize that the system supports human judgment rather than replacing it, and avoid any performance claim on this slide.",
+          "visual_strategy": "Use a left-to-right process diagram with simple icons for scan, flag, and review. Make the human decision point visually obvious so non-specialists can follow the sequence fast.",
+          "content_gaps": [
+            "The visible text does not show what happens to confidently classified items, so the workflow may feel incomplete.",
+            "The slide states the process but not that it is proposed rather than measured; that distinction is only in the notes.",
+            "Without a clear visual, the process could be harder to remember than the speaker notes suggest."
+          ]
+        },
+        {
+          "slide_id": "s3",
+          "communication_goal": "Report the pilot observation and keep the interpretation non-causal.",
+          "visible_priority": "The observed change from 42% to 29% and the page reference to the source PDF; the slide must also visibly frame this as an observation, not proof.",
+          "spoken_explanation": "State the synthetic four-week observation: incorrect sorting changed from 42% to 29% across 1,000 inspected items per week. Immediately add that there was no randomized control group, so the workflow cannot be credited as the cause. Make clear that the numbers are synthetic and come from the fictional case study.",
+          "visual_strategy": "Show a simple before/after bar chart or paired bars with a small footnote for p. 1. Keep the design neutral so the audience sees direction, not causation.",
+          "content_gaps": [
+            "The visible slide lacks the explicit causal-limit warning; that distinction must be on the slide, not only in speech.",
+            "The notes refer to a bar visual, but no visual is attached, which is a mismatch for an evidence slide.",
+            "The synthetic nature of the figures is not visible, so the audience could mistake the case for real research if they only scan the slide."
+          ]
+        },
+        {
+          "slide_id": "s4",
+          "communication_goal": "Show the operating trade-offs that come with the workflow.",
+          "visible_priority": "Two clearly labeled workload figures: staff review time and camera maintenance time.",
+          "spoken_explanation": "Explain that the system still needs human attention for uncertain items and also needs technical upkeep. Present the 18 minutes per day and two hours per week as case-specific burdens in the synthetic pilot, not as general estimates.",
+          "visual_strategy": "Use a split comparison card or balanced two-column layout with time icons. Make the workload contrast immediate and avoid turning it into a performance chart.",
+          "content_gaps": [
+            "No page-numbered citation is shown for these figures, even though they appear to come from the source PDF.",
+            "The visible text is only two numbers; it does not clearly state that these are trade-offs in a human-in-the-loop system.",
+            "The notes describe a comparison layout, but no visual is attached, so the slide may read as sparse and disconnected."
+          ]
+        },
+        {
+          "slide_id": "s5",
+          "communication_goal": "Close with the exact cautious verdict and the methodological limit.",
+          "visible_priority": "The exact phrase “promising, not proven” plus the no-control-group limitation.",
+          "spoken_explanation": "Summarize the takeaway carefully: the pilot is encouraging, but the design cannot establish causation. Reiterate that this is a synthetic case and that any next step would need a controlled study before a deployment decision.",
+          "visual_strategy": "Use a very clean closing statement slide or a short verdict box. Keep it text-light so the ending lands quickly and clearly in the four-minute limit.",
+          "content_gaps": [
+            "The slide is appropriately spare, but it could be stronger if it echoed the unresolved question about whether the pattern persists on another campus without too much staff work.",
+            "The visible body does not restate the evidence source from earlier slides, so the close may feel somewhat abstract.",
+            "The handoff to Q&A appears only in the notes, not on the slide, if that transition is intended for the audience."
+          ]
+        }
+      ]
+    },
+    "deck_review": {
+      "approved": true,
+      "slides": []
+    },
+    "deck_design": {
+      "direction": "Use a sparse editorial arc that moves from a poster-like hero opener to a process explanation, a focal evidence callout, a side-by-side trade-off comparison, and a cautious closing verdict.",
+      "actions": [
+        {
+          "action": "apply_composition",
+          "slide_id": "s1",
+          "composition": "poster",
+          "focal_section_id": "",
+          "arrangement": "columns",
+          "layout": "hero",
+          "rationale": "Honor the poster preference with a hero opener: make the title the dominant ink panel and keep the short problem statement sparse and offset so the synthetic campus pilot reads immediately."
+        },
+        {
+          "action": "apply_composition",
+          "slide_id": "s2",
+          "composition": "balanced",
+          "focal_section_id": "",
+          "arrangement": "rows",
+          "layout": "process",
+          "rationale": "Use a balanced process layout with the existing workflow visual leading a top strip so scan → flag → review stays easy to follow and the human review step remains central."
+        },
+        {
+          "action": "apply_composition",
+          "slide_id": "s3",
+          "composition": "feature",
+          "focal_section_id": "s3-section-1",
+          "arrangement": "columns",
+          "layout": "statement",
+          "rationale": "Use a feature statement to turn the 42% → 29% observation and page reference into the main evidence callout, keeping the slide lean so it reads as observed change rather than proof."
+        },
+        {
+          "action": "apply_composition",
+          "slide_id": "s4",
+          "composition": "balanced",
+          "focal_section_id": "",
+          "arrangement": "columns",
+          "layout": "comparison",
+          "rationale": "Use a balanced comparison with side-by-side columns so staff review time and camera maintenance time read as parallel operating trade-offs."
+        },
+        {
+          "action": "apply_composition",
+          "slide_id": "s5",
+          "composition": "feature",
+          "focal_section_id": "s5-section-1",
+          "arrangement": "columns",
+          "layout": "statement",
+          "rationale": "Use a feature statement to spotlight 'promising, not proven' as the closing verdict, with the limitations section secondary so the ending feels decisive but cautious."
+        }
+      ]
+    },
+    "deck_design_signature": "312bd0408289e5cb3feeb33c4e86ae56dd84cfcd82be544a2ed3b96d4f45118e"
+  },
+  "outline": [
+    {
+      "id": "s1",
+      "order": 1,
+      "purpose": "Introduce the case and the sorting problem.",
+      "title": "North Campus sorting pilot: why it matters",
+      "key_message": "Sorting errors make it harder to keep reusable materials separate on a campus.",
+      "evidence_refs": [],
+      "suggested_refs": [],
+      "layout_type": "title"
+    },
+    {
+      "id": "s2",
+      "order": 2,
+      "purpose": "Explain the proposed workflow in simple terms.",
+      "title": "Camera-assisted workflow",
+      "key_message": "The workflow scans items with a camera and sends uncertain cases to staff review, so it does not decide every item automatically.",
+      "evidence_refs": [],
+      "suggested_refs": [],
+      "layout_type": "content"
+    },
+    {
+      "id": "s3",
+      "order": 3,
+      "purpose": "Report the pilot observation with a page reference and keep it clearly observational.",
+      "title": "Pilot observation",
+      "key_message": "In the synthetic four-week case, the observed incorrect-sorting share changed from 42% to 29% across 1,000 inspected items per week (p. 1).",
+      "evidence_refs": [],
+      "suggested_refs": [],
+      "layout_type": "content"
+    },
+    {
+      "id": "s4",
+      "order": 4,
+      "purpose": "Show the main operating trade-offs of the workflow.",
+      "title": "Operating trade-offs",
+      "key_message": "Staff review: 18 minutes per day | Camera maintenance: two hours per week",
+      "evidence_refs": [],
+      "suggested_refs": [],
+      "layout_type": "comparison"
+    },
+    {
+      "id": "s5",
+      "order": 5,
+      "purpose": "Close with a measured takeaway that preserves the required wording.",
+      "title": "Conclusion",
+      "key_message": "The results are promising, not proven. Because this synthetic pilot has no randomized control group, the study design cannot establish causation. The safest reading is that the workflow may be useful, but the observed change should be treated as a pilot signal, not proof.",
+      "evidence_refs": [],
+      "suggested_refs": [],
+      "layout_type": "content"
+    }
+  ],
+  "slides": [
+    {
+      "id": "s1",
+      "status": "ready",
+      "revision": 14,
+      "visual": null,
+      "design": {
+        "layout": "hero",
+        "emphasis": "accent",
+        "visual": null,
+        "rationale": "Create a stark two-zone opener: a dark title panel on the left and a tightly aligned right rail for the short statement. Break the title to fill the tall box intentionally so the hierarchy reads instantly.",
+        "arrangement": "columns",
+        "composition": "poster",
+        "focal_section_id": "s1-section-1"
+      },
+      "preview_design": null,
+      "design_status": "ready",
+      "design_error": null,
+      "sections": [
+        {
+          "id": "s1-section-1",
+          "heading": "Why it matters",
+          "text": "Sorting errors make it harder to keep reusable materials separate on a campus."
+        }
+      ],
+      "sections_status": "ready",
+      "sections_error": null,
+      "design_stage": "complete",
+      "quality_issues": [],
+      "quality_attempts": 2,
+      "scene": [
+        {
+          "kind": "rect",
+          "x": 0.0,
+          "y": 0.0,
+          "w": 100.0,
+          "h": 56.25,
+          "text": "",
+          "color": "#FFFCF7",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 4.5,
+          "y": 9.0,
+          "w": 47.0,
+          "h": 36.0,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 8.0,
+          "y": 12.0,
+          "w": 40.0,
+          "h": 30.0,
+          "text": "North Campus sorting pilot: why it matters",
+          "color": "#FFFCF7",
+          "size": 5.1,
+          "bold": true,
+          "font": "Georgia",
+          "block_key": "title",
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 56.0,
+          "y": 14.0,
+          "w": 8.0,
+          "h": 0.35,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 56.0,
+          "y": 15.4,
+          "w": 37.0,
+          "h": 3.894,
+          "text": "Why it matters",
+          "color": "#111827",
+          "size": 2.7,
+          "bold": true,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s1-section-1",
+          "section_field": "heading"
+        },
+        {
+          "kind": "text",
+          "x": 56.0,
+          "y": 20.494,
+          "w": 37.0,
+          "h": 27.506,
+          "text": "Sorting errors make it harder to keep reusable materials separate on a campus.",
+          "color": "#111827",
+          "size": 2.8,
+          "bold": false,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s1-section-1",
+          "section_field": "text"
+        }
+      ],
+      "show_source": false,
+      "speaker_notes": "Explain that this is a synthetic campus pilot. Sorting errors make reusable materials harder to separate. Introduce the camera workflow next; do not claim proven causation.",
+      "composition_preference": "poster",
+      "revision_instruction": "",
+      "blocks": {
+        "title": {
+          "text": "North Campus sorting pilot: why it matters",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        },
+        "body": {
+          "text": "Sorting errors make it harder to keep reusable materials separate on a campus.",
+          "status": "ready",
+          "revision": 3,
+          "error": null
+        },
+        "source_label": {
+          "text": "Source needed",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "s2",
+      "status": "ready",
+      "revision": 13,
+      "visual": {
+        "kind": "process",
+        "labels": [
+          "Scan items",
+          "Flag uncertain cases",
+          "Staff review"
+        ],
+        "values": [],
+        "unit": ""
+      },
+      "design": {
+        "layout": "process",
+        "emphasis": "accent",
+        "visual": {
+          "kind": "process",
+          "labels": [
+            "Scan items",
+            "Flag uncertain cases",
+            "Staff review"
+          ],
+          "values": [],
+          "unit": ""
+        },
+        "rationale": "A top process strip keeps scan → flag → review easy to follow, while the body copy sits in a clean lower column. Accent emphasis makes the final Staff review step immediately visible without adding clutter.",
+        "arrangement": "rows",
+        "composition": "balanced",
+        "focal_section_id": ""
+      },
+      "preview_design": null,
+      "design_status": "ready",
+      "design_error": null,
+      "sections": [
+        {
+          "id": "s2-section-1",
+          "heading": "Workflow",
+          "text": "The workflow scans items with a camera and sends uncertain cases to staff review, so it does not decide every item automatically."
+        }
+      ],
+      "sections_status": "ready",
+      "sections_error": null,
+      "design_stage": "complete",
+      "quality_issues": [],
+      "quality_attempts": 2,
+      "scene": [
+        {
+          "kind": "rect",
+          "x": 0.0,
+          "y": 0.0,
+          "w": 100.0,
+          "h": 56.25,
+          "text": "",
+          "color": "#FFFCF7",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 4.6,
+          "w": 86.0,
+          "h": 9.0,
+          "text": "Camera-assisted workflow",
+          "color": "#111827",
+          "size": 3.9,
+          "bold": true,
+          "font": "Georgia",
+          "block_key": "title",
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 7.0,
+          "y": 24.0,
+          "w": 86.0,
+          "h": 0.2,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 24.8,
+          "w": 86.0,
+          "h": 3.245,
+          "text": "Workflow",
+          "color": "#111827",
+          "size": 2.25,
+          "bold": true,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s2-section-1",
+          "section_field": "heading"
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 28.745,
+          "w": 86.0,
+          "h": 21.255,
+          "text": "The workflow scans items with a camera and sends uncertain cases to staff review, so it does not decide every item automatically.",
+          "color": "#111827",
+          "size": 3.8,
+          "bold": false,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s2-section-1",
+          "section_field": "text"
+        },
+        {
+          "kind": "rect",
+          "x": 7.0,
+          "y": 15.0,
+          "w": 26.666666666666668,
+          "h": 6.0,
+          "text": "",
+          "color": "#FFFFFF",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 7.0,
+          "y": 15.0,
+          "w": 26.666666666666668,
+          "h": 0.25,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 33.66666666666667,
+          "y": 17.8,
+          "w": 2.0,
+          "h": 0.2,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 8.5,
+          "y": 16.4,
+          "w": 23.666666666666668,
+          "h": 4.0,
+          "text": "Scan items",
+          "color": "#111827",
+          "size": 1.95,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 35.66666666666667,
+          "y": 15.0,
+          "w": 26.666666666666668,
+          "h": 6.0,
+          "text": "",
+          "color": "#FFFFFF",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 35.66666666666667,
+          "y": 15.0,
+          "w": 26.666666666666668,
+          "h": 0.25,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 62.33333333333334,
+          "y": 17.8,
+          "w": 2.0,
+          "h": 0.2,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 37.16666666666667,
+          "y": 16.4,
+          "w": 23.666666666666668,
+          "h": 4.0,
+          "text": "Flag uncertain cases",
+          "color": "#111827",
+          "size": 1.95,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 64.33333333333334,
+          "y": 15.0,
+          "w": 26.666666666666668,
+          "h": 6.0,
+          "text": "",
+          "color": "#FFFFFF",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 64.33333333333334,
+          "y": 15.0,
+          "w": 26.666666666666668,
+          "h": 0.25,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 65.83333333333334,
+          "y": 16.4,
+          "w": 23.666666666666668,
+          "h": 4.0,
+          "text": "Staff review",
+          "color": "#111827",
+          "size": 1.95,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        }
+      ],
+      "show_source": false,
+      "speaker_notes": "This slide explains the proposed process in plain language for an audience that may not know waste-sorting technology. The key point is that the system is not fully automatic: it uses a camera to scan items, then flags uncertain cases for staff review. That distinction matters because it shows the workflow is designed to support human judgment rather than replace it. The simple process visual helps the audience follow the sequence quickly, which is useful in a short presentation. I am not making any performance claim here; this slide only describes how the workflow is supposed to operate. The next slide will move from the design of the workflow to the pilot observation, where we can discuss what changed in the synthetic case and keep the evidence clearly separate from any causal interpretation.",
+      "composition_preference": null,
+      "revision_instruction": "",
+      "blocks": {
+        "title": {
+          "text": "Camera-assisted workflow",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        },
+        "body": {
+          "text": "The workflow scans items with a camera and sends uncertain cases to staff review, so it does not decide every item automatically.",
+          "status": "ready",
+          "revision": 3,
+          "error": null
+        },
+        "source_label": {
+          "text": "Source needed",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "s3",
+      "status": "ready",
+      "revision": 26,
+      "visual": null,
+      "design": {
+        "layout": "statement",
+        "emphasis": "accent",
+        "visual": null,
+        "rationale": "Lead with a typographic callout for the 42%→29% shift, keep p. 1 as a small source tag, and place a short non-causal note beneath. Rows preserve readability; accent hierarchy makes the observation scan first without implying causation.",
+        "arrangement": "rows",
+        "composition": "feature",
+        "focal_section_id": "s3-section-1"
+      },
+      "preview_design": null,
+      "design_status": "ready",
+      "design_error": null,
+      "sections": [
+        {
+          "id": "s3-section-1",
+          "heading": "Observed change",
+          "text": "In the synthetic four-week case, the observed incorrect-sorting share changed from 42% to 29% across 1,000 inspected items per week (p. 1)."
+        }
+      ],
+      "sections_status": "ready",
+      "sections_error": null,
+      "design_stage": "complete",
+      "quality_issues": [],
+      "quality_attempts": 3,
+      "scene": [
+        {
+          "kind": "rect",
+          "x": 0.0,
+          "y": 0.0,
+          "w": 100.0,
+          "h": 56.25,
+          "text": "",
+          "color": "#FFFCF7",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 4.6,
+          "w": 86.0,
+          "h": 9.0,
+          "text": "Pilot observation",
+          "color": "#111827",
+          "size": 3.9,
+          "bold": true,
+          "font": "Georgia",
+          "block_key": "title",
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 7.0,
+          "y": 16.0,
+          "w": 40.0,
+          "h": 0.25,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 18.0,
+          "w": 40.0,
+          "h": 15.0,
+          "text": "42%",
+          "color": "#334155",
+          "size": 6.8,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 53.0,
+          "y": 16.0,
+          "w": 40.0,
+          "h": 0.25,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 53.0,
+          "y": 18.0,
+          "w": 40.0,
+          "h": 15.0,
+          "text": "29%",
+          "color": "#334155",
+          "size": 6.8,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 48.0,
+          "y": 22.0,
+          "w": 5.0,
+          "h": 6.0,
+          "text": "→",
+          "color": "#57534E",
+          "size": 3.3,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 36.0,
+          "w": 86.0,
+          "h": 4.0,
+          "text": "Observed change",
+          "color": "#111827",
+          "size": 2.4,
+          "bold": true,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s3-section-1",
+          "section_field": "heading"
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 41.0,
+          "w": 86.0,
+          "h": 9.0,
+          "text": "In the synthetic four-week case, the observed incorrect-sorting share changed from 42% to 29% across 1,000 inspected items per week (p. 1).",
+          "color": "#111827",
+          "size": 2.3,
+          "bold": false,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s3-section-1",
+          "section_field": "text"
+        }
+      ],
+      "show_source": false,
+      "speaker_notes": "This slide reports the pilot observation only. The key point is the observed change in incorrect-sorting share in the synthetic four-week case, with the page reference kept on the slide so the audience can trace the statement back to the source PDF. I would stress that this is an observation, not proof of impact: there is no randomized control group, so we cannot say the camera-assisted workflow caused the change. The bar visual simply helps the audience see the direction of the observed change from 42% to 29%; it should not be read as a causal estimate. Because the case is synthetic, the numbers are presented as part of the fictional pilot, not as real campus evidence. This slide should be brief and factual, since the next slide will move from what was observed to what the workflow actually does and why the system still needs staff review.",
+      "composition_preference": null,
+      "revision_instruction": "",
+      "blocks": {
+        "title": {
+          "text": "Pilot observation",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        },
+        "body": {
+          "text": "In the synthetic four-week case, the observed incorrect-sorting share changed from 42% to 29% across 1,000 inspected items per week (p. 1).",
+          "status": "ready",
+          "revision": 5,
+          "error": null
+        },
+        "source_label": {
+          "text": "Source needed",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "s4",
+      "status": "ready",
+      "revision": 13,
+      "visual": null,
+      "design": {
+        "layout": "comparison",
+        "emphasis": "accent",
+        "visual": null,
+        "rationale": "Side-by-side columns keep the two workload burdens equally weighted, while stronger typographic emphasis on the metric lines and tighter vertical spacing lift the comparison higher on the slide.",
+        "arrangement": "columns",
+        "composition": "balanced",
+        "focal_section_id": "s4-section-1"
+      },
+      "preview_design": null,
+      "design_status": "ready",
+      "design_error": null,
+      "sections": [
+        {
+          "id": "s4-section-1",
+          "heading": "Staff review",
+          "text": "Staff review: 18 minutes per day"
+        },
+        {
+          "id": "s4-section-2",
+          "heading": "Camera maintenance",
+          "text": "Camera maintenance: two hours per week"
+        }
+      ],
+      "sections_status": "ready",
+      "sections_error": null,
+      "design_stage": "complete",
+      "quality_issues": [],
+      "quality_attempts": 2,
+      "scene": [
+        {
+          "kind": "rect",
+          "x": 0.0,
+          "y": 0.0,
+          "w": 100.0,
+          "h": 56.25,
+          "text": "",
+          "color": "#FFFCF7",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 4.6,
+          "w": 86.0,
+          "h": 9.0,
+          "text": "Operating trade-offs",
+          "color": "#111827",
+          "size": 3.9,
+          "bold": true,
+          "font": "Georgia",
+          "block_key": "title",
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 7.0,
+          "y": 16.0,
+          "w": 40.0,
+          "h": 0.25,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 17.0,
+          "w": 40.0,
+          "h": 10.0,
+          "text": "18",
+          "color": "#334155",
+          "size": 6.5,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 28.0,
+          "w": 40.0,
+          "h": 5.0,
+          "text": "minutes per day",
+          "color": "#334155",
+          "size": 2.8,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 53.0,
+          "y": 16.0,
+          "w": 40.0,
+          "h": 0.25,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 53.0,
+          "y": 17.0,
+          "w": 40.0,
+          "h": 10.0,
+          "text": "two",
+          "color": "#334155",
+          "size": 6.5,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 53.0,
+          "y": 28.0,
+          "w": 40.0,
+          "h": 5.0,
+          "text": "hours per week",
+          "color": "#334155",
+          "size": 2.8,
+          "bold": true,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 36.0,
+          "w": 40.0,
+          "h": 4.0,
+          "text": "Staff review",
+          "color": "#111827",
+          "size": 2.4,
+          "bold": true,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s4-section-1",
+          "section_field": "heading"
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 41.0,
+          "w": 40.0,
+          "h": 9.0,
+          "text": "Staff review: 18 minutes per day",
+          "color": "#111827",
+          "size": 2.6,
+          "bold": false,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s4-section-1",
+          "section_field": "text"
+        },
+        {
+          "kind": "text",
+          "x": 53.0,
+          "y": 36.0,
+          "w": 40.0,
+          "h": 4.0,
+          "text": "Camera maintenance",
+          "color": "#111827",
+          "size": 2.4,
+          "bold": true,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s4-section-2",
+          "section_field": "heading"
+        },
+        {
+          "kind": "text",
+          "x": 53.0,
+          "y": 41.0,
+          "w": 40.0,
+          "h": 9.0,
+          "text": "Camera maintenance: two hours per week",
+          "color": "#111827",
+          "size": 2.6,
+          "bold": false,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s4-section-2",
+          "section_field": "text"
+        }
+      ],
+      "show_source": false,
+      "speaker_notes": "This slide shows the practical workload of the camera-assisted workflow. The left side highlights the daily staff review time, which matters because the system does not fully automate sorting; uncertain items still need human attention. The right side shows the weekly camera maintenance burden, reminding the audience that the pilot adds technical upkeep as well as review work. Together, these points frame the operating trade-off: the workflow may support sorting, but it also creates ongoing labor and maintenance demands. Because this is a synthetic pilot, the numbers should be treated as case-specific observations, not as general estimates for other campuses. The next slide will bring the argument to a close by stating the overall takeaway carefully and keeping the distinction between observation and proof.",
+      "composition_preference": null,
+      "revision_instruction": "",
+      "blocks": {
+        "title": {
+          "text": "Operating trade-offs",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        },
+        "body": {
+          "text": "Staff review: 18 minutes per day | Camera maintenance: two hours per week",
+          "status": "ready",
+          "revision": 3,
+          "error": null
+        },
+        "source_label": {
+          "text": "Source needed",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        }
+      }
+    },
+    {
+      "id": "s5",
+      "status": "ready",
+      "revision": 18,
+      "visual": null,
+      "design": {
+        "layout": "statement",
+        "emphasis": "accent",
+        "visual": null,
+        "rationale": "Feature statement with the Takeaway as the lead column; keep the Limits block wider and airier for readability. Accent hierarchy and a stricter top alignment make the closing verdict feel measured, not dense.",
+        "arrangement": "columns",
+        "composition": "feature",
+        "focal_section_id": "s5-section-1"
+      },
+      "preview_design": null,
+      "design_status": "ready",
+      "design_error": null,
+      "sections": [
+        {
+          "id": "s5-section-1",
+          "heading": "Takeaway",
+          "text": "The results are promising, not proven."
+        },
+        {
+          "id": "s5-section-2",
+          "heading": "Limits",
+          "text": "Because this synthetic pilot has no randomized control group, the study design cannot establish causation. The safest reading is that the workflow may be useful, but the observed change should be treated as a pilot signal, not proof."
+        }
+      ],
+      "sections_status": "ready",
+      "sections_error": null,
+      "design_stage": "complete",
+      "quality_issues": [],
+      "quality_attempts": 2,
+      "scene": [
+        {
+          "kind": "rect",
+          "x": 0.0,
+          "y": 0.0,
+          "w": 100.0,
+          "h": 56.25,
+          "text": "",
+          "color": "#FFFCF7",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 4.6,
+          "w": 86.0,
+          "h": 9.0,
+          "text": "Conclusion",
+          "color": "#111827",
+          "size": 3.9,
+          "bold": true,
+          "font": "Georgia",
+          "block_key": "title",
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 42.0,
+          "y": 17.0,
+          "w": 0.15,
+          "h": 33.0,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "rect",
+          "x": 7.0,
+          "y": 17.0,
+          "w": 9.0,
+          "h": 0.35,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 19.0,
+          "w": 32.0,
+          "h": 4.382,
+          "text": "Takeaway",
+          "color": "#111827",
+          "size": 3.1,
+          "bold": true,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s5-section-1",
+          "section_field": "heading"
+        },
+        {
+          "kind": "text",
+          "x": 7.0,
+          "y": 25.282,
+          "w": 32.0,
+          "h": 24.718,
+          "text": "The results are promising, not proven.",
+          "color": "#111827",
+          "size": 2.7,
+          "bold": false,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s5-section-1",
+          "section_field": "text"
+        },
+        {
+          "kind": "rect",
+          "x": 45.0,
+          "y": 17.0,
+          "w": 48.0,
+          "h": 0.2,
+          "text": "",
+          "color": "#334155",
+          "size": 2.0,
+          "bold": false,
+          "font": "Arial",
+          "block_key": null,
+          "column": null,
+          "section_id": null,
+          "section_field": null
+        },
+        {
+          "kind": "text",
+          "x": 45.0,
+          "y": 17.8,
+          "w": 48.0,
+          "h": 3.245,
+          "text": "Limits",
+          "color": "#111827",
+          "size": 2.25,
+          "bold": true,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s5-section-2",
+          "section_field": "heading"
+        },
+        {
+          "kind": "text",
+          "x": 45.0,
+          "y": 21.745,
+          "w": 48.0,
+          "h": 28.255,
+          "text": "Because this synthetic pilot has no randomized control group, the study design cannot establish causation. The safest reading is that the workflow may be useful, but the observed change should be treated as a pilot signal, not proof.",
+          "color": "#57534E",
+          "size": 2.3,
+          "bold": false,
+          "font": "Arial",
+          "block_key": "body",
+          "column": null,
+          "section_id": "s5-section-2",
+          "section_field": "text"
+        }
+      ],
+      "show_source": false,
+      "speaker_notes": "This closing slide should leave the audience with a careful, exam-ready conclusion. The first sentence preserves the required wording exactly: the pilot is promising, not proven. The second sentence explains why: the case is synthetic and there is no randomized control group, so we cannot claim the camera-assisted workflow caused any change. That distinction matters because the earlier slides showed an observed shift and a practical workflow, but observation alone is not causal evidence.\n\nThe slide body is intentionally short so it can be read quickly at the end of a four-minute talk. The first section gives the takeaway in one line. The second section adds the methodological limit and frames the result as a pilot signal rather than proof. There are no numbers here because this slide is about interpretation, not reporting new results.\n\nWhen speaking, I would briefly connect back to the previous slides: the workflow can flag uncertain items and create a manageable review process, but the trade-off and the lack of control mean the evidence remains limited. Then I would transition to the Q&A by inviting questions about how a more controlled study could test whether the observed pattern persists without adding too much staff work. That keeps the conclusion measured and consistent with the fictional case study.",
+      "composition_preference": null,
+      "revision_instruction": "",
+      "blocks": {
+        "title": {
+          "text": "Conclusion",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        },
+        "body": {
+          "text": "The results are promising, not proven. Because this synthetic pilot has no randomized control group, the study design cannot establish causation. The safest reading is that the workflow may be useful, but the observed change should be treated as a pilot signal, not proof.",
+          "status": "ready",
+          "revision": 3,
+          "error": null
+        },
+        "source_label": {
+          "text": "Source needed",
+          "status": "ready",
+          "revision": 1,
+          "error": null
+        }
+      }
+    }
+  ]
+}

@@ -214,11 +214,6 @@
 .draft-bars > div > div { display: flex; gap: 5%; align-items: center; }
 .draft-bars i { display: block; height: 2cqw; }
 .draft-bars b { font-weight: 500; white-space: nowrap; }
-@media (min-width: 1200px) {
-  .draft-thumbnails, .draft-inspector { max-height: calc(100dvh - 265px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
-  .draft-thumbnails { padding-right: 6px; }
-  .draft-inspector { padding-right: 4px; }
-}
 
 .draft-thumbnail-row { position: relative; min-width: 0; }
 .draft-reorder { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; pointer-events: none; }
@@ -253,3 +248,33 @@
 .draft-thumbnail-shimmer { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg, transparent 25%, hsl(var(--background)/.48) 50%, transparent 75%); transform: translateX(-100%); animation: thumbnail-shimmer 1.7s ease-in-out infinite; }
 @keyframes thumbnail-shimmer { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .draft-thumbnail-shimmer { animation: none; transform: none; background: hsl(var(--primary)/.1); } }
+
+/* The canvas and controls occupy separate areas beside the spoken explanation. */
+@media (min-width: 901px) {
+  .draft-main, .draft-inspector, .draft-thumbnails { position: sticky; top: 88px; max-height: calc(100dvh - 112px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .draft-main { display: flex; flex-direction: column; height: calc(100dvh - 112px); overflow: hidden; }
+  .draft-slide-stage { flex: 0 0 auto; padding-bottom: 12px; background: hsl(var(--background)); }
+  .draft-slide-controls { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-right: 4px; }
+}
+@media (min-width: 1200px) {
+  .draft-main, .draft-thumbnails { padding-right: 6px; }
+  .draft-inspector { padding-right: 4px; }
+}
+@media (min-width: 901px) and (max-width: 1199px) {
+  .draft-editor-grid { grid-template-columns: 110px minmax(0,1fr) 280px; gap: 16px; }
+  .draft-inspector { grid-column: auto; padding-left: 16px; border-left: 1px solid hsl(var(--border)); }
+}
+@media (max-width: 900px) {
+  .draft-editor-grid { display: flex; flex-direction: column; gap: 24px; }
+  .draft-main, .draft-slide-controls { display: contents; }
+  .draft-thumbnails { order: 1; width: 100%; flex-direction: row; overflow-x: auto; padding-bottom: 8px; }
+  .draft-thumbnail-row { flex: 0 0 140px; }
+  .draft-slide-stage { order: 2; width: 100%; }
+  .draft-inspector { order: 3; width: 100%; border-left: 0; padding-left: 0; }
+  .composition-chooser { order: 4; width: 100%; }
+  .draft-revision { order: 5; width: 100%; }
+  .speaker-notes-reading { max-height: 40dvh; overflow-y: auto; overscroll-behavior: contain; }
+}
+@media (max-width: 640px) {
+  .speaker-notes-panel textarea { max-height: 40dvh; overflow-y: auto; }
+}

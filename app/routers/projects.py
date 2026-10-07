@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app import repository
 from app.db import Project, get_session
 from app.project_schemas import (
-    SectionEditRequest,
+    SpeakerNotesEditRequest, SectionEditRequest,
     SlideRegenerateRequest, SourceVisibilityRequest, ConfirmSourceRequest, CompositionRequest, BlockEditRequest, BuildRequest, OutlineApproveRequest, OutlineGenerateRequest, OutlineRevisionRequest, OutlineSaveRequest,
     ProjectCreateRequest, ProjectResponse, SourceRef,
 )
@@ -135,7 +135,7 @@ def start_draft(project_id: str, payload: BuildRequest, background: BackgroundTa
             get_llm_service()
         except Exception as exc:
             raise HTTPException(status_code=503, detail="AI provider is not configured. Try the key-free draft.") from exc
-    updated = _change_project(session, project, payload.expected_revision, phase="drafting", build_mode=payload.mode)
+    updated = _change_project(session, project, payload.expected_revision, phase="drafting", build_mode=payload.mode, workflow_json={**(project.workflow_json or {}),"stage":"planning"})
     background.add_task(run_live_draft, project_id)
     return updated
 
@@ -208,12 +208,11 @@ def hide_visual(project_id: str, slide_id: str, payload: OutlineRevisionRequest,
     if project.phase == "designing":
         raise HTTPException(status_code=422, detail="Wait for design to finish")
     target["visual"] = None
-    if target.get("design"):
-        target["design"]["visual"] = None
-        if target["design"]["layout"] in {"chart", "process"}:
-            target["design"]["layout"] = "editorial"
+    target.update(design=None,design_status="none",design_error=None,design_stage="none",quality_issues=[],quality_attempts=0)
     target["revision"] += 1
-    return _change_project(session, project, payload.expected_revision, slides_json=slides)
+    workflow={**(project.workflow_json or {}),"stage":"review","coherence_review":None,"deck_review":None,"deck_design":None,"deck_design_signature":None}
+    return _change_project(session, project, payload.expected_revision, slides_json=slides,
+                           workflow_json=workflow,phase="outline_draft" if project.phase=="ready" else project.phase)
 
 
 @router.patch("/{project_id}/draft/slides/{slide_id}/source-visibility", response_model=ProjectResponse)
@@ -280,10 +279,11 @@ def start_design(project_id: str, payload: OutlineApproveRequest, background: Ba
     _require_revision(session, project, payload.expected_revision)
     if project.phase not in {"outline_draft", "ready"} or len(project.slides_json) != 5 or any(row["status"] != "ready" or (row.get("sections_status")=="generating" or any(b["status"] == "generating" for b in row["blocks"].values())) for row in project.slides_json):
         raise HTTPException(status_code=422, detail="Complete all five slide texts before AI design")
-    try:
-        get_llm_service()
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="AI provider is not configured for design") from exc
+    if project.build_mode=="model":
+        try:
+            get_llm_service()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="AI provider is not configured for design") from exc
     rows = deepcopy(project.slides_json)
     outline = deepcopy(project.outline_json)
     for row in rows:
@@ -291,7 +291,7 @@ def start_design(project_id: str, payload: OutlineApproveRequest, background: Ba
         item = next(item for item in outline if item["id"] == row["id"])
         item["title"] = row["blocks"]["title"]["text"]
         item["key_message"] = row["blocks"]["body"]["text"]
-    updated = _change_project(session, project, payload.expected_revision, phase="designing", theme=payload.theme, slides_json=rows, outline_json=outline)
+    updated = _change_project(session, project, payload.expected_revision, phase="designing", theme=payload.theme, slides_json=rows, outline_json=outline, workflow_json={**(project.workflow_json or {}),"stage":"design_planning","deck_design":None})
     background.add_task(run_design, project_id)
     return updated
 
@@ -500,6 +500,14 @@ def retry_slide(project_id: str, slide_id: str, payload: OutlineRevisionRequest,
     return updated
 
 
+def _require_current_design_agreement(response: ProjectResponse) -> None:
+    # Legacy modular and one-shot exports never entered the staged AI design gate.
+    if response.build_mode=="model" and any(slide.design for slide in response.slides):
+        review=response.workflow.coherence_review
+        if not review or review.get("mode")!="model" or not review.get("approved"):
+            raise HTTPException(status_code=422,detail="Review slide content and speaker notes before exporting final AI designs")
+
+
 @router.get("/{project_id}/export.pptx")
 def export_project_pptx(project_id: str, session: Session = Depends(get_session)) -> Response:
     project = _editable_project(session, project_id)
@@ -509,6 +517,7 @@ def export_project_pptx(project_id: str, session: Session = Depends(get_session)
     if any(block.status == "generating" for slide in response.slides
            for block in (slide.blocks.title, slide.blocks.body, slide.blocks.source_label)):
         raise HTTPException(status_code=422, detail="Wait for block regeneration to finish before exporting")
+    _require_current_design_agreement(response)
     try:
         data = render_project_pptx(response)
     except ValueError as exc:
@@ -530,6 +539,7 @@ def export_project_pdf(project_id: str, session: Session = Depends(get_session))
     if any(block.status == "generating" for slide in response.slides
            for block in (slide.blocks.title, slide.blocks.body, slide.blocks.source_label)):
         raise HTTPException(status_code=422, detail="Wait for block regeneration to finish before exporting")
+    _require_current_design_agreement(response)
     try:
         data = render_project_pdf(response)
     except ValueError as exc:
@@ -583,3 +593,116 @@ def prepare_all_sections(project_id: str, payload: OutlineRevisionRequest, backg
         row.update(sections_status='generating',sections_error=None)
         background.add_task(run_sections,project_id,row['id'],row['blocks']['body']['revision'])
     return _change_project(session,project,payload.expected_revision,slides_json=rows)
+
+
+@router.patch("/{project_id}/slides/{slide_id}/speaker-notes", response_model=ProjectResponse)
+def edit_speaker_notes(project_id: str, slide_id: str, payload: SpeakerNotesEditRequest,
+                       session: Session = Depends(get_session)) -> ProjectResponse:
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    slides = deepcopy(project.slides_json)
+    target = next((row for row in slides if row["id"] == slide_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    if target["status"] != "ready" or target["blocks"]["body"]["status"] == "generating":
+        raise HTTPException(status_code=422, detail="Wait for slide content before editing speaker notes")
+    notes = payload.speaker_notes.strip()
+    if notes == target.get("speaker_notes", ""):
+        return repository.project_response(session, project)
+    target.update(speaker_notes=notes, revision=target["revision"] + 1,
+                  design=None, design_status="none", design_error=None, design_stage="none", quality_issues=[])
+    from app.services.presentation_workflow import state
+    workflow = state(project)
+    workflow.update(stage="review", deck_design=None, deck_design_signature=None, story_analysis=None, deck_review=None)
+    return _change_project(session, project, payload.expected_revision, slides_json=slides,
+                           workflow_json=workflow, phase="outline_draft" if project.phase == "ready" else project.phase)
+
+
+@router.get('/{project_id}/draft/slides/{slide_id}/compositions')
+def composition_previews(project_id: str, slide_id: str, session: Session = Depends(get_session)):
+    from app.project_schemas import OutlineItem, ProjectSlide
+    from app.services.composition_choices import persisted_choices
+    project = _editable_project(session, project_id)
+    slide = next((r for r in project.slides_json if r['id'] == slide_id), None)
+    item = next((r for r in project.outline_json if r['id'] == slide_id), None)
+    if not slide or not item or slide['status'] != 'ready':
+        raise HTTPException(status_code=422, detail='Complete this slide before comparing compositions')
+    return persisted_choices(project, OutlineItem.model_validate(item), ProjectSlide.model_validate(slide))
+
+
+@router.post('/{project_id}/draft/slides/{slide_id}/compositions/generate', response_model=ProjectResponse, status_code=202)
+def start_composition_variants(project_id: str, slide_id: str, payload: OutlineRevisionRequest,
+                               background: BackgroundTasks, session: Session = Depends(get_session)):
+    from app.services.composition_choices import variants_current, content_fingerprint, reserve_variants, run_composition_variants
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if project.phase not in {'outline_draft', 'ready', 'drafting'}:
+        raise HTTPException(status_code=422, detail='Wait for final design before generating alternatives')
+    rows = deepcopy(project.slides_json)
+    slide = next((r for r in rows if r['id'] == slide_id), None)
+    item = next((r for r in project.outline_json if r['id'] == slide_id), None)
+    if not slide or not item or slide['status'] != 'ready' or any(b['status'] == 'generating' for b in slide['blocks'].values()):
+        raise HTTPException(status_code=422, detail='Complete this slide before generating alternatives')
+    if variants_current(slide, item) or (slide.get('variants_status') == 'generating' and slide.get('variants_fingerprint') == content_fingerprint(slide, item)):
+        return repository.project_response(session, project)
+    if project.build_mode == 'model':
+        try:
+            get_llm_service()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail='AI provider is not configured') from exc
+    reserve_variants(slide, item)
+    updated = _change_project(session, project, payload.expected_revision, slides_json=rows)
+    background.add_task(run_composition_variants, project_id, slide_id)
+    return updated
+
+
+from pydantic import BaseModel, ConfigDict
+from typing import Literal
+class CompositionChoiceRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    expected_revision: int
+    variant_id: Literal['selected', 'alternative', 'out_of_box'] | None = None
+    # Compatibility for old clients. New clients select persisted variant IDs.
+    composition: Literal['balanced', 'feature', 'bands', 'poster'] | None = None
+
+
+@router.patch('/{project_id}/draft/slides/{slide_id}/composition-choice', response_model=ProjectResponse)
+def select_composition(project_id: str, slide_id: str, payload: CompositionChoiceRequest, session: Session = Depends(get_session)):
+    from app.services.composition_choices import variants_current
+    project = _editable_project(session, project_id)
+    _require_revision(session, project, payload.expected_revision)
+    if project.phase not in {'outline_draft', 'ready'}:
+        raise HTTPException(status_code=422, detail='Wait for generation before choosing a composition')
+    rows = deepcopy(project.slides_json)
+    slide = next((r for r in rows if r['id'] == slide_id), None)
+    item = next((r for r in project.outline_json if r['id'] == slide_id), None)
+    if not slide or slide['status'] != 'ready' or slide.get('sections_status') == 'generating' or any(b['status'] == 'generating' for b in slide['blocks'].values()):
+        raise HTTPException(status_code=422, detail='Finish editing this slide before choosing a composition')
+    if payload.variant_id:
+        if not item or not variants_current(slide, item):
+            raise HTTPException(status_code=422, detail='Generate current alternatives before choosing one')
+        if slide.get('selected_variant_id') == payload.variant_id:
+            return repository.project_response(session, project)
+        slide.update(selected_variant_id=payload.variant_id, composition_preference=None)
+    elif payload.composition:
+        if item and variants_current(slide,item):
+            variant=next((v for v in slide['composition_variants'] if v['design']['composition']==payload.composition),None)
+            if variant is None:
+                raise HTTPException(status_code=422, detail='Choose one of the three current alternatives')
+            if slide.get('selected_variant_id')==variant['id']:
+                return repository.project_response(session, project)
+            slide.update(composition_preference=None,selected_variant_id=variant['id'])
+        else:
+            if project.build_mode=='model':
+                raise HTTPException(status_code=422, detail='Generate current alternatives before choosing one')
+            if slide.get('composition_preference') == payload.composition and not slide.get('selected_variant_id'):
+                return repository.project_response(session, project)
+            slide.update(composition_preference=payload.composition, selected_variant_id=None)
+    else:
+        raise HTTPException(status_code=422, detail='Choose an existing variant')
+    slide.update(design=None, design_status='none', design_error=None,
+                 design_stage='none', quality_issues=[], quality_attempts=0, revision=slide['revision'] + 1)
+    workflow = deepcopy(project.workflow_json or {})
+    workflow.update(stage='review', deck_design=None, deck_design_signature=None, deck_review=None)
+    return _change_project(session, project, payload.expected_revision, slides_json=rows,
+                           workflow_json=workflow, phase='outline_draft')

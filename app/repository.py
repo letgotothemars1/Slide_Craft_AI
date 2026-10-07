@@ -190,6 +190,8 @@ def get_project(session: Session, project_id: str) -> Project | None:
 
 def project_response(session: Session, project: Project) -> ProjectResponse:
     source = get_document(session, project.source_document_id) if project.source_document_id else None
+    from app.services.coherence_service import cached_coherence
+    workflow = {**(project.workflow_json or {}), 'coherence_review': cached_coherence(project)}
     response = ProjectResponse(
         id=project.id,
         language=project.language,
@@ -201,6 +203,7 @@ def project_response(session: Session, project: Project) -> ProjectResponse:
         source_filename=source.filename if source else None,
         theme=project.theme,
         build_mode=project.build_mode,
+        workflow=workflow,
         outline=project.outline_json,
         slides=project.slides_json,
     )
@@ -210,7 +213,23 @@ def project_response(session: Session, project: Project) -> ProjectResponse:
         item = next((row for row in response.outline if row.id == slide.id), None)
         if slide.design and item:
             slide.design = preserve_reviewed_structure(slide.design,item.layout_type,slide.visual)
-        slide.scene = build_scene(slide,response.theme,item.order if item else 1)
+        from app.services.composition_choices import variants_current, content_fingerprint
+        if item and slide.variants_fingerprint and slide.variants_fingerprint != content_fingerprint(slide, item):
+            slide.composition_variants = []
+            slide.selected_variant_id = None
+            slide.variants_status = 'none'
+            slide.variants_error = None
+        if not slide.design and item and variants_current(slide, item):
+            selected = next((v for v in slide.composition_variants if v.id == slide.selected_variant_id), slide.composition_variants[0])
+            slide.preview_design = selected.design.model_copy(deep=True)
+        if not slide.design and not slide.preview_design and slide.composition_preference and item:
+            from app.project_schemas import DesignPlan
+            from app.services.design_constraints import allowed_layouts
+            slide.preview_design=DesignPlan(layout=allowed_layouts(item.layout_type,slide.visual)[0], emphasis='quiet',
+                composition=slide.composition_preference, focal_section_id=slide.sections[0].id if slide.composition_preference=='feature' and slide.sections else '',
+                visual=slide.visual,rationale='Selected content composition preview.')
+        scene_slide=slide.model_copy(update={'design':slide.preview_design}) if slide.preview_design and not slide.design else slide
+        slide.scene = build_scene(scene_slide,response.theme,item.order if item else 1)
     return response
 
 
