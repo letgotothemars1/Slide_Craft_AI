@@ -35,8 +35,8 @@ export default function GeneratePage() {
         setAttachedDocumentId(document_id);
         setAttachedDocumentName(file.name);
         toast.success(t("gen.ok.attached"));
-      } catch (err: any) {
-        toast.error(err?.message || t("gen.error.upload"));
+      } catch (err: unknown) {
+        toast.error((err instanceof Error && err.message) || t("gen.error.upload"));
       } finally {
         setUploadingDocument(false);
       }
@@ -74,8 +74,8 @@ export default function GeneratePage() {
           status: "queued",
         });
         navigate(`/jobs/${jobId}`);
-      } catch (err: any) {
-        toast.error(err.message || t("gen.error.generate"));
+      } catch (err: unknown) {
+        toast.error((err instanceof Error && err.message) || t("gen.error.generate"));
       } finally {
         setLoading(false);
       }

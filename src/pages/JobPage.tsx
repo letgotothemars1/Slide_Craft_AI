@@ -49,8 +49,8 @@ export default function JobPage() {
             track("job_done", { job_id: jobId, status: status.status });
           }
         }
-      } catch (err: any) {
-        setError(err.message || t("job.statusError"));
+      } catch (err: unknown) {
+        setError((err instanceof Error && err.message) || t("job.statusError"));
         if (intervalRef.current) clearInterval(intervalRef.current);
       }
     };

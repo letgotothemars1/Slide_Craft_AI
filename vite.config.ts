@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     allowedHosts: true,
     proxy: {
+      "/api": "http://127.0.0.1:8000",
       "/health": "http://127.0.0.1:8000",
       "/auth/login": "http://127.0.0.1:8000",
       "/auth/signup": "http://127.0.0.1:8000",

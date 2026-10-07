@@ -24,7 +24,7 @@ def run_slide_revision(project_id, slide_id, tokens):
         original = deepcopy(saved)
         item = next(OutlineItem.model_validate(row) for row in project.outline_json if row['id'] == slide_id)
         prompt_item = item.model_copy(update={'evidence_refs': item.evidence_refs or item.suggested_refs})
-        titles, visuals = [], []
+        titles, visuals, notes = [], [], []
         last_save = 0.0
 
         def partial(text):
@@ -45,18 +45,21 @@ def run_slide_revision(project_id, slide_id, tokens):
             _mutate(project_id, update)
 
         try:
-            context = '\n'.join(f"{key}: {block['text']}" for key, block in saved['blocks'].items())
-            body = generate_slide_body(project, prompt_item, accepted_context=context,
-                                       instruction=saved['revision_instruction'], on_title=titles.append,
-                                       on_partial=partial, on_visual=lambda raw: visuals.append(validated_visual(raw, item)))
+            context = '\n'.join(f"{key}: {block['text']}" for key, block in saved['blocks'].items()) + '\nSpeaker notes: ' + saved.get('speaker_notes', '')
+            from app.services.presentation_workflow import operation
+            with operation(project_id,'revise_slide',slide_id,model=True):
+                body = generate_slide_body(project, prompt_item, accepted_context=context,
+                                           instruction=saved['revision_instruction'], on_title=titles.append,
+                                           on_partial=partial, on_notes=notes.append, on_visual=lambda raw: visuals.append(validated_visual(raw, item)))
             if not titles:
                 raise ValueError('Missing revised title')
             result = {'title': titles[0], 'body': body}
             error = None
-        except Exception:
+        except Exception as exc:
+            from app.services.presentation_workflow import BudgetExhausted
             logger.exception('slide.revision.failed project=%s slide=%s', project_id, slide_id)
             result = {}
-            error = 'Slide revision failed. Your previous content is kept. Try again.'
+            error = 'Request budget reached. Your previous content is kept.' if isinstance(exc,BudgetExhausted) else 'Slide revision failed. Your previous content is kept. Try again.'
 
     def finish(current):
         slides = deepcopy(current.slides_json)
@@ -71,6 +74,7 @@ def run_slide_revision(project_id, slide_id, tokens):
             if not error:
                 target.update(design=None,design_status='none',design_error=None,sections=[],sections_status='none',design_stage='none',quality_issues=[])
             if key == 'body' and not error:
+                target['speaker_notes'] = notes[0] if notes else ''
                 target['visual'] = visuals[0].model_dump() if visuals and visuals[0] else None
             changed = True
         if not changed:

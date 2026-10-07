@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import ThemePicker from "@/components/ThemePicker";
 import { useLanguage } from "@/context/LanguageContext";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,7 @@ export default function NewProjectPage() {
   const [initialDraft] = useState(restoreIntakeDraft);
   const [assignment, setAssignment] = useState(initialDraft.assignment);
   const [contextPack, setContextPack] = useState(initialDraft.contextPack);
-  const [theme, setTheme] = useState<ProjectCreate["theme"]>(initialDraft.theme);
+  const theme: ProjectCreate["theme"] = "clean_editorial";
   const [sourceId, setSourceId] = useState<string | null>(initialDraft.sourceId);
   const [filename, setFilename] = useState<string | null>(initialDraft.filename);
   const [uploading, setUploading] = useState(false);
@@ -45,7 +44,7 @@ export default function NewProjectPage() {
   }, [assignment, contextPack, theme, sourceId, filename]);
 
   const startFresh = () => {
-    setAssignment(''); setContextPack(''); setTheme(emptyIntakeDraft.theme);
+    setAssignment(''); setContextPack('');
     setSourceId(null); setFilename(null); createdProject.current=null;
     setError(''); setDemoError('');
     setNotice(tr('Started a blank project. Previously created projects are kept.', 'Начат пустой проект. Созданные ранее проекты сохранены.'));
@@ -91,10 +90,12 @@ export default function NewProjectPage() {
     setNotice("");
     try {
       const [materials, pdf] = await Promise.all([getDemoMaterials(), getDemoPdf()]);
+      const source=await uploadDocument(new File([pdf], materials.source_filename, {type:"application/pdf"}));
       setAssignment(materials.assignment_text);
       setContextPack(materials.context_pack_text);
-      const attached = await attachPdf(new File([pdf], materials.source_filename, { type: "application/pdf" }));
-      if (attached) setNotice("Synthetic example loaded with its two-page PDF. Review the inputs, then choose how to generate your draft.");
+      setSourceId(source.document_id);
+      setFilename(materials.source_filename);
+      setNotice("Synthetic example loaded with its two-page PDF. Review the inputs, then choose how to generate your draft.");
     } catch (reason) {
       setDemoError(reason instanceof TypeError ? t("project.demo.unavailable") : reason instanceof Error ? reason.message : t("project.demo.unavailable"));
     } finally {
@@ -152,14 +153,14 @@ export default function NewProjectPage() {
           <p className="font-semibold">Try the full workflow without API keys</p>
           <p className="mt-1 text-sm text-muted-foreground">Load a fictional campus case, including a two-page PDF. All figures are synthetic.</p>
           <Button type="button" variant="outline" className="mt-3" disabled={loadingDemo || uploading || saving} onClick={() => void loadDemo()}>{loadingDemo ? "Loading example…" : "Load synthetic demo example"}</Button>
-          <a className="ml-4 inline-block text-sm underline" href={`${(import.meta.env.VITE_API_BASE_URL as string) || ""}/projects/demo/source.pdf`} download>Download the sample PDF</a>
+          <a className="ml-4 inline-block text-sm underline" href={`${(import.meta.env.VITE_API_BASE_URL as string) || ""}/api/projects/demo/source.pdf`} download>Download the sample PDF</a>
           {demoError && <p role="alert" className="mt-3 text-sm text-destructive">{demoError}</p>}
         </div>
 
         <form onSubmit={generate} className="mt-8">
-          <fieldset disabled={saving} className="space-y-7">
+          <fieldset disabled={saving || loadingDemo} className="space-y-7">
           <legend className="sr-only">{tr('Presentation inputs', 'Материалы презентации')}</legend>
-          <p role={locallySaved === false ? 'status' : undefined} className="text-sm text-muted-foreground">{locallySaved === true ? tr('Inputs are saved automatically in this browser, including your theme and uploaded PDF reference.', 'Введённые данные, тема и ссылка на загруженный PDF автоматически сохраняются в этом браузере.') : locallySaved === false ? tr('Browser storage is unavailable. Keep this page open to retain your inputs.', 'Хранилище браузера недоступно. Не закрывайте страницу, чтобы сохранить введённые данные.') : ''}</p>
+          <p role={locallySaved === false ? 'status' : undefined} className="text-sm text-muted-foreground">{locallySaved === true ? tr('Your inputs and uploaded PDF reference are saved automatically in this browser.', 'Введённые данные и ссылка на загруженный PDF автоматически сохраняются в этом браузере.') : locallySaved === false ? tr('Browser storage is unavailable. Keep this page open to retain your inputs.', 'Хранилище браузера недоступно. Не закрывайте страницу, чтобы сохранить введённые данные.') : ''}</p>
           <section className="rounded-xl border bg-card p-5 sm:p-6">
             <h2 className="text-lg font-semibold">1. Assignment</h2>
             <p className="mt-1 text-sm text-muted-foreground">Paste the brief and any requirements that slides must follow. This is a constraint, not evidence.</p>
@@ -186,16 +187,10 @@ export default function NewProjectPage() {
             {sourceId && <Button type="button" size="sm" variant="ghost" className="mt-2" disabled={uploading} onClick={() => {setSourceId(null); setFilename(null);}}>{tr('Remove PDF', 'Убрать PDF')}</Button>}
           </section>
 
-          <section className="rounded-xl border bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-semibold">{t("project.theme.intake")}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t("project.theme.hint")}</p>
-            <div className="mt-4"><ThemePicker value={theme} onChange={setTheme} disabled={saving} /></div>
-          </section>
-
           {notice && <p role="status" className="text-sm text-success-strong">{notice}</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">{tr('AI writes slide content progressively. The key-free draft uses your existing inputs without a model call.', 'AI постепенно создаёт содержание слайдов. Черновик без API использует введённые материалы без вызова модели.')}</p>
+            <p className="text-sm text-muted-foreground">{tr('First review a neutral content draft. Choose the visual style after approving the content. The key-free draft makes no model calls.', 'Сначала проверьте нейтральный черновик содержания. Стиль выберете после согласования. Черновик без API не обращается к модели.')}</p>
             <div className="flex flex-wrap gap-3">
               <Button type="submit" name="mode" value="model" onClick={() => {requestedMode.current = "model";}} size="lg" disabled={saving || uploading || loadingDemo}>{saving ? tr('Starting generation…', 'Запускаем генерацию…') : tr('Generate with AI', 'Создать с AI')}</Button>
               <Button type="submit" name="mode" value="template" onClick={() => {requestedMode.current = "template";}} variant="outline" size="lg" disabled={saving || uploading || loadingDemo}>{tr('Generate without API', 'Создать без API')}</Button>
